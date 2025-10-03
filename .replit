@@ -1,0 +1,65 @@
+modules = ["nodejs-20", "web", "postgresql-16", "python-3.11"]
+run = "npm run dev"
+hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
+
+[nix]
+channel = "stable-24_05"
+packages = ["imagemagick", "lsof", "php", "sqlite-interactive", "twelf", "unzip"]
+
+[deployment]
+deploymentTarget = "autoscale"
+build = ["sh", "-c", "npm run build"]
+run = ["sh", "-c", "npm run start"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 36031
+externalPort = 3000
+
+[[ports]]
+localPort = 38227
+externalPort = 3003
+
+[[ports]]
+localPort = 43751
+externalPort = 4200
+
+[[ports]]
+localPort = 43857
+externalPort = 3002
+
+[[ports]]
+localPort = 46661
+externalPort = 3001
+
+[agent]
+integrations = ["javascript_websocket:1.0.0"]
+expertMode = true

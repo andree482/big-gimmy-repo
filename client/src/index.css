@@ -1,0 +1,295 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ottimizzazioni scroll globali per eliminare lag */
+* {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+body {
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Ottimizzazioni per elementi con transizioni */
+.navbar-transition,
+.smooth-scroll {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform, background-color, backdrop-filter, padding;
+  transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Transizione specifica per la navbar quando cambia dimensione */
+.navbar-transition {
+  transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+}
+
+.logo-transparent {
+  object-fit: contain;
+  mix-blend-mode: multiply;
+  filter: brightness(1.1) contrast(1.1) drop-shadow(0 0 0 transparent);
+  background-color: transparent !important;
+  background: none !important;
+  -webkit-background-clip: content-box;
+  background-clip: content-box;
+  isolation: isolate;
+}
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 13%;
+  --muted: 240 4.8% 95.9%;
+  --muted-foreground: 25 5.3% 44.7%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 13%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 13%;
+  --border: 0 0% 89%;
+  --input: 0 0% 89%;
+  --primary: 50 100% 50%;
+  --primary-foreground: 0 0% 13%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 13%;
+  --accent: 0 0% 96%;
+  --accent-foreground: 0 0% 13%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 50 100% 50%;
+  --radius: 0.5rem;
+  
+  /* Custom BigGimmy colors */
+  --primary-yellow: 50 100% 50%;
+  --primary-black: 0 0% 13%;
+  --secondary-gray: 0 0% 96%;
+  --secondary-darkgray: 0 0% 20%;
+}
+
+.dark {
+  --background: 0 0% 13%;
+  --foreground: 0 0% 98%;
+  --muted: 0 0% 20%;
+  --muted-foreground: 240 5% 64.9%;
+  --popover: 0 0% 13%;
+  --popover-foreground: 0 0% 98%;
+  --card: 0 0% 13%;
+  --card-foreground: 0 0% 98%;
+  --border: 0 0% 20%;
+  --input: 0 0% 20%;
+  --primary: 50 100% 50%;
+  --primary-foreground: 0 0% 13%;
+  --secondary: 0 0% 20%;
+  --secondary-foreground: 0 0% 98%;
+  --accent: 0 0% 20%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 50 100% 50%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    font-family: 'Open Sans', sans-serif;
+    @apply bg-background text-foreground;
+    /* Optimizations for better performance */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Montserrat', sans-serif;
+    @apply font-bold;
+  }
+
+  /* Performance optimizations */
+  * {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    will-change: auto;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Faster image rendering */
+  img {
+    image-rendering: -webkit-optimize-contrast;
+    transform: translateZ(0);
+  }
+
+  /* Optimize transitions */
+  * {
+    transition-timing-function: ease-out;
+  }
+
+  /* Reduce motion for accessibility and performance */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+.hero-section {
+  background-color: #212121;
+  background-image: linear-gradient(135deg, #212121 0%, #333333 100%);
+  background-size: cover;
+  background-position: center;
+}
+
+.container {
+  @apply mx-auto px-4;
+}
+
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+/* Ottimizzazione responsive immagini */
+.img-responsive {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Lazy loading per images */
+img.lazy-load {
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+
+img.lazy-load.loaded {
+  opacity: 1;
+}
+
+/* Stili per immagini mobile-friendly */
+.img-mobile-friendly {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+@media (max-width: 640px) {
+  .img-mobile-friendly {
+    max-height: 300px;
+  }
+}
+
+/* Utility per nascondere elementi su mobile */
+.hide-on-mobile {
+  @apply hidden sm:block;
+}
+
+/* Utility per nascondere elementi su desktop */
+.hide-on-desktop {
+  @apply block sm:hidden;
+}
+
+/* Stili personalizzati per le tab */
+[role="tablist"] button[role="tab"] {
+  color: #9ca3af !important; /* text-gray-400 per tab non attive */
+  background-color: #f3f4f6 !important; /* bg-gray-100 per tab non attive */
+  opacity: 0.7 !important;
+}
+
+[role="tablist"] button[role="tab"][data-state="active"] {
+  color: #1f2937 !important; /* text-gray-800 per tab attiva */
+  background-color: #ffffff !important; /* bg-white per tab attiva */
+  opacity: 1 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Griglia 2x2 per sezioni prodotto su mobile */
+.product-sections-grid {
+  @apply grid grid-cols-2 gap-3 md:gap-6;
+}
+
+.product-section-card {
+  @apply bg-white rounded-lg border border-gray-200 p-3 md:p-6 shadow-sm min-h-[200px];
+  display: flex;
+  flex-direction: column;
+}
+
+.product-section-title {
+  @apply text-sm md:text-xl font-bold text-gray-900 mb-2 md:mb-4;
+}
+
+.product-section-content {
+  @apply text-xs md:text-base text-gray-700 leading-relaxed flex-1;
+  min-height: 120px;
+}
+
+/* Uniforma tutte le sezioni prodotto su mobile */
+@media (max-width: 768px) {
+  .product-section-card {
+    padding: 12px !important;
+    min-height: 180px;
+  }
+  
+  .product-section-title {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    margin-bottom: 8px !important;
+    line-height: 1.2;
+  }
+  
+  .product-section-content {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+  
+  /* Specifici per modalità d'uso e ingredienti */
+  .product-section-content p {
+    margin-bottom: 8px !important;
+  }
+  
+  .product-section-content .bg-green-50,
+  .product-section-content .bg-blue-50 {
+    padding: 8px !important;
+    margin-top: auto;
+    border-radius: 6px !important;
+    border-left-width: 3px !important;
+  }
+}
+
+/* Ottimizzazioni per tabelle nutrizionali su mobile */
+.nutrition-table-mobile {
+  @apply text-xs;
+}
+
+.nutrition-table-mobile th,
+.nutrition-table-mobile td {
+  @apply px-2 py-1;
+}
+
+/* Responsive per ingredienti lunghi */
+.ingredients-text {
+  @apply break-words hyphens-auto;
+}
