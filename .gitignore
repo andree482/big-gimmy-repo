@@ -3,7 +3,11 @@ dist
 .DS_Store
 server/public
 vite.config.ts.*
+<<<<<<< HEAD
 *.tar.gz
 .vercel
 .env
 *.log
+=======
+*.tar.gz
+>>>>>>> parent of 8b343aa (aggiorna per il deploy)
