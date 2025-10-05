@@ -1,11 +1,6 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
-
-// Configurazione WebSocket per connessione serverless
-// Questo adapter funziona sia con Neon che con Supabase PostgreSQL
-neonConfig.webSocketConstructor = ws;
 
 // Verifica che la connection string sia configurata
 if (!process.env.DATABASE_URL) {
@@ -14,11 +9,12 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Crea pool di connessioni PostgreSQL
-// La connection string deve essere nel formato:
-// postgresql://postgres.[ref]:[PASSWORD]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres
+// Crea pool di connessioni PostgreSQL con SSL per Supabase
 export const pool = new Pool({ 
-  connectionString: process.env.DATABASE_URL 
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 // Inizializza Drizzle ORM con lo schema
