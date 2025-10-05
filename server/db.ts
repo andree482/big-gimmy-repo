@@ -18,9 +18,18 @@ export const pool = new Pool({
   }
 });
 
+// Test della connessione
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('❌ Database connection error:', err);
+  } else {
+    console.log('✅ Database connection test successful');
+  }
+});
+
 // Inizializza Drizzle ORM con lo schema
 export const db = drizzle(pool, { schema });
 
 // Log di conferma (utile per debug)
 console.log('✅ Database connesso via Drizzle ORM');
-console.log(`📊 Connection: ${process.env.DATABASE_URL ? 'Supabase PostgreSQL' : 'Not configured'}`);
+console.log(`📊 Connection string: ${process.env.DATABASE_URL?.substring(0, 25)}...`);
