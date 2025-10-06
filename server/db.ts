@@ -1,5 +1,6 @@
 import pkg from 'pg';
 const { Pool } = pkg;
+import { createClient } from '@supabase/supabase-js';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '@shared/schema';
 /*
