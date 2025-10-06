@@ -1,35 +1,37 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 import { drizzle } from 'drizzle-orm/node-postgres';
-import * as schema from "@shared/schema";
+import * as schema from '@shared/schema';
+import dotenv from 'dotenv';
 
-// Verifica che la connection string sia configurata
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to configure Supabase connection string on Render?"
-  );
+dotenv.config();
+
+// ✅ Prende direttamente la stringa dal file .env
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error('DATABASE_URL is not defined in environment variables');
 }
 
-// Crea pool di connessioni PostgreSQL con SSL per Supabase
-export const pool = new Pool({ 
-  connectionString: process.env.DATABASE_URL,
+// ✅ Crea un pool PostgreSQL
+export const pool = new Pool({
+  connectionString,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  connectionTimeoutMillis: 5000,
+  max: 20,
+  idleTimeoutMillis: 30000
 });
 
-// Test della connessione
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('❌ Database connection error:', err);
-  } else {
-    console.log('✅ Database connection test successful');
-  }
+// ✅ Gestisce errori del pool
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
 });
 
-// Inizializza Drizzle ORM con lo schema
+// ✅ Inizializza Drizzle ORM
 export const db = drizzle(pool, { schema });
 
-// Log di conferma (utile per debug)
-console.log('✅ Database connesso via Drizzle ORM');
-console.log(`📊 Connection string: ${process.env.DATABASE_URL?.substring(0, 25)}...`);
+console.log('✅ Database configuration loaded');
+console.log(`📊 Connected to: ${connectionString.split('@')[1]}`);
