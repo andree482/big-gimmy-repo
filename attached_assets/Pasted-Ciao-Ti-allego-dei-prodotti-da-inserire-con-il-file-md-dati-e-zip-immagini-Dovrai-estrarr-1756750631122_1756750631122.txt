@@ -1,0 +1,23 @@
+Ciao!
+Ti allego dei prodotti da inserire, con il file .md (dati) e .zip (immagini).
+Dovrai estrarre il file .zip e collocare le correttamente immagini ai prodotti nuovi che inserisci. Come fonte, leggi tutto il file .md (batch_()_inserimento_prodotti.md) che ti passo.
+
+**IMPORTANTISSIMO**: Lavorerai SOLO dal database però ovviamente devi far si che poi i prodotti si vedano nel frontend come tutti gli altri.
+Ti chiedo di seguire esattamente i dettagli del file ed È fondamentale che i prezzi siano esatti e le immagini giuste. Assicurati anche che ad OGNI prodotto si vedano anche correttamente queste cose, perché sono quelle che di solito sbagli:
+
+- immagine interna del prodotto, associata alla sua quantità e prezzo sempre scritti nel file .md
+- la sezione "scegli la tua variante" che non viene visualizzzata correttamente e viene visualizzata vuota
+- nel database non raggruppi le varianti in un unico prodotto, quindi è quello che ti fa sbagliare tutto, e di conseguenza nel frontend vengono tutti prodotti divisi!
+- il nome principale del prodotto che include: gusti, varianti, quantità etc... Deve includere SOLO il nome! (es. Hard WPH BV104 Cioccolato Nocciola 750g -> Hard WPH BV104)
+- i valori nutrizionali non vengono visualizzati e si visualizza il messaggio "Valori nutrizionali non disponibili per questo prodotto: (nome_prodotto)
+- se esistono i valori per 100g, allora si mettono nel frontend, sennò SOLO per la quantità!
+
+Per i valori nutrizionali, se esistono i valori per 100g, allora si mettono nel frontend, sennò SOLO per la quantità!
+
+Successivamente, scrivi correttamente le quantità giuste dentro i campi corretti, come anche i prezzi associati a quest'ultimi. Assicurati anche sempre i prezzi delle copertine, che devono avere il prezzo più basso della variante del prodotto, come in tutti gli altri.
+
+Inoltre, devi far si che le immagini siano collegate correttamente ai prodotti, sia nella copertina che nell'interno del prodotto, prendile da blocco_batch_().zip. Per i valori nutrizionali e ingredienti, ti ho già scritto testualmente ciò che inserirai nella colonna "features" in JSON. Mi raccomando, segui tutto alla lettera. 
+
+i prodotti in questo caso in totale da inserire sono ().
+
+Grazie mille e forza! 🔥

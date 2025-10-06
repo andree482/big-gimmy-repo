@@ -1,0 +1,33 @@
+##  Prompt Urgente – Correzioni Visive, Pulizia Database e Auth Flow 🛠️
+Ti chiedo la **massima attenzione e precisione** per eseguire problemi critici.
+
+---
+###  1. Correzione Immagine di Copertina🖼️
+Dobbiamo sistemare l'immagine di anteprima (copertina) per il seguente prodotto:
+
+#### **Complex Carbs Advanced Ratio 1:0.8**
+- **Problema:** L'immagine di copertina (quella visibile nella pagina delle categorie) **non è stata impostata correttamente** (risulta assente, errata, o è un placeholder).
+- **Azione richiesta:** Sostituisci l'immagine di copertina attuale con **la foto che ti allego in questo messaggio**.
+- **Controllo Visivo:** Assicurati che l'immagine risulti **perfettamente centrata**, ben proporzionata e che rispetti lo standard visivo degli altri prodotti, evitando spostamenti o tagli.
+
+---
+###  2. Eliminazione definitiva prodotti dal sistema🗑️
+Procedi con la **rimozione completa e inequivocabile** dei seguenti due prodotti.
+
+**L'eliminazione deve avvenire su tutte le piattaforme**:
+- **Database (PostgreSQL)**: rimuovi i record corrispondenti.
+- **Frontend**: assicurati che non siano più richiamabili, visibili in categorie, o trovabili tramite ricerca.
+
+#### **Prodotti da eliminare:**
+- **Creatine Monohydrate**
+- **Magnesium Chelated**
+
+---
+###  3. Funzionalità Login: Correzione Redirect dopo Autenticazione🔒
+C'è un'anomalia nel comportamento della pagina di login (`/login`) dopo che l'utente inserisce le credenziali.
+
+- **Problema attuale:** Dopo l'inserimento delle credenziali, la pagina sembra **ricaricarsi in modo instabile** e solo successivamente reindirizza alla home, o non lo fa correttamente (come già riscontrato in precedenza).
+- **Azione richiesta:** Rivedi e stabilizza la logica di autenticazione. Al **successo del login**, il sistema deve reindirizzare l'utente **immediatamente e in modo fluido** alla **home page (`/`)**, senza ricariche intermedie o anomalie.
+
+---
+Quando hai completato tutti questi passaggi, dimmelo. Grazie mille! 💪✅

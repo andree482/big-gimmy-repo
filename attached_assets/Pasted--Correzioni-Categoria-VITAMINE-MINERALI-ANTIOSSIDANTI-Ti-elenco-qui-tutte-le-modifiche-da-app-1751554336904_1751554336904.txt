@@ -1,0 +1,181 @@
+✅ Correzioni – Categoria VITAMINE / MINERALI / ANTIOSSIDANTI
+Ti elenco qui tutte le modifiche da apportare, con precisione e completezza.
+Applica ogni correzione per ogni prodotto indicato.
+Tieni presente che dove viene indicato "NO SEZIONE PREZZO E QUANTITÀ" significa che tale sezione DEVE essere presente e configurata correttamente (gusto/quantità/prezzo/immagine).
+
+🧬 Alaform 800
+📸 Aggiorna immagine di copertina
+
+📸 Inserisci la stessa anche all’interno
+
+🌿 Ashwagandha
+📸 1ª immagine → 60 compresse (sia copertina che interno)
+
+🌿 Ashwagandha +
+⚠️ NO SEZIONE PREZZO E QUANTITÀ (aggiungerla come da guida)
+
+🌿 Ashwagandha Pura
+🏷 Cambia brand in: Advance Care +WATT
+
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+🌟 Astaxantina Softgel
+🏷 Brand: Advance Care +WATT
+
+📸 2ª immagine → all’interno del prodotto
+
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+💊 Berberina+
+🏷 Brand: Advance Care +WATT
+
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+💊 Calcio 650
+🏷 Brand: Jamieson
+
+📸 3ª immagine → 120 compresse
+
+💊 Calcium
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+💪 Collagene+ Silicio Stabilizzato
+🏷 Brand: Advance Care +WATT
+
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+💧 Drenante
+🏷 Brand: +WATT
+
+📸 Immagine interna = immagine copertina
+
+🌸 Echinacea Purpurea
+📸 4ª immagine → all’interno del prodotto
+
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+🌾 Fibra Watt
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+💥 Hard B-Life Complex
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+💥 Hard C Life Plus 1000
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+💥 Hard Dren 1000
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+💥 Hard Vitamin Complex
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+💊 Hepax Forte
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+🦴 Joint Flex D3 Plus
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+🌿 Korean Red Ginseng
+📸 5ª immagine → sia copertina che interno
+
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+⚡ Magnesio Potassio Sport
+📸 Interna = immagine di copertina
+
+⚡ Magnesio Tripla Azione
+📸 Copertina = immagine interna
+
+💊 Megavis 1100mg Tablet
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+🌙 Melatonine+
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+💧 Norincol Marine Collagen
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+🍋 Arancia / 🍋 Limone
+RAGGRUPPA insieme a Norincol Marine Collagen in un unico prodotto con selezione gusto
+
+🐟 Omega 3 Egq
+🏷 Brand: +WATT
+
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+🐟 Omega 3-Xc 40/20 Gold
+⚠️ NO SEZIONE PREZZO E QUANTITÀ
+
+🐟 Omega Complete Krill
+📝 Correggi: da “60 softgel” → “100 compresse”
+
+🐟 Omega-3 Extra
+📝 Correggi: da “60 softgel” → “100 compresse”
+
+🧠 PS200 Fosfatidilserina
+📸 Immagine copertina = immagine interna
+
+🧂 Sali Activator 1:0,8
+⚠️ Aggiungi sezione prezzo + quantità + gusti
+
+🧃 Gusti: Arancia Rossa, Fragola Banana
+
+❌ Correggi errore precedente: avevi diviso i prodotti. Raggruppali in un’unica scheda!
+
+💧 Sali+ Electrolyte Pocket Minerals
+⚠️ Aggiungi sezione prezzo + quantità + gusti
+
+🧃 Gusti: Arancia, Limone
+
+❌ Correggi errore: hai diviso i prodotti → raggruppa in uno!
+
+⚡ Star Gel+
+📸 Copertina = immagine interna
+
+🔥 Testo Xplode
+📸 Interno = immagine copertina
+
+🔥 Triboost
+📸 Interno = immagine copertina
+
+☀️ Vitamin D 2000 IU
+📸 Interno = immagine copertina
+
+☀️ Vitamin D 800 IU
+📸 Interno = immagine copertina
+
+💊 Vitamina B12 1000
+📸 Interno = immagine copertina
+
+💊 Vitamina C 1000
+📸 Interno = immagine copertina
+
+🍊 Vitamina C Masticabile
+❌ Elimina gusto Frutti Misti
+
+☀️ Vitamina D3 2000 IU
+📸 Interno = immagine copertina
+
+☀️ Vitamina D3 800 IU
+📸 Interno = immagine copertina
+
+💊 Vitamina K2 + D3
+📝 Correggi: da “60 softgel” → “30 softgel”
+
+💊 Vitamine & Minerals
+📸 Interno = immagine copertina
+
+📌 Appena hai terminato TUTTE le modifiche:
+
+Controlla ogni prodotto con attenzione
+
+Fammi sapere così possiamo passare allo step successivo!
+
+
+
+
+
+
+
+
+Chiedi a ChatGPT

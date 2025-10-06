@@ -1,0 +1,53 @@
+Ciao!
+Per ottimizzare la navigazione e la ricerca dei prodotti, dobbiamo implementare due tipi di barre di ricerca, ciascuna con una funzionalità specifica e ben definita.
+
+---
+
+#### **Obiettivo Generale**🎯
+Integrare barre di ricerca e filtri avanzati, garantendo un'esperienza utente intuitiva e coerente su tutto il sito.
+
+---
+
+#### **1. Barra di Ricerca Generale (`/prodotti`)**🌐
+Aggiungi una barra di ricerca dedicata nella pagina principale che elenca tutti i prodotti (`/prodotti`):
+
+*   **Posizionamento:** La barra deve essere posizionata in una zona chiara e visibile **nella parte superiore della pagina `/prodotti`**, sopra l'elenco complessivo di tutti i prodotti.
+*   **Funzionalità:**
+    *   Permettere agli utenti di cercare prodotti **su TUTTO il catalogo**, indipendentemente dalla categoria di appartenenza.
+    *   I risultati della ricerca devono aggiornarsi dinamicamente o al click di un pulsante "Cerca".
+    *   **Deve includere i seguenti filtri**:
+        *   **Marca/Brand:** Tutte le marche presenti nel database dei prodotti.
+        *   **Fascia di Prezzo:** Funzionare correttamente, mostrando prodotti il cui prezzo minimo rientri nell'intervallo selezionato (es. da 25€ a 50€).
+        *   **Ordinamento:**
+            *   "Dal più caro al meno costoso".
+            *   "Nome Z-A" (ordine alfabetico decrescente).
+            *   **Rimuovi il filtro "Valutazioni"**, poiché non è utilizzato nel sito.
+*   **Design:** La barra di ricerca e i relativi filtri devono essere **perfettamente coerenti con lo stile grafico e i componenti già esistenti del sito** (font, colori, spaziatura, pulsanti).
+*   **Responsiveness:** Funzionare in modo fluido e leggibile su desktop, tablet e mobile.
+
+---
+
+#### **2. Barra di Ricerca per Categoria Prodotto (`/prodotti/{categoria}`)**📂
+Per ogni pagina di categoria (es. `/prodotti/proteine`, `/prodotti/aminoacidi-e-creatina`, `/prodotti/alimenti-fit`, ecc.), aggiungi una barra di ricerca dedicata:
+
+*   **Posizionamento:** La barra deve essere posizionata **nella parte superiore della specifica pagina di categoria**, sopra l'elenco dei prodotti di quella categoria.
+*   **Funzionalità:**
+    *   Permettere agli utenti di cercare prodotti **ESCLUSIVAMENTE all'interno della categoria corrente** (es. se sono in `/prodotti/proteine`, la ricerca deve avvenire solo tra le proteine).
+    *   I risultati devono aggiornarsi dinamicamente o al click di un pulsante "Cerca".
+    *   **Deve includere gli stessi filtri specificati per la ricerca generale (Marca, Fascia di Prezzo, Ordinamento: Dal più caro al meno costoso, Nome Z-A)**, ma questi filtri devono essere applicati **solo ai prodotti visibili in quella specifica categoria**.
+    *   Anche qui, **rimuovi il filtro "Valutazioni"**.
+*   **Design:** La barra di ricerca e i filtri devono mantenere la **stessa coerenza estetica e funzionale** degli altri elementi UI del sito e della barra di ricerca generale.
+*   **Responsiveness:** Assicurati che l'elemento sia ben integrato e funzionale su ogni dispositivo.
+
+---
+
+#### **Requisiti Fondamentali Comuni**⚠️
+*   **Coerenza Estetica e Funzionale:** Tutte le nuove barre di ricerca e i filtri devono riutilizzare i componenti e lo stile esistenti per garantire un'esperienza utente uniforme su tutto il sito.
+*   **Database e Dati:** La ricerca deve interrogare il database dei prodotti in modo efficiente e accurato, restituendo solo i prodotti pertinenti.
+*   **Nessun errore:** Evitare errori di visualizzazione, di link o di funzionalità.
+
+---
+
+Fammi sapere quando hai compreso tutto o se hai bisogno di chiarimenti su specifici dettagli tecnici o di design. Appena pronto, possiamo verificare insieme l'implementazione.
+
+Grazie mille e buon lavoro! 💪

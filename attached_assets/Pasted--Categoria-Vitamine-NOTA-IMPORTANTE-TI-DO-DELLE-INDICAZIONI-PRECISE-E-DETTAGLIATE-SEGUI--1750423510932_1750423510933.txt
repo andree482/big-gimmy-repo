@@ -1,0 +1,105 @@
+# 🥤 Categoria: Vitamine
+
+# NOTA IMPORTANTE
+TI DO DELLE INDICAZIONI PRECISE E DETTAGLIATE. SEGUI CON PRECISIONE E MOLTA ATTENZIONE LE INDICAZIONI!. INSERISCI I PRODOTTI FACENDO SI CHE SIANO SIA NEL BACKEND CHE NEL FRONTEND, AFFINCHE SE LI DOVESSI TROVARE SUL SITO SONO BEN SISTEMATI. TROVRAI LA GUIDA IN public/tips_da_leggere. LEGGI CON MOLTISSIMA ATTENZIOEN QUESTA GUIDA, GRAZIE!
+
+---
+## 🥇 PRIMO PRODOTTO
+
+
+### 🔹 COPERTINA
+
+- 📸 **Immagine:** 1ª immagine
+- 📝 **Nome:** Korean Red Ginseng**
+- 📦 **Descrizione copertina:** `<<<GENERALA TU>>>`
+- ⭐ **Recensioni:** ❌ Nessuna stella
+- 💰 **Prezzo copertina:** a partire da 39,90€
+- 🏷 **Brand:** Jamieson
+
+---
+
+### 🔸 INTERNO PRODOTTO
+
+#### 🔄 Variazioni (gusti e quantità)
+- 🎨 **Gusti disponibili:** NO GUSTI
+- ⚖️ **Quantità disponibili:** 100 compresse
+
+#### 🖼 Associazioni gusto/quantità/immagine
+`<<<INSERISCI per ogni combinazione l’immagine corrispondente>>>`  
+(Ginseng 100 compresse → 1ª immagine)
+
+#### ⚙️ Impostazioni
+- ❌ **Quantità manuale:** da disattivare
+- ❌ **Recensioni:** nessuna stella
+- ❌ **Scritta “disponibile per la spedizione”:** da rimuovere
+
+---
+
+### 📌 SEZIONI INTERNE DA GENERARE
+
+- 🧾 **Descrizione dettagliata:** Korean Red Ginseng di Jamieson è un integratore alimentare a base di ginseng rosso coreano della specie Panax ginseng C.A Meyer titolato al 20% in ginsenosidi, i principali fitocomponenti attivi che si trovano nel ginseng. I ginsenosidi, saponine estratte dalle radici delle piante di ginseng, hanno un’azione adattogena e stimolante del sistema immunitario, utile in caso di astenia e stanchezza. Il Ginseng rosso coreano è ideale come antiossidante e come tonico in caso di stanchezza fisica e mentale.
+- 🧪 **Valori nutrizionali:** ✅ (SCRIVILE TU in base al prodotto che hai davanti)
+- 🥤 **Modalità d’uso:** ✅ (con avvertenze in **giallo** e consiglio in **lilla**, SCRIVILE TU)
+- 🧬 **Ingredienti (per ogni gusto):** ✅ (SCRIVILI TU IN BASE A FONTI ATTENDIBILI)
+
+🔗 Se vuoi, visita il sito ufficiale del prodotto per queste informazioni:  
+https://www.jamiesonitalia.com/prodotto/korean-ginseng/
+---
+
+### 💶 PREZZO PER VARIANTI
+
+`<<<INSERISCI prezzo per ogni combinazione gusto/quantità>>>`  
+(100 compresse = 39,90€)
+
+✅ **DOPO QUESTO PRODOTTO:**  
+Passa al prossimo usando **lo stesso schema**. Ovviamente i dati saranno diversi.
+
+
+## 🥇 SECONDO PRODOTTO
+
+### 🔹 COPERTINA
+
+- 📸 **Immagine:** 2ª immagine
+- 📝 **Nome:** Echineacea Purpurea
+- 📦 **Descrizione copertina breve:** `<<<GENERALA TU>>>`
+- ⭐ **Recensioni:** ❌ Nessuna stella
+- 💰 **Prezzo copertina:** a partire da 25,90€
+- 🏷 **Brand:** Jamieson
+---
+
+### 🔸 INTERNO PRODOTTO
+
+#### 🔄 Variazioni (gusti e quantità)
+- 🎨 **Gusti disponibili:** NO GUSTI
+- ⚖️ **Quantità disponibili:** 90 caps
+
+#### 🖼 Associazioni gusto/quantità/immagine
+`<<<INSERISCI per ogni combinazione l’immagine corrispondente>>>`  
+(Echineacea Purpurea → 2ª immagine)
+
+#### ⚙️ Impostazioni
+- ❌ **Quantità manuale:** da disattivare
+- ❌ **Recensioni:** nessuna stella
+- ❌ **Scritta “disponibile per la spedizione”:** da rimuovere
+
+---
+
+### 📌 SEZIONI INTERNE DA GENERARE
+
+- 🧾 **Descrizione dettagliata:** L’estratto di Echinacea purpurea di Jamieson deriva dalla radice di piante di almeno 3 anni, le quali hanno sintetizzato una maggiore concentrazione di principi attivi. L’Echinacea purpurea contribuisce alle naturali difese dell’organismo e alla funzionalità delle prime vie respiratorie. È utile nei periodi freddi in quanto dona sollievo ai sintomi del raffreddore e al mal di gola. L’Echinacea utilizzata da Jamieson proviene da una varietà di premiata qualità botanica, coltivata secondo un particolare procedimento europeo e sottoposta ad una specializzata tecnica di estrazione dei principi attivi.
+- 🧪 **Valori nutrizionali:** ✅ (SCRIVILE TU in base al prodotto che hai davanti)
+- 🥤 **Modalità d’uso:** ✅ (con avvertenze in **giallo** e consiglio in **lilla**, SCRIVILE TU)
+- 🧬 **Ingredienti (per ogni gusto):** ✅ (SCRIVILI TU IN BASE A FONTI ATTENDIBILI)
+
+🔗 Se vuoi, visita il sito ufficiale del prodotto per queste informazioni:  
+https://www.jamiesonitalia.com/prodotto/echinacea-purpurea/
+---
+
+### 💶 PREZZO PER VARIANTI
+
+`<<<INSERISCI prezzo per ogni combinazione gusto/quantità>>>`  
+(Echineacea Purpurea 90 caps = 25,90€ )
+---
+
+✅ **DOPO QUESTO PRODOTTO:**  
+Passa al prossimo usando **lo stesso schema**. Ovviamente i dati saranno diversi.

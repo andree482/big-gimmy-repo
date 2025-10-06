@@ -1,0 +1,77 @@
+Ciao! Ti passo un file .md con la struttura dei prodotti (20 alla volta) e un file .zip con tutte le immagini già nominate correttamente.
+
+Ecco cosa devi fare:
+
+🔧 ISTRUZIONI PER INSERIRE I PRODOTTI
+Database & logica prodotti
+
+Inserisci i prodotti seguendo la stessa logica e struttura degli altri già presenti nel sito (ProductVariants.ts, ProductDetail.tsx, ProductCategory.tsx ecc.).
+
+Ogni prodotto deve avere: descrizione breve, descrizione dettagliata, ingredienti, modalità d’uso, avvertenze e caratteristiche, valori nutrizionali in tabella.
+
+Tutte queste sezioni devono apparire nel frontend nello stesso modo degli altri prodotti già esistenti.
+
+Immagini
+
+Ogni prodotto ha le immagini già pronte nel file .zip.
+
+Assicurati che l’immagine di copertina e quelle interne siano collegate correttamente e visibili.
+
+Non lasciare placeholder: ogni prodotto deve mostrare la propria immagine corretta.
+
+Varianti
+
+Inserisci le varianti come da file .md (gusto, formato, prezzo, disponibilità, immagine).
+
+Se il prodotto ha un solo gusto/quantità, indica comunque “Unico”.
+
+Se ha più gusti + più grammature, inserisci tutte le combinazioni (es. Arancia 300g, Arancia 500g, Mela 300g, Mela 500g).
+
+Prezzi
+
+Usa esattamente i prezzi indicati nel file .md.
+
+In copertina deve essere mostrato il prezzo minimo tra tutte le varianti.
+
+Non modificare prezzi interni o di altri prodotti esistenti.
+
+Valori nutrizionali
+
+Devono essere inseriti esattamente come nel .md.
+
+Visualizzali in una tabella ben formattata (come gli altri prodotti già presenti).
+
+Rispetta formattazione: per 100g, per porzione, %VNR se disponibile.
+
+Ingredienti, avvertenze, caratteristiche
+
+In “Ingredienti” inserisci la lista testuale dal .md.
+
+Subito sotto, aggiungi “Avvertenze” e “Caratteristiche” con la stessa struttura degli altri prodotti già presenti sul sito.
+
+Se ci sono duplicati tra “Modalità d’uso” e “Ingredienti”, lascia solo in “Modalità d’uso” e togli da “Ingredienti”.
+
+Frontend
+
+Ogni prodotto nuovo deve essere visibile correttamente:
+
+in copertina categoria (con prezzo minimo e immagine corretta),
+
+in pagina dettaglio prodotto (con tutte le informazioni formattate).
+
+⚠️ CONTROLLI FINALI IMPORTANTI
+Le immagini devono essere collegate correttamente, sia in copertina che dentro la scheda prodotto.
+
+I prezzi mostrati in copertina devono essere i minimi corretti.
+
+Le tabelle dei valori nutrizionali devono essere ben formattate, identiche agli altri prodotti.
+
+Niente duplicazioni di gusti o varianti: raggruppa sempre insieme.
+
+Inserisci solo i prodotti del batch, senza toccare altri.
+
+👉 Questo prompt vale per ogni batch di 20 prodotti. Ogni volta allegherò:
+
+.md con le informazioni complete
+
+.zip con le immagini

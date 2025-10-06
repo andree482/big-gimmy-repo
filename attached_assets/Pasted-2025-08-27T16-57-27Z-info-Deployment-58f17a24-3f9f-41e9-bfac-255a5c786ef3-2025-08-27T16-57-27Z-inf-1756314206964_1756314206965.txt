@@ -1,0 +1,114 @@
+2025-08-27T16:57:27Z info: Deployment: 58f17a24-3f9f-41e9-bfac-255a5c786ef3
+2025-08-27T16:57:27Z info: Build: d50e4f36-3b27-406e-8e71-4781dbbb42d7
+2025-08-27T16:57:27Z info: Connecting to builder
+2025-08-27T16:57:29Z info: Builder connected
+2025-08-27T16:57:30Z info: Installing packages
+2025-08-27T16:57:30Z info: Starting Build
+
+> rest-express@1.0.0 build
+> vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+
+
+vite v5.4.14 building for production...
+
+transforming...
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+✓ 2099 modules transformed.
+
+rendering chunks...
+
+computing gzip size...
+
+../dist/index.html                                     1.41 kB │ gzip:   0.66 kB
+
+../dist/assets/logo-transparent-fuUScDp3.png         244.21 kB
+
+../dist/assets/category-aminoacidi-b4RVoEyM.jpg      350.36 kB
+
+../dist/assets/about_img3_new-DrzYkYQr.jpeg          383.28 kB
+
+../dist/assets/category-proteine-D0idYhuX.png        386.80 kB
+
+../dist/assets/sede_aosta-DswXiJQ4.jpeg              529.32 kB
+
+../dist/assets/about_img4-Cj3gu-m6.jpeg              667.27 kB
+
+../dist/assets/about_img2-B3vZCAkX.jpeg            1,955.95 kB
+
+../dist/assets/negozio_img1-Cvw2eX3c.jpeg          2,503.03 kB
+../dist/assets/about_img1-D7HQ0Q4j.jpeg            2,541.93 kB
+../dist/assets/category-alimenti-fit-C2dB2b0f.jpg  2,861.58 kB
+
+../dist/assets/sede_torino_nuovo-B_la_o_6.png      4,694.08 kB
+
+../dist/assets/negozio_img2_new-DfLaPdrx.png       6,726.88 kB
+
+../dist/assets/sede_aosta_nuovo-C9X5FTJP.png       6,774.25 kB
+
+../dist/assets/index-D5LFqfxV.css                    104.67 kB │ gzip:  16.86 kB
+
+../dist/assets/index-sUrxdY4f.js                     901.80 kB │ gzip: 244.64 kB
+
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+
+✓ built in 9.63s
+
+
+  dist/index.js  65.9kb
+
+⚡ Done in 378ms
+
+npm notice
+npm notice New major version of npm available! 10.8.2 -> 11.5.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.5.2
+npm notice To update run: npm install -g npm@11.5.2
+npm notice
+
+2025-08-27T16:57:46Z info: Pushing pid1 binary layer...
+2025-08-27T16:57:47Z info: Created pid1 binary layer
+2025-08-27T16:57:49Z info: Pushing hosting layer...
+2025-08-27T16:57:49Z info: Pushing Repl layer...
+2025-08-27T16:57:49Z info: Retrieved cached nix layer
+2025-08-27T16:57:50Z info: Created hosting layer
+2025-08-27T16:59:57Z info: Created Repl layer
+2025-08-27T16:59:57Z info: Pushing Repl (cache) layer...
+2025-08-27T16:59:57Z info: Created Repl (cache) layer
+2025-08-27T16:59:58Z info: Pushed image manifest
+2025-08-27T16:59:58Z info: Pushed soci index manifest
+2025-08-27T17:00:03Z info: Creating Autoscale service
+forwarding local port 5000 to external port 80 (mapped as 1104)
+file:///home/runner/workspace/dist/index.js:1657
+    throw new Error(
+
+          ^
+Error: Could not find the build directory: /home/runner/workspace/dist/public, make sure to build the client first
+
+
+          ^
+command finished with error [npm start]: exit status 1
+Error: Could not find the build directory: /home/runner/workspace/dist/public, make sure to build the client first
+    at file:///home/runner/workspace/dist/index.js:1708:5
+> NODE_ENV=production node dist/index.js
+    at file:///home/runner/workspace/dist/index.js:1708:5
+Error: Could not find the build directory: /home/runner/workspace/dist/public, make sure to build the client first
+    throw new Error(
+> rest-express@1.0.0 start
+file:///home/runner/workspace/dist/index.js:1657
+Node.js v20.19.3
+
+Error: Could not find the build directory: /home/runner/workspace/dist/public, make sure to build the client first
+command finished with error [npm start]: exit status 1
+> rest-express@1.0.0 start
+
+> NODE_ENV=production node dist/index.js
+Node.js v20.19.3
+crash loop detected
+2025-08-27T17:02:23Z error: The deployment is crash looping. This can happen if the run command fails or exits immediately after starting. Check the logs for more information.

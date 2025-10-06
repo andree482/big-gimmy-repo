@@ -1,0 +1,30 @@
+## Correzioni Visive e Riorganizzazione Categorie📦
+---
+###  1. Risoluzione Problema Immagine di Copertina🖼️
+Dobbiamo sistemare la visualizzazione del seguente prodotto nella pagina delle categorie:
+#### **Complex Carbs Advanced Ratio 1:0.8**
+- Il prodotto ha un problema di visualizzazione dell'immagine di copertina (potrebbe essere un placeholder o un'immagine errata).
+- **Azione richiesta:** Sostituisci l'immagine di copertina attuale con **la foto che ti allego in questo messaggio**.
+- Assicurati che l'immagine risulti **perfettamente centrata** e ben proporzionata nel riquadro di anteprima, senza tagli (come da standard precedentemente corretto).
+
+---
+###  2. Riorganizzazione Strutturale Prodotti (Database e Frontend)🔄
+Devi eseguire lo **spostamento** dei seguenti prodotti tra le categorie, assicurandoti che la modifica sia applicata sia nel **database** (aggiornando lo `slug` e/o il `category_id` del prodotto) che nel **frontend** (nella navigazione, nel breadcrumb e nella visualizzazione delle categorie).
+
+#### **Primo Blocco: Dimagranti → Supplementi**
+Esegui la migrazione completa per i seguenti prodotti:
+- **Hepax Forte 1000**
+- **Depurixia**
+**Azione:** Sposta questi due prodotti dalla categoria **"Dimagranti"** alla categoria **"Supplementi"**.
+
+#### **Secondo Blocco: Supplementi → Aminoacidi e Creatina**
+Esegui la migrazione completa per il seguente prodotto:
+- **Arginine NO**
+**Azione:** Sposta questo prodotto dalla categoria **"Supplementi"** alla categoria **"Aminoacidi e Creatina"**.
+
+---
+###  Controlli e Requisiti finali🔒
+- **Sincronizzazione obbligatoria:** Tutte le modifiche di categoria devono essere **sincronizzate immediatamente sul sito web** affinché io possa verificare il riposizionamento corretto.
+- **Coerenza visiva:** Verifica che i prodotti spostati mantengano **tutte le loro varianti, prezzi minimi e descrizioni** come precedentemente configurato.
+
+Grazie mille per la tua precisione e la gestione strutturale delle modifiche! 💪✅

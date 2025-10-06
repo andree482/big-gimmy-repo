@@ -1,0 +1,58 @@
+Prompt per Replit – Memorizzazione e Standardizzazione Inserimento Prodotti
+Devi memorizzarti e segnarti attentamente tutti i passaggi fatti per inserire i 20 prodotti precedenti.
+In particolare:
+
+Leggere il file .md con la massima attenzione:
+
+Ogni campo (nome, slug, prezzo base, descrizioni, valori nutrizionali, modalità d’uso, ingredienti, varianti, avvertenze, caratteristiche) deve essere riportato esattamente come scritto.
+
+Non interpretare né modificare testi: vanno copiati fedelmente.
+
+Immagini:
+
+Le immagini devono essere prese solo ed esclusivamente dallo .zip allegato.
+
+Assicurati che ogni prodotto abbia la sua immagine corretta sia in copertina che all’interno della scheda prodotto.
+
+Controlla che non rimangano placeholder o immagini mancanti.
+
+Inserimento nel database:
+
+Inserisci i dati nel database dei prodotti seguendo la stessa logica dei prodotti già presenti sul sito (stesso formato di varianti, stesse chiavi, stessa struttura).
+
+Evita campi duplicati o valori incoerenti.
+
+Per le varianti: se ci sono più gusti e formati, devono essere combinati correttamente (es. Arancia 300g, Arancia 500g, Mela 300g, Mela 500g).
+
+Valori nutrizionali:
+
+Devono sempre essere visualizzati in una tabella formattata, come negli altri prodotti.
+
+Assicurati che le tabelle siano identiche nello stile a quelle già esistenti.
+
+Ingredienti, modalità d’uso, avvertenze, caratteristiche:
+
+Inserisci ogni sezione separatamente come negli altri prodotti.
+
+Non duplicare le informazioni: se qualcosa è già in "modalità d’uso", non deve ricomparire negli ingredienti.
+
+Errori da evitare (impara dagli inserimenti precedenti):
+
+Non inserire gusti duplicati come varianti separate.
+
+Non lasciare immagini mancanti o sbagliate.
+
+Non scrivere prezzi errati rispetto a quelli nel file .md.
+
+Non dimenticare di aggiornare i prezzi minimi visibili in copertina.
+
+Stabilità e consistenza:
+
+La procedura deve essere sempre la stessa per tutti i batch.
+
+Segnati gli errori commessi nei precedenti inserimenti e non ripeterli.
+
+Memorizza la logica corretta, così che ogni batch successivo sia più rapido e senza problemi.
+
+In sintesi:
+👉 Devi replicare fedelmente la struttura già esistente per gli altri prodotti, inserendo i nuovi 20 dal file .md e dalle immagini .zip, evitando errori e mantenendo coerenza totale sia lato database che frontend.

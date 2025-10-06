@@ -1,0 +1,191 @@
+# 🖼️ GESTIONE IMMAGINI - ISTRUZIONI CRITICHE
+
+## ⚠️ PROBLEMA DA RISOLVERE
+**SITUAZIONE**: Le immagini vengono caricate ma non sono visibili nel catalogo - appare solo il nome del file.
+
+---
+
+## 📋 FASE 1: VERIFICA PRELIMINARE IMMAGINI
+
+### 1.1 Controllo Caricamento
+**PRIMA di iniziare qualsiasi inserimento:**
+
+1. **Verifica che TUTTE le immagini siano effettivamente caricate**
+   - Vai nella cartella immagini del progetto
+   - Controlla che ogni file sia presente fisicamente
+   - Annota il nome ESATTO di ogni file (incluse estensioni)
+
+2. **Testa la visibilità di UNA immagine**
+   - Inserisci temporaneamente una sola immagine in un prodotto di test
+   - Verifica che l'immagine sia VISIBILE nel frontend
+   - Se non è visibile, FERMATI e risolvi prima di continuare
+
+### 1.2 Report Immagini (OBBLIGATORIO)
+Scrivi un report così:
+```
+CONTROLLO IMMAGINI COMPLETATO:
+✅ Immagini caricate: [numero]
+✅ Test visibilità: [FUNZIONA/NON FUNZIONA]
+✅ Percorso immagini: [path completo]
+✅ Formato file: [.jpg/.png/.webp]
+```
+
+---
+
+## 🔧 FASE 2: CONFIGURAZIONE PERCORSI IMMAGINI
+
+### 2.1 Verifica Struttura Cartelle
+**Controlla che la struttura sia corretta:**
+```
+progetto/
+├── public/
+│   └── images/
+│       └── products/
+│           ├── immagine1.jpg
+│           ├── immagine2.jpg
+│           └── ...
+```
+
+### 2.2 Formato Percorsi
+**Il percorso deve essere ESATTAMENTE così:**
+- ❌ SBAGLIATO: `immagine1.jpg`
+- ❌ SBAGLIATO: `./images/immagine1.jpg`
+- ❌ SBAGLIATO: `/public/images/immagine1.jpg`
+- ✅ CORRETTO: `/images/products/immagine1.jpg`
+
+### 2.3 Controllo Estensioni
+**Verifica che l'estensione del file sia corretta:**
+- Se il file è `immagine1.jpeg` NON scrivere `.jpg`
+- Se il file è `immagine1.JPG` scrivi `.JPG` (maiuscolo)
+- **COPIA-INCOLLA** il nome esatto del file
+
+---
+
+## 🎯 FASE 3: INSERIMENTO CORRETTO NEL DATABASE
+
+### 3.1 Campo Immagine Principale
+**Quando inserisci l'immagine principale del prodotto:**
+```javascript
+// ESEMPIO CORRETTO
+product: {
+  name: "Nome Prodotto",
+  image: "/images/products/nome_file_esatto.jpg",
+  // ... altri campi
+}
+```
+
+### 3.2 Campo Immagini Varianti
+**Per le varianti con immagini diverse:**
+```javascript
+// ESEMPIO CORRETTO
+variants: [
+  {
+    name: "Gusto Cioccolato",
+    image: "/images/products/cioccolato.jpg",
+    price: 29.99
+  },
+  {
+    name: "Gusto Vaniglia", 
+    image: "/images/products/vaniglia.jpg",
+    price: 29.99
+  }
+]
+```
+
+### 3.3 Controllo Sintassi
+**OGNI volta che inserisci un percorso immagine:**
+- ✅ Inizia con `/images/products/`
+- ✅ Nome file ESATTO (copia-incolla)
+- ✅ Estensione corretta
+- ✅ Nessuno spazio nel percorso
+- ✅ Virgolette corrette `"percorso"`
+
+---
+
+## 🧪 FASE 4: TEST IMMEDIATO
+
+### 4.1 Test Singola Immagine
+**DOPO ogni inserimento di immagine:**
+1. Salva le modifiche
+2. Ricarica la pagina del prodotto
+3. Verifica che l'immagine sia VISIBILE
+4. Se non è visibile, correggi IMMEDIATAMENTE
+
+### 4.2 Test Varianti
+**Per prodotti con più varianti:**
+1. Cambia variante nel frontend
+2. Verifica che l'immagine cambi correttamente
+3. Testa TUTTE le varianti una per una
+
+---
+
+## 🚨 FASE 5: RISOLUZIONE PROBLEMI
+
+### 5.1 Se l'Immagine Non Si Vede
+**Checklist di controllo:**
+- [ ] Il file esiste nella cartella?
+- [ ] Il nome del file è scritto correttamente?
+- [ ] L'estensione è corretta (.jpg/.png/.webp)?
+- [ ] Il percorso inizia con `/images/products/`?
+- [ ] Non ci sono spazi nel nome del file?
+- [ ] Le virgolette sono corrette?
+- [ ] Hai salvato le modifiche?
+- [ ] Hai ricaricato la pagina?
+
+### 5.2 Debug del Percorso
+**Scrivi nel console.log il percorso che stai usando:**
+```javascript
+console.log("Percorso immagine:", product.image);
+```
+
+### 5.3 Controllo DevTools
+**Apri DevTools del browser e controlla:**
+1. Vai alla tab "Network"
+2. Ricarica la pagina
+3. Cerca il nome dell'immagine
+4. Se è "404 Not Found", il percorso è sbagliato
+5. Se è "200 OK", il problema è nel CSS/HTML
+
+---
+
+## ✅ FASE 6: PREVENZIONE FUTURI ERRORI
+
+### 6.1 Template Standard
+**Usa SEMPRE questo template per le immagini:**
+```javascript
+const imageTemplate = {
+  mainImage: "/images/products/[NOME_FILE_ESATTO]",
+  variantImages: {
+    variant1: "/images/products/[NOME_FILE_VARIANTE1]",
+    variant2: "/images/products/[NOME_FILE_VARIANTE2]"
+  }
+}
+```
+
+### 6.2 Checklist Pre-Inserimento
+**PRIMA di inserire ogni prodotto:**
+- [ ] Ho verificato che tutte le immagini esistano?
+- [ ] Ho testato il percorso di almeno una immagine?
+- [ ] Ho copiato i nomi file esatti?
+- [ ] Ho controllato le estensioni?
+
+### 6.3 Checklist Post-Inserimento
+**DOPO aver inserito ogni prodotto:**
+- [ ] L'immagine principale è visibile?
+- [ ] Tutte le immagini delle varianti sono visibili?
+- [ ] Il cambio variante funziona correttamente?
+- [ ] Non ci sono errori nella console?
+
+---
+
+## 🔒 REGOLE INDEROGABILI
+
+### ❌ NON FARE MAI:
+- Non inventare nomi di file
+- Non usare percorsi relativi
+- Non dimenticare l'estensione
+- Non usare spazi nei nomi file
+- Non procedere se un'immagine non funziona
+
+### ✅ FARE SEMPRE:
+- Testare ogni...

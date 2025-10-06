@@ -1,0 +1,23 @@
+URGENZA!
+Quando ti è stato chiesto di inserire le varianti dei prodotti, dal file productVariants.ts al **Database**, ha creato product_option che gestisce questo. Va bene il tutto, ma per alcuni prodotti che hanno molte più varianti, invece di gestire le varianti come parte di un unico prodotto, le hai divise in più prodotti distinti.
+
+Esempio: il prodotto Mass Matrix è stato spezzato così:
+
+ID 1266 → “Mass Matrix Cioccolato 1,3 kg”
+ID 1274 → “Mass Matrix Cioccolato 2,8 kg”
+
+In realtà, questi non sono prodotti separati, ma **varianti dello stesso articolo**. Questo errore **DEVE ESSERE ASSOLUTAMENTE EVITATO**, come già sottolineato in precedenza.
+
+**Obiettivo fondamentale:** A livello di backend, le varianti devono essere **sempre collegate a un unico `product\_id`**, come abbiamo sempre fatto.
+
+**Procedura di correzione dettagliata:**
+1.  Ti fornirò un elenco dei prodotti che attualmente risultano divisi.
+2.  **Verifica ogni caso specifico**: ad esempio, se "Mass Matrix" appare come cinque prodotti, devi riunire queste cinque varianti sotto un solo prodotto.
+3.  Inserisci queste varianti come opzioni (gusto, quantità, ecc.) nella tabella delle varianti.
+4.  **Collega le immagini corrette al prodotto unico**, assicurandoti che ogni variante mantenga le sue foto e che le immagini cambino automaticamente con la selezione del gusto/quantità.
+5.  **Elimina tutti gli slug e i prodotti duplicati** che non sono più necessari.
+6.  Per un riferimento chiaro del modello corretto, controlla esempi funzionanti come **BigBar**, **Perfect 100% Whey**, o **WPC 100%**, e in particolare **FruitForce**, che utilizzano esattamente la struttura desiderata: un prodotto unico con più varianti selezionabili internamente.
+
+L'obiettivo finale è che il numero totale dei prodotti sul sito torni a essere **226** (attualmente sono 298 proprio perché ogni variante è stata trattata come un prodotto a sé).
+
+ASPETTA A FARE IL TUTTO, NEL PROSSIMO MESSAGGIO TI MANDO TUTTI I PRDOOTTI DA CONTROLLARE

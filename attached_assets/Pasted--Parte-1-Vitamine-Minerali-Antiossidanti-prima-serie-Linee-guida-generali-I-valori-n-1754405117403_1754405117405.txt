@@ -1,0 +1,27 @@
+
+Parte 1 – Vitamine / Minerali / Antiossidanti (prima serie)
+
+Linee guida generali
+	•	I valori nutrizionali devono essere mostrati con la stessa grafica già usata per le Proteine: tabella ben formattata, professionale, con i grammi evidenziati in blu.
+	•	Quando è scritto “aggiusta varianti prodotti”, significa che nel frontend (sotto la voce “Formato”) la variante non compare correttamente. Questo porta al mancato collegamento con immagine e formato. Va sistemata in modo che ogni variante abbia la propria immagine e sia visibile anche in copertina.
+	•	Gli ingredienti devono essere chiari e testuali, senza codici strani.
+	•	Se indicato, prendere gli ingredienti direttamente dal file .md del batch corrispondente.
+	•	Le foto vanno prese dai batch corrisponderti (es. blocco_batch_4, blocco_batch_5)
+	•	Controlla sempre che ci siano tutte le modifiche dette, e eche il frontend si colelghi correttamente con il database. Grazie!
+
+Lista dei prodotti da modificare (prima aprte):
+
+⸻
+
+Correzioni prodotto per prodotto
+	•	Fish Oil 200 Softgel → Aggiustare varianti prodotti, foto delle varianti anche in copertina, valori nutrizionali, foto interne per ogni variante.
+	•	GABA → Foto varianti anche in copertina, valori nutrizionali,foto interne per ogni variante. 
+	•	K2 + D3 → Foto varianti anche in copertina, valori nutrizionali, foto interne per ogni variante. 
+	•	Multi Mineral → Foto varianti anche in copertina, valori nutrizionali, foto interne per ogni variante. 
+	•	Pro Flex → Foto varianti anche in copertina, valori nutrizionali, foto interne per ogni variante. 
+	•	ProbioMax → Foto varianti anche in copertina, valori nutrizionali, foto interne per ogni variante. 
+	•	Thermogenic Force → Aggiungere valori nutrizionali.
+	•	Tribulus 1000 Plus → Aggiungere valori nutrizionali.
+	•	Vitamin C 1000 mg → Aggiungere valori nutrizionali.
+	•	Vitamine & Mineral Complex → Aggiustare varianti prodotti, foto varianti anche in copertina, valori nutrizionali, foto interne per ogni variante. 
+	•	Viteral → Aggiustare ingredienti, prenderli dal file .md del batch corrispondente., 

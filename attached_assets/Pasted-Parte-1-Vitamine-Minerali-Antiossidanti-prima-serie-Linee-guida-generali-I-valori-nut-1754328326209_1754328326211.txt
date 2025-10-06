@@ -1,0 +1,50 @@
+Parte 1 – Vitamine / Minerali / Antiossidanti (prima serie)
+
+Linee guida generali
+	•	I valori nutrizionali devono essere mostrati con la stessa grafica già usata per le Proteine: tabella ben formattata, professionale, con i grammi evidenziati in blu.
+	•	Quando è scritto “aggiusta varianti prodotti”, significa che nel frontend (sotto la voce “Formato”) la variante non compare correttamente. Questo porta al mancato collegamento con immagine e formato. Va sistemata in modo che ogni variante abbia la propria immagine e sia visibile anche in copertina.
+	•	Gli ingredienti devono essere chiari e testuali, senza codici strani.
+	•	Se indicato, prendere gli ingredienti direttamente dal file .md del batch corrispondente.
+
+⸻
+
+Correzioni prodotto per prodotto
+	•	Fish Oil 200 Softgel → Aggiustare varianti prodotti, foto delle varianti anche in copertina, valori nutrizionali.
+	•	GABA → Foto varianti anche in copertina, valori nutrizionali.
+	•	K2 + D3 → Foto varianti anche in copertina, valori nutrizionali.
+	•	Multi Mineral → Foto varianti anche in copertina, valori nutrizionali.
+	•	Pro Flex → Foto varianti anche in copertina, valori nutrizionali.
+	•	ProbioMax → Foto varianti anche in copertina, valori nutrizionali.
+	•	Thermogenic Force → Aggiungere valori nutrizionali.
+	•	Tribulus 1000 Plus → Aggiungere valori nutrizionali.
+	•	Vitamin C 1000 mg → Aggiungere valori nutrizionali.
+	•	Vitamine & Mineral Complex → Aggiustare varianti prodotti, foto varianti anche in copertina, valori nutrizionali.
+	•	Viteral → Aggiustare ingredienti, prenderli dal file .md del batch corrispondente.
+
+⸻
+
+Parte 2 – Altri prodotti da correggere
+	•	Acido D-Aspartico → Valori nutrizionali + ingredienti.
+	•	Arginina Alfaketoglutarato 2000 → Aggiustare varianti prodotti, foto varianti anche in copertina.
+	•	Arginina Argipower 100% → Aggiustare varianti prodotti, foto varianti anche in copertina.
+	•	Ashwagandha Forte 500mg → Aggiustare varianti prodotti, foto varianti anche in copertina.
+	•	Astaxantina Plus → Aggiustare varianti prodotti, foto varianti anche in copertina, valori nutrizionali.
+	•	Caffè Verde + Té Matcha 800 mg → Aggiustare varianti prodotti, foto varianti anche in copertina, valori nutrizionali corretti.
+	•	CLAA → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	COQ-10 Forte 1000mg → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Collagene Marino + Acido Ialuronico → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Depurixia → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Glutatione Liposomiale → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	I’M Collagen → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Lipoic 800 Crom → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Lipoic B → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Maxivit Sport → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Minerals → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Omega 3 Super → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Omega 3-6-9 → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Probio Plus → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Red Booster → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Ultra Vit → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Vegan Protein → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Vitamina B Complex → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	Vitamina D3 + K2 → Foto varianti, valori nutrizionali corretti, foto copertina.

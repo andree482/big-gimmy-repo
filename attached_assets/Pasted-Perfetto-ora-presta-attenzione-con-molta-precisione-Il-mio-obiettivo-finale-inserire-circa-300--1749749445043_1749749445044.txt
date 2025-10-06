@@ -1,0 +1,47 @@
+Perfetto, ora presta attenzione con molta precisione:
+
+Il mio obiettivo finale è inserire circa 300 prodotti suddivisi in tutte le categorie. Mi piace davvero tanto lo stile che hai utilizzato e il modo in cui abbiamo lavorato insieme per i primi 8 prodotti: tutto funzionava alla perfezione — immagini caricate correttamente, gusti selezionabili, descrizioni ben scritte, e tutto girava senza problemi.
+
+Sai bene che per fare questo ti sei basato su un file .md che ti ho fornito, contenente i dati dei prodotti, e ti inviavo anche le immagini necessarie per inserirle nel punto giusto. Tu integravi tutto nei database, e gestivi sia il frontend che il backend. (Se qualcosa di questo non ti è chiaro, dimmelo subito!)
+
+Adesso, per iniziare, concentriamoci sulla categoria delle proteine.
+Una volta completata, passeremo alle altre categorie.
+
+L'obiettivo generale è evitare qualsiasi tipo di errore:
+
+che un prodotto non sia accessibile,
+
+che non venga trovato in fase di ricerca (che sarebbe anche peggio),
+
+che i gusti non siano selezionabili,
+
+oppure che le immagini non corrispondano al prodotto.
+
+Evitare questi problemi è fondamentale: mi fa risparmiare tempo e garantisce un lavoro professionale.
+
+Cosa ti chiedo ora:
+Da questo momento in poi, voglio che ti occupi tu direttamente dell’inserimento dei prodotti, gestendo sia la parte frontend che quella backend, seguendo lo stile e il modello dei primi 8 prodotti (per esempio: Big Bar, Burn Out, ecc.).
+
+Ovviamente, ogni nuovo prodotto avrà dettagli specifici diversi, ma l’impostazione deve restare coerente:
+
+struttura interna,
+
+scheda prodotto,
+
+disposizione delle immagini,
+
+opzioni dei gusti e delle quantità, ecc.
+
+Se ti ho mandato un’immagine come esempio, quello è il modello da replicare graficamente e funzionalmente.
+
+Metodo di lavoro:
+Inserisci 20 prodotti alla volta.
+
+Al termine di ogni blocco da 20 prodotti, facciamo un check completo per assicurarci che tutto funzioni e che non ci siano errori.
+
+Nota molto importante:
+È chiaro che se un prodotto ha molte varianti di gusto o grammatura, come ad esempio Fruitforce,
+allora bisogna aggiungere tutte le opzioni disponibili, con lo stesso sistema di selezione utilizzato nei prodotti precedenti.
+
+Fammi sapere se hai capito tutto, oppure anche solo se hai il minimo dubbio: parliamone subito e chiarisco ogni dettaglio.
+Il mio obiettivo è che tu possa lavorare in modo preciso e autonomo, senza errori e con chiarezza totale.

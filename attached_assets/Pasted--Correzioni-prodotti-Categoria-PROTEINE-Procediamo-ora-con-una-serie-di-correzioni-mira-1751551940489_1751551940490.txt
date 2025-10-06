@@ -1,0 +1,98 @@
+## ✅ Correzioni prodotti – Categoria **PROTEINE**
+
+Procediamo ora con una serie di correzioni mirate sui prodotti della categoria **Proteine**.
+Applica ogni punto con **precisione maniacale**, rispettando esattamente le istruzioni.
+
+---
+
+### 🔄 Modifiche generali da applicare dove indicato:
+
+* Rimuovere la sezione "caratteristiche" subito dopo il prezzo, se presente.
+* Eliminare **tutti i prezzi sbarrati** e mantenere **solo il prezzo indicato**.
+* Aggiornare le immagini seguendo l’ordine numerico indicato (verranno fornite).
+* I prezzi di copertina devono riflettere il **minimo prezzo reale disponibile** tra le varianti.
+* Inserire, dove possibile, una **palette colore vicino al nome del gusto**, coerente con il gusto stesso (es. Cioccolato Fondente = nero).
+* Assicurarsi che immagini e varianti siano abbinate correttamente.
+
+---
+
+### 📦 Prodotti da correggere
+
+---
+
+#### **Hydro90 BV 104**
+
+* Correggi l’associazione immagini/varianti:
+
+  * **Vaniglia 900g** → mostra **Vaniglia**
+  * **Wafer Nocciola 900g** → mostra **Wafer Nocciola**
+* Le due immagini risultano invertite.
+* Rimuovi le "caratteristiche" dopo il prezzo.
+* In copertina, **modifica il prezzo a: 73,90€**.
+
+---
+
+#### **Hydrolyzed 100% Whey**
+
+* Cambia il brand in: **WHY Sport**
+
+---
+
+#### **Iso Soya**
+
+* Rimuovi i gusti: **Naturale**, **Cioccolato**
+* Mantieni solo: **Vaniglia**
+* Elimina il prezzo sbarrato
+* Imposta prezzo corretto: **34,90€**
+* Cambia il brand in: **+WATT**
+* In copertina: cambia il prezzo a **34,90€**
+
+---
+
+#### **Milk Protein 90 Micellar Casein**
+
+* Cambia formato per tutti i gusti: **750g**
+* Prezzo unico: **35,90€**
+* Rimuovi qualsiasi prezzo sbarrato
+
+---
+
+#### **Perfect 100% Whey**
+
+* Cambia brand in: **WHY Sport**
+* Associa immagini come segue:
+
+  * 1ª → Pesca 450g
+  * 2ª → Cookies & Cream 450g
+  * 3ª → Cioccolato al Latte 450g
+  * 4ª → Cioccolato al Latte 900g
+  * 5ª → Vaniglia 900g
+  * 6ª → Pistacchio 900g
+* Elimina formati **1.5kg e 4kg**
+
+---
+
+#### **Perfect Blend 90**
+
+* Associa immagini:
+
+  * 7ª → Cacao 750g
+  * 8ª → Banana & Vaniglia 750g
+
+---
+
+#### **Perfect Mass**
+
+* Rimuovi la sezione "caratteristiche" dopo il prezzo
+* Prezzo in copertina: **59,90€**
+
+---
+
+#### **Say Protein 221**
+
+* Rimuovi la sezione "caratteristiche" dopo il prezzo
+* Prezzo in copertina: **41,99€**
+
+---
+
+FERMATI FINO A QUI, dopo questi ti mando gli altri prodotti!

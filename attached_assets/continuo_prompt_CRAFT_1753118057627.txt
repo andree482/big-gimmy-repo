@@ -1,0 +1,50 @@
+🧩 A – Azione
+Leggi il file .md e individua per ogni prodotto:
+Nome, descrizione, prezzo
+Varianti (es. “Vaniglia 300g”, “Mela 500g”)
+Immagine giusta (nominata nel .zip)
+Aggiorna i file coinvolti, tra cui:
+
+- ProductData.ts, ProductVariants.ts, ProductImages.ts
+- Altri file necessari per categorie, ricerca, filtri
+Inserisci i prodotti seguendo la stessa struttura esistente:
+- Stessa logica dei componenti
+- Comportamento identico a prodotti già caricati
+- Disponibilità delle varianti, selezione quantità, visualizzazione prezzo
+Mostra sempre nella copertina il prezzo minimo tra le varianti
+
+Inserisci le immagini corrette, con nomi coerenti e proporzioni uguali agli altri prodotti
+
+Verifica che siano visibili nel frontend in tutte le sezioni:
+
+Homepage, categorie, pagine prodotto, risultati ricerca
+
+Stessa estetica e interazione
+
+Evita i classici errori:
+
+Prezzi sbagliati
+
+Varianti mancanti
+
+Immagini errate o non visibili
+
+Layout incoerente
+
+Duplicati o mancata visualizzazione
+
+📐 F – Formato
+Codice in TypeScript
+
+Componenti in TSX/React
+
+Dati organizzati in oggetti chiari, puliti, ordinati
+
+Nessun refuso visivo o duplicazione
+
+Commenti se necessario per chiarimenti
+
+👥 T – Target
+Destinato a sviluppatori React su Replit, che lavorano sul progetto biggimmyintegratori.it. Devono conoscere già le logiche del sito, dei componenti e delle interazioni, e operare con precisione e coerenza, assicurandosi che ogni nuovo prodotto si comporti come quelli già online.
+
+Non inserire niente, dimmi se hai capito

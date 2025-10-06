@@ -1,0 +1,150 @@
+STRUZIONI PER INSERIMENTO 10 PRODOTTI PROTEINE
+⚠️ IMPORTANTE: Segui rigorosamente ogni fase in ordine sequenziale
+
+FASE 1: ANALISI E RAGGRUPPAMENTO FOTO
+PRIMA DI TUTTO, analizza tutte le foto e scrivi:
+1.1 Identificazione Prodotti
+
+Esamina ogni foto e identifica marca + nome prodotto
+Raggruppa le foto dello stesso prodotto (stesso nome, stessa marca)
+Distingui i gusti diversi dello stesso prodotto dalle foto
+
+1.2 Report Preliminare (OBBLIGATORIO)
+Scrivi un report così strutturato:
+
+PRODOTTO 1: [Nome] - [Marca]
+- Foto utilizzate: [numeri foto]
+- Gusti identificati: [lista gusti con foto corrispondente]
+
+PRODOTTO 2: [Nome] - [Marca]  
+- Foto utilizzate: [numeri foto]
+- Gusti identificati: [lista gusti con foto corrispondente]
+
+...fino a PRODOTTO 10
+
+FASE 2: CORRISPONDENZA FOTO-PRODOTTI
+2.1 Mappatura Foto (da completare)
+(Le foto specifiche verranno indicate qui:)
+
+Foto 1: ____________
+Foto 2: ____________
+Foto 3: ____________
+Foto 4: ____________
+Foto 5: ____________
+Foto 6: ____________
+Foto 7: ____________
+Foto 8: ____________
+Foto 9: ____________
+Foto 10: ____________
+(continua se ci sono più foto)
+
+2.2 Regole di Raggruppamento
+
+Stesso prodotto = stesso nome + stessa marca
+Gusti diversi dello stesso prodotto = VARIANTI
+NON creare prodotti separati per gusti diversi
+
+
+FASE 3: INSERIMENTO DATI BASE
+Per ogni dei 10 PRODOTTI DISTINTI:
+3.1 Informazioni Principali
+
+Nome prodotto: Estrai esattamente dall'etichetta
+Marca: Estrai esattamente dall'etichetta
+Descrizione: Crea descrizione accattivante (1 riga max)
+Categoria: Proteine
+Recensioni: Imposta 0 stelle (mantieni sezione vuota)
+
+
+FASE 4: CONFIGURAZIONE VARIANTI INTELLIGENTE
+4.1 Gestione Gusti
+Per ogni prodotto con più gusti:
+
+Crea una variante per ogni gusto identificato
+Associa la foto specifica a ogni gusto
+Nomenclatura: "[Nome Prodotto] - [Gusto]"
+
+4.2 Gestione Quantità/Formati
+Se ci sono diverse quantità dello stesso gusto:
+
+Crea sotto-varianti per ogni formato/quantità
+Associa foto specifica a ogni quantità
+Prezzi progressivi: più quantità = prezzo più alto
+
+4.3 Schema Varianti
+
+PRODOTTO X:
+├── Gusto A
+│   ├── 500g - €XX.XX - Foto Y
+│   └── 1kg - €XX.XX - Foto Z  
+├── Gusto B
+│   ├── 500g - €XX.XX - Foto W
+│   └── 1kg - €XX.XX - Foto K
+
+
+FASE 5: CONTENUTI DETTAGLIATI STANDARD
+Per ogni prodotto, aggiungi:
+5.1 Descrizione Estesa
+
+Benefici del prodotto
+Caratteristiche principali
+A chi è rivolto
+
+5.2 Informazioni Tecniche
+
+Valori nutrizionali: Per 100g e per porzione
+Ingredienti: Lista completa in ordine
+Modalità d'uso: Dosaggio e preparazione
+Avvertenze: Se presenti sull'etichetta
+
+5.3 Formato Standard
+(Copia il formato dal primo prodotto proteine già inserito nel sistema)
+
+FASE 6: GESTIONE RECENSIONI
+
+Elimina tutte le recensioni preesistenti
+Mantieni la struttura per future recensioni
+Non eliminare la sezione recensioni dal layout
+
+
+FASE 7: CONTROLLO QUALITÀ PRE-INSERIMENTO
+7.1 Verifica Struttura
+
+ 10 prodotti distinti identificati correttamente
+ Nessun prodotto duplicato (controllo marca + nome)
+ Varianti gusto raggruppate sotto lo stesso prodotto
+ Foto associate correttamente a ogni variante
+
+7.2 Verifica Contenuti
+
+ Prezzi coerenti (quantità maggiore = prezzo maggiore)
+ Descrizioni complete per tutti i prodotti
+ Valori nutrizionali inseriti
+ Modalità d'uso specificate
+
+7.3 Verifica Tecnica
+
+ Formattazione uniforme con prodotti esistenti
+ Nessun campo vuoto obbligatorio
+ Link foto funzionanti
+ Ortografia corretta
+
+
+FASE 8: CONFERMA FINALE
+Prima dell'inserimento definitivo, fornisci:
+
+Lista finale dei 10 prodotti con numero varianti
+Conferma mappatura foto-varianti
+Dichiarazione di completamento controlli
+
+SOLO DOPO questa conferma, procedi con l'inserimento nel sistema.
+
+🚨 REGOLE CRITICHE
+
+MASSIMO 10 PRODOTTI - non di più, non di meno
+RAGGRUPPA sempre i gusti dello stesso prodotto
+UNA FOTO per ogni variante specifica
+PREZZI LOGICI e proporzionali
+CONTROLLO FINALE obbligatorio prima dell'inserimento
+
+NON PROCEDERE se non hai completato TUTTE le fasi in ordine.

@@ -1,0 +1,78 @@
+🍫 Inserimento prodotti – Categoria Barrette Energetiche
+Ciao!
+Ora è il momento di iniziare con l’inserimento dei prodotti nella categoria Barrette Energetiche.
+
+Ti ricordo che è fondamentale seguire ogni passaggio con precisione, evitando gli errori già riscontrati in passato e rispettando la struttura e la logica stabilite.
+
+✅ Cosa DEVI fare per ogni prodotto
+📂 Leggi attentamente il file .md allegato
+
+Contiene tutti i dati: nome, gusti, quantità, immagini, prezzi, associazioni, e link utili.
+
+Devi basarti solo su questo file per tutte le informazioni da inserire.
+
+📘 Consulta la guida ufficiale prima di iniziare
+
+Percorso: public/tips_da_leggere_PRODUCT_INSERTION_GUIDE.md
+
+Ti spiega esattamente come deve essere strutturato ogni prodotto a livello di:
+
+varianti
+
+immagini
+
+contenuti
+
+struttura frontend/backend
+
+🧩 Gestione delle varianti (gusti e quantità)
+
+Se un prodotto ha più gusti o grammature, vanno gestiti tramite il selettore delle varianti
+
+Tutte le varianti devono essere all’interno dello stesso prodotto
+
+❌ Mai dividere un prodotto in più schede
+
+📌 Esempio corretto da seguire: WPC 100% o FruitForce
+
+🖼️ Gestione immagini
+
+La copertina deve essere visibile
+
+Ogni variante deve avere l’immagine corretta associata, che si aggiorna alla selezione
+
+Usa lo script Python in workspace/image_product_mapper.py per leggere correttamente i nomi delle immagini (soprattutto se i file hanno nomi generici)
+
+📄 Contenuti interni da generare
+
+✅ Descrizione dettagliata
+
+✅ Valori nutrizionali coerenti con il prodotto
+
+✅ Modalità d’uso con:
+
+🟨 Avvertenze (in giallo)
+
+🟪 Consigli d’uso (in lilla)
+
+✅ Ingredienti accurati per ogni gusto (fonte: sito ufficiale o etichetta)
+
+🚫 Cosa NON devi fare
+❌ Non inserire prodotti non presenti nel file .md
+
+❌ Non dividere i prodotti in base ai gusti/quantità
+
+❌ Non lasciare immagini mancanti
+
+❌ Non saltare le sezioni interne
+
+❌ Non ignorare le istruzioni della guida
+
+🔴 Regola fondamentale (da non violare mai)
+"Una cosa ti ho chiesto, ed è quella di NON DIVIDERE i prodotti.
+Se un prodotto ha più gusti o più varianti, deve essere TUTTO in uno."
+
+Questa regola va rispettata sempre, senza eccezioni.
+
+Fammi sapere quando hai completato correttamente o se hai bisogno di un chiarimento.
+Grazie mille e buon lavoro! 💪🍫

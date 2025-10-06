@@ -1,0 +1,173 @@
+# ISTRUZIONI PER INSERIMENTO 10 PRODOTTI PROTEINE
+
+## ⚠️ IMPORTANTE: Segui rigorosamente ogni fase in ordine sequenziale
+
+---
+
+## FASE 1: ANALISI E RAGGRUPPAMENTO FOTO
+
+**PRIMA DI TUTTO, analizza tutte le foto e scrivi:**
+
+### 1.1 Identificazione Prodotti
+- Esamina ogni foto e identifica marca + nome prodotto
+- **Raggruppa le foto dello stesso prodotto** (stesso nome, stessa marca)
+- Distingui i **gusti diversi** dello stesso prodotto dalle foto
+
+### 1.2 Report Preliminare (OBBLIGATORIO)
+Scrivi un report così strutturato:
+```
+PRODOTTO 1: [Nome] - [Marca]
+- Foto utilizzate: [numeri foto]
+- Gusti identificati: [lista gusti con foto corrispondente]
+
+PRODOTTO 2: [Nome] - [Marca]  
+- Foto utilizzate: [numeri foto]
+- Gusti identificati: [lista gusti con foto corrispondente]
+
+...fino a PRODOTTO 10
+```
+
+---
+
+## FASE 2: CORRISPONDENZA FOTO-PRODOTTI
+
+### 2.1 Mappatura Foto (da completare)
+*(Le foto specifiche verranno indicate qui:)*
+- **Foto 1**: ____________
+- **Foto 2**: ____________
+- **Foto 3**: ____________
+- **Foto 4**: ____________
+- **Foto 5**: ____________
+- **Foto 6**: ____________
+- **Foto 7**: ____________
+- **Foto 8**: ____________
+- **Foto 9**: ____________
+- **Foto 10**: ____________
+- *(continua se ci sono più foto)*
+
+### 2.2 Regole di Raggruppamento
+- **Stesso prodotto = stesso nome + stessa marca**
+- **Gusti diversi dello stesso prodotto = VARIANTI**
+- **NON creare prodotti separati per gusti diversi**
+
+---
+
+## FASE 3: INSERIMENTO DATI BASE
+
+Per ogni dei **10 PRODOTTI DISTINTI**:
+
+### 3.1 Informazioni Principali
+- **Nome prodotto**: Estrai esattamente dall'etichetta
+- **Marca**: Estrai esattamente dall'etichetta
+- **Descrizione**: Crea descrizione accattivante (1 riga max)
+- **Categoria**: Proteine
+- **Recensioni**: Imposta 0 stelle (mantieni sezione vuota)
+
+---
+
+## FASE 4: CONFIGURAZIONE VARIANTI INTELLIGENTE
+
+### 4.1 Gestione Gusti e Foto Multiple
+**Per prodotti con più foto dello stesso articolo:**
+- **RAGGRUPPA OBBLIGATORIAMENTE** le foto dello stesso prodotto
+- Se ci sono gusti diversi, crea varianti sotto lo stesso prodotto
+- **NON creare prodotti separati** per lo stesso articolo con gusti diversi
+- Associa ogni foto al gusto corrispondente
+
+### 4.2 Gestione Quantità/Formati
+**Formato quantità:**
+- **SEMPRE specificare la grammatura**: es. "250g (1 confezione)"
+- **NON scrivere solo** "1 confezione"
+- **Schema**: "[Grammatura] ([Numero] confezione/i)"
+- **Esempi**: "40g (1 confezione)", "500g (1 confezione)", "1kg (2 confezioni da 500g)"
+
+### 4.3 Schema Varianti Corretto
+```
+PRODOTTO X (stesso nome, stessa marca):
+├── Gusto A - 250g (1 confezione) - €XX.XX - Foto Y
+├── Gusto B - 250g (1 confezione) - €XX.XX - Foto Z  
+└── Gusto C - 500g (1 confezione) - €XX.XX - Foto W
+```
+
+---
+
+## FASE 5: CONTENUTI DETTAGLIATI STANDARD
+
+**Per ogni prodotto, aggiungi:**
+
+### 5.1 Descrizione Estesa
+- Benefici del prodotto
+- Caratteristiche principali
+- A chi è rivolto
+
+### 5.2 Informazioni Tecniche (AGGIUNGI SOLO QUESTE)
+- **Valori nutrizionali**: Per 100g e per porzione
+- **Ingredienti**: Lista completa in ordine  
+- **Modalità d'uso**: Dosaggio e preparazione
+- **Avvertenze**: Se presenti sull'etichetta
+- **NON TOCCARE** la sezione recensioni esistente
+
+### 5.3 Formato Standard
+*(Copia il formato dal primo prodotto proteine già inserito nel sistema)*
+
+---
+
+## FASE 6: GESTIONE RECENSIONI
+
+- **NON TOCCARE** le recensioni esistenti
+- **NON MODIFICARE** la sezione recensioni
+- **LASCIA TUTTO** come trovato nella parte recensioni
+
+---
+
+## FASE 7: CONTROLLO QUALITÀ PRE-INSERIMENTO
+
+### 7.1 Verifica Struttura
+- [ ] **10 prodotti distinti** identificati correttamente
+- [ ] **Nessun prodotto duplicato** (controllo marca + nome)
+- [ ] **Varianti gusto** raggruppate sotto lo stesso prodotto
+- [ ] **Foto associate** correttamente a ogni variante
+
+### 7.2 Verifica Contenuti
+- [ ] **Prezzi coerenti** (quantità maggiore = prezzo maggiore)
+- [ ] **Descrizioni complete** per tutti i prodotti
+- [ ] **Valori nutrizionali** inseriti
+- [ ] **Modalità d'uso** specificate
+
+### 7.3 Verifica Tecnica
+- [ ] **Formattazione uniforme** con prodotti esistenti
+- [ ] **Nessun campo vuoto** obbligatorio
+- [ ] **Link foto** funzionanti
+- [ ] **Ortografia** corretta
+
+---
+
+## FASE 8: CONFERMA FINALE
+
+**Prima dell'inserimento definitivo, fornisci:**
+1. **Lista finale** dei 10 prodotti con numero varianti
+2. **Conferma mappatura** foto-varianti
+3. **Dichiarazione** di completamento controlli
+
+**SOLO DOPO questa conferma, procedi con l'inserimento nel sistema.**
+
+---
+
+## 🚨 REGOLE CRITICHE E CORREZIONI
+
+### ⚙️ Problemi Tecnici da Risolvere:
+1. **LINK CATEGORIE**: Controlla che il link "vitamine-e-minerali" vada alla pagina giusta, NON a quella delle proteine
+2. **RAGGRUPPAMENTO OBBLIGATORIO**: Se un prodotto ha più foto con gusti diversi, DEVE essere un unico prodotto con varianti
+3. **FORMATO QUANTITÀ**: SEMPRE "[grammatura] ([numero] confezione)" - es. "40g (1 confezione)"
+4. **MARCHE CORRETTE**: Non mettere tutto "+watt" - controlla la marca reale di ogni prodotto dalle foto
+5. **RECENSIONI**: NON toccare, lascia invariate
+
+### 📋 Controlli Obbligatori:
+1. **MASSIMO 10 PRODOTTI** - non di più, non di meno
+2. **RAGGRUPPA sempre** i gusti dello stesso prodotto  
+3. **UNA FOTO** per ogni variante specifica
+4. **PREZZI LOGICI** e proporzionali
+5. **MARCHE CORRETTE** per ogni prodotto
+6. **CONTROLLO FINALE** obbligatorio prima dell'inserimento
+
+**NON PROCEDERE se non hai completato TUTTE le fasi in ordine.**

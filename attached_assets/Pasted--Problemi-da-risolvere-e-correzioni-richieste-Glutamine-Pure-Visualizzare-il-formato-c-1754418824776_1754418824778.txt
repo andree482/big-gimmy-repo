@@ -1,0 +1,54 @@
+
+
+Problemi da risolvere e correzioni richieste:
+
+🔹 Glutamine Pure
+	•	Visualizzare il formato corretto come impostato in Whey Iso.
+	•	Quando si clicca sulle varianti, il prodotto deve mostrare l’immagine e i dettagli corretti.
+
+🔹 BCAA 2:1:1 Program
+	•	I valori nutrizionali non sono formattati correttamente.
+	•	Riformattare i valori come nelle Proteine, con la tabella ben strutturata e grafica uniforme.
+
+🔹 Prolabs (categoria Aminoacidi)
+	•	Tutti i prodotti presentano problemi di formattazione dei valori nutrizionali.
+	•	Uniformare la formattazione a quella delle Proteine, rispettando i valori effettivi presenti nel file .md.
+
+🔹 GABA
+	•	Inserire la prima immagine fornita (riferimento: “prima immagine”) come immagine corretta del prodotto.
+
+🔹 Vitamine/Minerali/Antiossidanti (Prolabs)
+	•	Far visualizzare gli ingredienti dove ora è presente il placeholder.
+	•	Gli ingredienti devono essere presi e descritti in modo testuale e completo dai file .md dei batch.
+
+🔹 Acido D-Aspartico
+	•	L’immagine non è visualizzabile: correggere usando la seconda immagine fornita.
+	•	Anche il formato non è corretto: sistemare come negli altri prodotti.
+
+🔹 Arginina Alfaketoglutarato 2000
+	•	Attualmente non visualizza gli ingredienti.
+	•	Inserire solo ed esclusivamente quelli riportati nel file .md corretto.
+
+🔹 Arginina Argipower 100%
+	•	Mancano immagine interna, formato, ingredienti e valori nutrizionali.
+	•	Correggere tutto basandosi sul file .md e impostare l’immagine dalla terza foto fornita.
+
+🔹 Ashwagandha Forte 500mg
+	•	I valori nutrizionali non sono correttamente mostrati.
+	•	Impostarli con la stessa grafica/tabella degli altri prodotti, coerente con lo stile delle Proteine.
+
+🔹 I’M Collagen
+	•	L’immagine e il formato non sono visualizzabili.
+	•	Correggere e impostare utilizzando la quarta foto fornita come riferimento.
+
+🔹 Maxivit Sport
+	•	Attualmente la sezione Ingredienti contiene anche la “Modalità d’uso”.
+	•	Eliminare completamente la modalità d’uso dagli ingredienti e mantenerla solo nella sezione dedicata.
+
+🔹 Omega 3 Super
+	•	Stesso problema di Maxivit Sport: la “Modalità d’uso” è dentro agli ingredienti.
+	•	Eliminare la modalità d’uso dagli ingredienti e mantenerla solo nella sezione dedicata.
+
+⸻
+
+✅ Nota finale: Accertarsi che tutte le modifiche siano coerenti con la struttura già presente per le Proteine (grafica, tabelle, immagini di copertina e interne). Usare i file .md e le immagini fornite come fonte unica e corretta

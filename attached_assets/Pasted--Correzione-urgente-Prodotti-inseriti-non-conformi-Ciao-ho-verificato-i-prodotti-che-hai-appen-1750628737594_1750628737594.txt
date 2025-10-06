@@ -1,0 +1,64 @@
+⚠️ Correzione urgente – Prodotti inseriti non conformi
+
+Ciao,
+ho verificato i prodotti che hai appena inserito e purtroppo non corrispondono a quanto richiesto.
+🔴 Problema 1: Prodotti sbagliati
+
+Hai inserito dei prodotti non corretti o presi a caso.
+👉 Devi prendere esattamente gli ultimi 4 prodotti che ti ho fornito.
+Rivedi attentamente il mio messaggio precedente e assicurati che siano tutti presenti e visibili.
+🔧 Problema 2: Regole ignorate
+
+Non sono state rispettate le istruzioni che ti avevo specificato chiaramente.
+Ecco cosa dovevi (e devi) fare:
+✅ Prezzo in copertina
+
+    Aggiungi la riga “A partire da XX,XX€” sotto il nome del prodotto.
+
+    Il prezzo corretto per ogni variante si trova nel file .md allegato.
+
+✅ Brand
+
+    Aggiorna il nome del brand sia nella copertina che all’interno della scheda prodotto, come indicato nel file.
+
+✅ Immagine interna
+
+    L’immagine nel dettaglio del prodotto deve essere ben visibile, proporzionata e coerente con il layout.
+
+    Se necessario, adattala per mantenere l’armonia grafica della pagina.
+
+✅ Selettore varianti
+
+    Inserisci sempre il selettore per gusti e/o quantità, anche se c’è solo una variante.
+
+    Usa come riferimento i prodotti della categoria Proteine, ma applica le quantità reali presenti nel file.
+
+✅ Descrizione – Consiglio dell’esperto
+
+    Ogni descrizione deve includere un consiglio personalizzato dell’esperto.
+
+    Mostralo come nota evidenziata, seguendo lo stile già usato negli altri prodotti.
+
+✅ Valori nutrizionali
+
+    Vanno generati da te in base al tipo di prodotto.
+
+    Utilizza fonti affidabili (siti ufficiali o prodotti simili reali).
+
+✅ Modalità d’uso
+
+    Scrivila tu, adattandola al prodotto. Deve includere:
+
+        🟨 Avvertenze, in evidenza gialla
+
+        🟪 Consiglio d’uso, in evidenza lilla
+
+✅ Ingredienti
+
+    Inserisci ingredienti adatti e specifici per il tipo di prodotto che stai inserendo.
+
+    ❌ Non copiare testi generici o già usati altrove.
+
+📌 Ti chiedo di correggere questi punti subito, applicandoli a ciascuno dei 4 prodotti corretti.
+Fammi sapere appena hai aggiornato tutto, oppure se hai bisogno di chiarimenti su un punto preciso.
+Grazie!

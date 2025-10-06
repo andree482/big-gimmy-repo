@@ -1,0 +1,27 @@
+Parte 2 – Altri prodotti da correggere
+	•	Vitamine & Mineral Complex → Aggiustare varianti prodotti, foto varianti anche in copertina, valori nutrizionali, foto interne per ogni variante. 
+	•	Viteral → Aggiustare ingredienti, prenderli dal file .md del batch corrispondente., 
+	•	Acido D-Aspartico → Valori nutrizionali + ingredienti, ,foto interne per ogni variante. 
+	•	Arginina Alfaketoglutarato 2000 → Aggiustare varianti prodotti, foto varianti, anche foto in copertina.
+	•	Arginina Argipower 100% → Aggiustare varianti prodotti, foto varianti anche in copertina, ,foto interne per ogni variante. 
+	•	Ashwagandha Forte 500mg → Aggiustare varianti prodotti, foto varianti anche in copertina, ,foto interne per ogni variante. 
+	•	Astaxantina Plus → Aggiustare varianti prodotti, foto in copertina, valori nutrizionali, ,foto interne per ogni variante. 
+	•	Caffè Verde + Té Matcha 800 mg → Aggiustare varianti prodotti, foto varianti interno prodotto, foto in copertina, valori nutrizionali corretti.
+	•	CLAA → Foto varianti, valori nutrizionali corretti, foto copertina.
+	•	COQ-10 Forte 1000mg → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Collagene Marino + Acido Ialuronico → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Depurixia → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Glutatione Liposomiale → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	I’M Collagen → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Lipoic 800 Crom → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Lipoic B → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Maxivit Sport → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Minerals → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Omega 3 Super → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Omega 3-6-9 → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Probio Plus → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Red Booster → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Ultra Vit → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Vegan Protein → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Vitamina B Complex → ,foto interne per ogni variante. , valori nutrizionali corretti, foto copertina.
+	•	Vitamina D3 + K2 → Foto varianti, valori nutrizionali corretti, foto copertina, ,foto interne per ogni variante. 

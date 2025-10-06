@@ -1,0 +1,57 @@
+✅ Avvio procedura: inserimento prodotti – Categoria “Vitamine”
+Ottimo, ora sei pronto per procedere con l’inserimento dei nuovi prodotti relativi alla categoria Vitamine.
+
+Ti chiedo di seguire con massima attenzione le istruzioni riportate qui sotto, perché l’obiettivo è chiaro:
+🔔 inserire correttamente 100 prodotti totali (inclusi questi), entro un limite massimo di 2 ore e mezza, senza errori.
+
+🧾 Ordine corretto delle azioni
+Prima di tutto, leggi il file .md allegato come ultimo documento.
+Esso contiene tutte le informazioni specifiche sui prodotti (varianti, immagini, prezzi, ecc.).
+❗ Va letto prima di ogni singolo inserimento.
+
+Subito dopo, consulta la guida ufficiale in:
+public/tips_da_leggere_PRODUCT_INSERTION_GUIDE.md
+➤ Questa guida è la tua fonte operativa primaria e definisce ogni standard strutturale e visivo da rispettare.
+
+Solo una volta comprese entrambe le fonti, puoi iniziare l’inserimento del prodotto.
+Se c’è anche il minimo dubbio, fermati e chiedi chiarimenti prima di procedere.
+
+🐍 Strumenti fondamentali da usare
+📸 Script Python per gestione nomi immagine:
+Si trova in:
+workspace/image_product_mapper.py
+➤ Usalo per identificare correttamente i nomi delle immagini, soprattutto quando i file hanno nomi generici.
+Questo passaggio è essenziale per assicurare il corretto abbinamento immagine ↔ prodotto/variante.
+
+⚙️ Script principale (logica di supporto):
+Si trova in:
+public/tips_da_leggere/
+➤ Serve come riferimento per l’intero flusso di inserimento e va eseguito/consultato se previsto.
+
+🖼️ Inserimento immagini
+Tutte le immagini vanno copiate direttamente nella cartella:
+
+swift
+Copia
+Modifica
+public/images/products
+➤ Così facendo eviti errori di percorso e garantisci il corretto rendering sul sito.
+
+🚫 Errori da evitare
+Hai già ricevuto feedback su alcuni errori precedenti. Ti chiedo ora di:
+
+evitare la duplicazione di prezzi statici in verde (già gestiti dal sistema)
+
+non separare le varianti in prodotti diversi
+
+seguire rigorosamente l’associazione gusto/quantità/immagine
+
+utilizzare esclusivamente le strutture e logiche definite nella guida
+
+📌 Conclusione
+Il successo di questo lavoro dipende dalla precisione, non dalla velocità.
+Solo seguendo le istruzioni, utilizzando gli script giusti e facendo attenzione ad ogni dettaglio, potremo completare i 100 prodotti nel tempo stabilito.
+
+Buon lavoro! 🙌
+E soprattutto: se hai qualsiasi dubbio, chiedi prima di procedere.
+Grazie mille per il tuo aiuto!

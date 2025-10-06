@@ -1,0 +1,63 @@
+➕ Inserimento di 9 nuovi prodotti – Categoria Aminoacidi
+Ciao!
+Ora è il momento di procedere con l’inserimento di altri 9 prodotti nella categoria Aminoacidi.
+
+Ti chiedo di seguire con precisione assoluta tutte le istruzioni qui sotto per evitare qualsiasi errore e garantire uniformità con i prodotti già corretti.
+
+✅ Cosa DEVI fare per ogni prodotto
+🔎 Leggere attentamente il file .md allegato
+
+È l’unica fonte valida per: nome prodotto, gusti, quantità, immagini, prezzi e link.
+
+Trovi tutto ciò che ti serve: non aggiungere né inventare nulla.
+
+📘 Consultare la guida ufficiale
+
+Percorso: public/tips_da_leggere_PRODUCT_INSERTION_GUIDE.md
+
+Rispettare struttura, stile e logica indicati.
+
+🧩 Gestione delle varianti
+
+Se un prodotto ha più gusti o quantità → devono essere inseriti in un’unica scheda.
+
+✅ Utilizza il selettore delle varianti per gestire le opzioni.
+
+📌 Mai creare prodotti separati per ogni gusto o quantità.
+
+Esempio corretto da seguire: WPC 100% o FruitForce
+
+🖼️ Gestione immagini
+
+La copertina deve essere visibile
+
+Le immagini interne devono cambiare in base alla variante selezionata
+
+Se usi nomi file generici, usa lo script Python in workspace/image_product_mapper.py per identificare correttamente le immagini da associare.
+
+🧾 Contenuti interni
+
+✅ Descrizione dettagliata (da generare)
+
+✅ Valori nutrizionali (basati sul tipo di prodotto)
+
+✅ Modalità d’uso (con avvertenze in giallo e consigli in lilla)
+
+✅ Ingredienti corretti, differenziati per gusto/quantità quando necessario
+
+🚫 Cosa NON DEVI fare
+❌ Non inserire prodotti che non ti ho indicato
+
+❌ Non dividere i gusti in più prodotti separati
+
+❌ Non lasciare varianti senza immagini o senza selezione attiva
+
+❌ Non trascurare le istruzioni del file .md o della guida
+
+📌 Ultima nota importante
+“Una cosa ti ho chiesto, ed è quella di NON DIVIDERE i prodotti.
+Se un prodotto ha più gusti o più varianti, deve essere TUTTO in uno.”
+Questa regola è fondamentale e non va mai ignorata.
+
+Fammi sapere non appena hai completato l’inserimento o se hai dubbi su uno qualsiasi dei passaggi.
+Grazie mille e buon lavoro! 💪

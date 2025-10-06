@@ -1,0 +1,52 @@
+### **Correzione "Prezzo su Richiesta, Contattaci"**⚙️
+
+Ciao!
+la copertina di alcuni prodotti mostra "Prezzo su Richiesta, Contattaci", indicando l'assenza di dati in `product\_options`.
+**Obiettivo:** Visualizzare correttamente quantità, gusto e prezzo all'interno di ogni prodotto e "A partire da... (prezzo minimo)" sulla sua copertina.
+
+**Soluzione:** Copiare i dati pertinenti dalla tabella `product\_sizes` alla tabella `product\_option`. **Questa procedura va applicata solo ai prodotti elencati qui sotto.**
+
+**Regole di mappatura dei campi:**
+Da `product\_sizes` a `product\_option`:
+-   **`product\_id`** → **`product\_id`**
+-   **`value`** → **`flavor`**
+-   **`unit`** → **`size`**
+-   **`price`** → **`price\_cents`**
+
+**Altri campi in `product\_option`:**
+-   `original\_price\_cents`, `image`: Lasciare **vuoti**.
+-   `in\_stock`: Impostare sempre a **`TRUE`**.
+
+**Lista dei prodotti da trattare (è fondamentale agire solo su questi):**
+-   Arginine NO
+-   Caffeina Suprema
+-   Collagene
+-   Comfort Plus
+-   Creatina Vector
+-   D3/K2 Complex
+-   EAA Amminoacidi Essenziali Solubili
+-   Fluid Motion
+-   Glucosamina
+-   Hard EAA 8:1
+-   Hard WPH BV104
+-   Hard ZMA XP
+-   Intra Pro Essential+
+-   Isowhey Pro-Zyme
+-   MAGNESIUM GLYCINATE
+-   Massive Gain XXL
+-   Peanut Butter
+-   R.M.1 BCAA 8:1:1 Recovery Mix
+-   Repoxan
+-   Super Dextrin Pro
+-   Testogen
+-   Thermo Master
+-   Total EGG
+-   Vitamina C 1000
+-   Vitamina D3 2000 IU
+
+**Obiettivo finale del prompt:**🎯
+Una volta completata la migrazione e la corretta configurazione, il risultato atteso è che:
+• All'interno della pagina di ogni prodotto, l'utente possa vedere quantità, gusto e prezzo per tutte le varianti disponibili.
+• Sulla copertina di ogni prodotto (nella vista categoria o home page), appaia la dicitura "A partire da... (prezzo minimo)", indicando il prezzo più basso tra le sue varianti.
+
+Massima precisione nell'esecuzione di questi passaggi per garantire un catalogo prodotti coerente e funzionale! 💪

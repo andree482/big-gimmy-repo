@@ -1,0 +1,54 @@
+🔑 Obiettivo
+
+Gli ingredienti devono essere sempre correlati al prodotto corretto, visibili nel frontend e mostrati chiaramente nell’esperienza utente.
+Tutti i prodotti devono essere trattati con lo stesso stile uniforme, sia nella grafica dei valori nutrizionali che nella gestione delle sezioni.
+
+⸻
+
+🔹 Glutammine Pure
+	•	Migliorare i valori nutrizionali, impostandoli con la stessa grafica/tabella già usata nelle Proteine.
+
+🔹 GABA
+	•	Inserire l’immagine interna del prodotto (foto numero 1 allegata).
+	•	Migliorare i valori nutrizionali con lo stesso stile delle Proteine.
+	•	Inserire correttamente gli ingredienti.
+
+🔹 Acido D-Aspartico
+	•	Inserire gli ingredienti, presi dal file .md corrispondente.
+
+🔹 Arginina Piroglutammato e Lisina
+	•	Inserire gli ingredienti, presi dal file .md.
+
+🔹 Arginina Alfaketoglutarato 2000
+	•	Inserire gli ingredienti mancanti, basandosi sul file .md.
+
+🔹 Ashwagandha Forte 500mg
+	•	Sistemare la grafica dei valori nutrizionali nello stesso formato professionale delle Proteine.
+
+🔹 K2 + D3
+	•	Attualmente non sono visibili varianti: correggere e inserire correttamente (foto numero 2 allegata).
+	•	Inserire anche gli ingredienti.
+
+🔹 Fish Oil
+	•	Inserire gli ingredienti.
+
+🔹 Vitamina C 1000 mg
+	•	Inserire gli ingredienti.
+
+🔹 I’M Collagen
+	•	L’immagine e il formato non sono visualizzabili.
+	•	Correggere e impostare utilizzando la quarta foto allegata come riferimento.
+
+🔹 Maxivit Sport
+	•	Attualmente la sezione Ingredienti contiene anche la “Modalità d’uso”.
+	•	Eliminare completamente la modalità d’uso dagli ingredienti e mantenerla solo nella sezione apposita.
+
+🔹 Omega 3 Super
+	•	Stesso problema di Maxivit Sport: la “Modalità d’uso” è dentro agli ingredienti.
+	•	Eliminare la modalità d’uso dagli ingredienti e mantenerla solo nella sezione apposita.
+
+⸻
+
+✅ Nota finale
+	•	Assicurati che tutti i prodotti siano trattati allo stesso modo, con la stessa grafica uniforme, tabella nutrizionale professionale, ingredienti chiari e immagini corrette (sia interne che in copertina).
+	•	Utilizza come unica fonte i file .md e le immagini fornite.

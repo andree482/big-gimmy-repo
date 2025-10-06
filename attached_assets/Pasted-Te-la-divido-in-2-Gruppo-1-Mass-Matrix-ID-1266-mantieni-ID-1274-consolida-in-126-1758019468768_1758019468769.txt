@@ -1,0 +1,131 @@
+Te la divido in 2:
+
+### Gruppo 1 - Mass Matrix:
+- ID 1266 (mantieni)
+- ID 1274 (consolida in 1266)
+
+---
+
+### Gruppo 2 - Amino Pool BV104
+- ID 1439 (mantieni)
+- ID 1440 (consolida)
+
+---
+
+### Gruppo 3 - BCAA 2:1:1 Proram
+- ID 1202 (mantieni)
+- ID 1203 (consolida)
+- ID 1204 (consolida)
+
+---
+
+### Gruppo 4 - BCAA 8:1:1 Peptide
+- ID 1207 (mantieni)
+- ID 1208 (consolida)
+
+---
+
+### Gruppo 5 - BCAA Sport 4:1:1
+- ID 1209 (mantieni)
+- ID 1210 (consolida)
+
+---
+
+### Gruppo 6 - Borraccia 600/800 ml
+- ID 1522 (mantieni)
+- ID 1523 (consolida)
+
+---
+
+### Gruppo 7 - Creatina Micronizzata 100%
+- ID 1213 (mantieni)
+- ID 1214 (consolida)
+
+---
+
+### Gruppo 8 - Creatina Tabs Monoidrata
+- ID 1215 (mantieni)
+- ID 1216 (consolida)
+
+---
+
+### Gruppo 9 - EGG Protein
+- ID 1260 (mantieni)
+- ID 1259 (consolida)
+
+---
+
+### Gruppo 10 - Fish Oil
+- ID 1262 (mantieni)
+- ID 1261 (consolida)
+
+---
+
+### Gruppo 11 - Glutamine Pure 100%
+- ID 1531 (mantieni)
+- ID 1532 (consolida)
+
+---
+
+### Gruppo 12 - Glutamine Pure 1000
+- ID 1517 (mantieni)
+- ID 1518 (consolida)
+
+---
+
+### Gruppo 12 - Glutamine Pure di WHY Sport
+- ID 1263 (mantieni)
+- ID 1264 (consolida)
+- ID 1265 (consolida)
+
+---
+
+### Gruppo 13 - Glutammina Peptide
+- ID 1219 (mantieni)
+- ID 1220 (consolida)
+
+---
+
+### Gruppo 14 - Hard WPH BV104
+- ID 1392 (mantieni)
+- ID 1393 (consolida)
+
+---
+
+### Gruppo 15 - High Pro Release
+- ID 1519 (mantieni)
+- ID 1520 (consolida)
+- ID 1521 (consolida)
+
+---
+
+### Gruppo 16 - Isowhey Pro-Zyme
+- ID 1370 (mantieni)
+- ID 1371 (consolida)
+- ID 1372 (consolida)
+- ID 1373 (consolida)
+- ID 1374 (consolida)
+- ID 1378 (consolida)
+- ID 1381 (consolida)
+- ID 1379 (consolida)
+- ID 1377 (consolida)
+- ID 1380 (consolida)
+- ID 1369 (consolida)
+- ID 1367 (consolida)
+- ID 1368 (consolida)
+---
+
+### Gruppo 17 - Mass Matrix
+- ID 1266 (mantieni)
+- ID 1274 (consolida)
+- ID 1275 (consolida)
+- ID 1276 (consolida)
+- ID 1274 (consolida)
+
+---
+
+### Gruppo 18 - Massive Gain XXL
+- ID 1382 (mantieni)
+- ID 1383 (consolida)
+
+---

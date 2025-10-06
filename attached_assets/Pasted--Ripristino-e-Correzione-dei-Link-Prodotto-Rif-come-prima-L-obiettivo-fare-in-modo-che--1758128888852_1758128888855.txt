@@ -1,0 +1,17 @@
+### Ripristino e Correzione dei Link Prodotto (Rif. 'come prima')🔗
+L'obiettivo è fare in modo che **tutti i prodotti abbiano un indirizzamento URL corretto e coerente**, ripristinando la funzionalità ottimale e l'assemblaggio come discusso in precedenza.
+
+### Problema Attuale di Routing⚠️
+Attualmente, i link dei prodotti presentano un'incongruenza significativa:
+- Nelle **singole pagine di categoria**, i prodotti sono visibili e navigabili correttamente.
+- Tuttavia, la **pagina principale dei prodotti** (o altre sezioni non specificate) utilizza un indirizzamento di route come `/prodotti/categoria/slug_prodotto_semplice`.
+- Questo formato `/slug_prodotto_semplice` **non esiste** o non viene correttamente riconosciuto dal sistema, rendendo il link non funzionale e inaccessibile.
+
+
+Devi correggere questa discrepanza assicurandoti che:
+
+1.  **Formato URL Corretto**: Il link di ogni prodotto torni ad essere nel formato standard e funzionale, ovvero:
+    `**/prodotti/categoria/slug_prodotto_dove_ho_scritto_mantieni**`
+2.  **Origine dello Slug**: Lo `slug` del prodotto deve essere **preso direttamente dalla tabella `products` del database**. Per garantire la massima precisione e coerenza, utilizza il `product_id` che hai inserito per correlare il prodotto allo slug corretto presente nel database.
+3.  **Slug con Quantità (Accettabile per ora)**: Al momento, gli slug di quei prodotti specifici includono la quantità (ad esempio: `nome-prodotto-250g`). Questa impostazione **va bene così e non deve essere modificata in questa fase**. Assicurati che l'intero slug (compresa la quantità, se presente) venga estratto correttamente dalla tabella `products` e utilizzato nel link.
+4.  **Coerenza Frontend/Backend**: È fondamentale che le modifiche vengano applicate e riflesse correttamente **sia nel backend** (nel database e nella logica di routing) **sia nel frontend** (nella visualizzazione effettiva dei link sul sito) per garantire una navigazione fluida e senza errori.

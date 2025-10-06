@@ -1,0 +1,31 @@
+Ecco un prompt chiaro, professionale e dettagliato per Replit, per risolvere il problema che hai riscontrato nella pagina principale dei prodotti:
+
+---
+##  **URGENTE: Correzione visualizzazione prodotti nella pagina `/prodotti`**🚨
+Ciao!
+
+Ho riscontrato un **problema critico** nella visualizzazione dei prodotti che necessita di essere risolto immediatamente per garantire la piena funzionalità del sito.
+
+###  **Problema attuale:**❌
+- Se si naviga direttamente alla pagina principale dei prodotti (`/prodotti`), **non viene visualizzato alcun prodotto**. La pagina appare vuota o incompleta.
+- Tuttavia, i prodotti **funzionano perfettamente** e sono visibili quando si accede tramite le loro **rispettive pagine di categoria** (es. `/prodotti/proteine`, `/prodotti/aminoacidi`, ecc.).
+
+Questo indica che i dati dei prodotti sono presenti e le logiche di visualizzazione funzionano a livello di categoria, ma non sulla pagina aggregata.
+
+###  **Obiettivo da raggiungere:**✅
+La pagina `/prodotti` deve **visualizzare tutti i prodotti disponibili nel sito**, prendendoli direttamente dalle loro categorie di appartenenza.
+
+###  **Cosa devi fare:**🔧
+1.  **Identifica il componente o la logica** responsabile della visualizzazione dei prodotti nella pagina `/prodotti`.
+2.  Assicurati che questa pagina **richiami e aggreghi correttamente tutti i prodotti** presenti nel database, indipendentemente dalla loro categoria.
+3.  La visualizzazione deve essere **coerente** con quella delle pagine di categoria (stesso stile delle copertine, prezzi minimi, immagini corrette, ecc.).
+4.  Verifica che il fetch dei dati per `/prodotti` **non abbia filtri errati** o limitazioni che impediscono di mostrare l'intera offerta.
+5.  Controlla che la logica di rendering (es. l'uso di `ProductCard` o componenti simili) sia la stessa e funzioni correttamente anche nella pagina `/prodotti`.
+
+###  **Punti chiave da verificare:**🔍
+-   **Backend:** la query che alimenta la pagina `/prodotti` deve recuperare **tutti i prodotti** (o aggregare le query per categoria).
+-   **Frontend:** il componente della pagina `/prodotti` deve essere in grado di **renderizzare correttamente l'elenco completo** dei prodotti ricevuti.
+
+Questo è fondamentale per l'esperienza utente e per la navigabilità complessiva del catalogo prodotti.
+
+Fammi sapere non appena hai individuato la causa e applicato la correzione, così possiamo verificare insieme il risultato. Grazie mille! 💪

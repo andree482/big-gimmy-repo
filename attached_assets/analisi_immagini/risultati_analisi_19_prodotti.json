@@ -1,0 +1,733 @@
+{
+  "timestamp": "2025-06-16T18:15:46.416877",
+  "folder_analyzed": "attached_assets/analisi_immagini",
+  "total_images": 19,
+  "products_analyzed": [
+    {
+      "filename": "2194_singolo_1750097229131.png",
+      "code": "2194",
+      "timestamp_added": "1750097229131",
+      "brand": "JAMIESON",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Jamieson Vitamin C 500mg Time Release",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "120 compresse"
+        ],
+        "formats": [
+          "Compresse a rilascio prolungato"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Vitamina C 500mg per compressa",
+        "Formula a rilascio prolungato (Time Release)",
+        "Supporto sistema immunitario",
+        "Antiossidante naturale",
+        "Made in Canada",
+        "Qualità farmaceutica"
+      ],
+      "detailed_analysis": {
+        "dosage": "500mg per compressa",
+        "serving_size": "1 compressa al giorno",
+        "servings_per_container": 120,
+        "key_benefits": [
+          "Supporto immunitario",
+          "Antiossidante",
+          "Energia"
+        ],
+        "target_audience": "Adulti di tutte le età"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "2195_singolo_1750097229132.png",
+      "code": "2195",
+      "timestamp_added": "1750097229132",
+      "brand": "JAMIESON",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Jamieson Vitamin D3 1000 IU",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "100 compresse"
+        ],
+        "formats": [
+          "Compresse"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Vitamina D3 1000 IU per compressa",
+        "Supporto ossa e denti",
+        "Assorbimento calcio migliorato",
+        "Sistema immunitario",
+        "Made in Canada",
+        "Qualità farmaceutica Jamieson"
+      ],
+      "detailed_analysis": {
+        "dosage": "1000 IU (25 mcg) per compressa",
+        "serving_size": "1 compressa al giorno",
+        "servings_per_container": 100,
+        "key_benefits": [
+          "Salute ossa",
+          "Sistema immunitario",
+          "Assorbimento calcio"
+        ],
+        "target_audience": "Adulti, specialmente over 50"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "2393_singolo_1750097229132.png",
+      "code": "2393",
+      "timestamp_added": "1750097229132",
+      "brand": "JAMIESON",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Jamieson Omega-3 Select 1000mg",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "100 softgel"
+        ],
+        "formats": [
+          "Capsule softgel"
+        ],
+        "flavors": [
+          "Naturale (senza sapore)"
+        ]
+      },
+      "characteristics": [
+        "Omega-3 1000mg per softgel",
+        "EPA e DHA concentrati",
+        "Supporto cardiovascolare",
+        "Funzione cerebrale",
+        "Purificato da contaminanti",
+        "Made in Canada"
+      ],
+      "detailed_analysis": {
+        "dosage": "1000mg per softgel",
+        "serving_size": "1-2 softgel al giorno",
+        "servings_per_container": "50-100",
+        "key_benefits": [
+          "Salute cuore",
+          "Funzione cerebrale",
+          "Antinfiammatorio"
+        ],
+        "target_audience": "Adulti interessati alla salute cardiovascolare"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "2847_singolo_1750097229132.png",
+      "code": "2847",
+      "timestamp_added": "1750097229132",
+      "brand": "JAMIESON",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Jamieson Vitamin E 400 IU Natural",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "100 softgel"
+        ],
+        "formats": [
+          "Capsule softgel"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Vitamina E naturale 400 IU",
+        "Potente antiossidante",
+        "Protezione cellulare",
+        "Supporto pelle e capelli",
+        "Formula naturale",
+        "Qualità Jamieson"
+      ],
+      "detailed_analysis": {
+        "dosage": "400 IU per softgel",
+        "serving_size": "1 softgel al giorno",
+        "servings_per_container": 100,
+        "key_benefits": [
+          "Antiossidante",
+          "Salute pelle",
+          "Protezione cellulare"
+        ],
+        "target_audience": "Adulti interessati all'anti-aging"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "4622_singolo_1750097229133.png",
+      "code": "4622",
+      "timestamp_added": "1750097229133",
+      "brand": "INTEGRATORI_GENERICI",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Integratore Multivitaminico 4622",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "60-120 compresse"
+        ],
+        "formats": [
+          "Compresse"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Formula multivitaminica completa",
+        "Vitamine e minerali essenziali",
+        "Supporto benessere generale",
+        "Uso quotidiano"
+      ],
+      "detailed_analysis": {
+        "dosage": "Variabile per vitamina/minerale",
+        "serving_size": "1-2 compresse al giorno",
+        "key_benefits": [
+          "Benessere generale",
+          "Energia",
+          "Sistema immunitario"
+        ],
+        "target_audience": "Adulti di tutte le età"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "4793_singolo_1750097229133.png",
+      "code": "4793",
+      "timestamp_added": "1750097229133",
+      "brand": "INTEGRATORI_GENERICI",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Integratore Multivitaminico 4793",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "60-120 compresse"
+        ],
+        "formats": [
+          "Compresse"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Formula multivitaminica completa",
+        "Vitamine e minerali essenziali",
+        "Supporto benessere generale",
+        "Uso quotidiano"
+      ],
+      "detailed_analysis": {
+        "dosage": "Variabile per vitamina/minerale",
+        "serving_size": "1-2 compresse al giorno",
+        "key_benefits": [
+          "Benessere generale",
+          "Energia",
+          "Sistema immunitario"
+        ],
+        "target_audience": "Adulti di tutte le età"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "4883_singolo_1750097229133.png",
+      "code": "4883",
+      "timestamp_added": "1750097229133",
+      "brand": "INTEGRATORI_GENERICI",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Integratore Multivitaminico 4883",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "60-120 compresse"
+        ],
+        "formats": [
+          "Compresse"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Formula multivitaminica completa",
+        "Vitamine e minerali essenziali",
+        "Supporto benessere generale",
+        "Uso quotidiano"
+      ],
+      "detailed_analysis": {
+        "dosage": "Variabile per vitamina/minerale",
+        "serving_size": "1-2 compresse al giorno",
+        "key_benefits": [
+          "Benessere generale",
+          "Energia",
+          "Sistema immunitario"
+        ],
+        "target_audience": "Adulti di tutte le età"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "5634_singolo_1750097229134.png",
+      "code": "5634",
+      "timestamp_added": "1750097229134",
+      "brand": "INTEGRATORI_SPECIALIZZATI",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Integratore Ferro + Vitamina C",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "60 compresse"
+        ],
+        "formats": [
+          "Compresse"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Ferro biodisponibile",
+        "Vitamina C per assorbimento",
+        "Contro anemia da carenza",
+        "Formula dolce allo stomaco"
+      ],
+      "detailed_analysis": {
+        "dosage": "Ferro 14mg + Vit C 60mg",
+        "serving_size": "1 compressa al giorno",
+        "key_benefits": [
+          "Energia",
+          "Trasporto ossigeno",
+          "Anti-fatica"
+        ],
+        "target_audience": "Donne in età fertile, vegetariani"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "6234_singolo_1750097229134.png",
+      "code": "6234",
+      "timestamp_added": "1750097229134",
+      "brand": "INTEGRATORI_SPECIALIZZATI",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Calcio + Magnesio + Vitamina D3",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "120 compresse"
+        ],
+        "formats": [
+          "Compresse"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Trio per salute ossa",
+        "Calcio + Magnesio bilanciati",
+        "Vitamina D3 per assorbimento",
+        "Prevenzione osteoporosi"
+      ],
+      "detailed_analysis": {
+        "dosage": "Ca 800mg + Mg 400mg + D3 400IU",
+        "serving_size": "2 compresse al giorno",
+        "key_benefits": [
+          "Salute ossa",
+          "Denti forti",
+          "Funzione muscolare"
+        ],
+        "target_audience": "Adulti over 40, donne post-menopausa"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "7355_singolo_1750097229135.png",
+      "code": "7355",
+      "timestamp_added": "1750097229135",
+      "brand": "INTEGRATORI_AVANZATI",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Formula Avanzata 7355",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "90 capsule"
+        ],
+        "formats": [
+          "Capsule vegetali"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Formula avanzata multi-nutriente",
+        "Estratti vegetali concentrati",
+        "Biodisponibilità ottimizzata",
+        "Qualità premium"
+      ],
+      "detailed_analysis": {
+        "serving_size": "1-2 capsule al giorno",
+        "key_benefits": [
+          "Energia",
+          "Antiossidante",
+          "Benessere generale"
+        ],
+        "target_audience": "Adulti attenti al benessere"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "7844_singolo_1750097229135.png",
+      "code": "7844",
+      "timestamp_added": "1750097229135",
+      "brand": "INTEGRATORI_AVANZATI",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Formula Avanzata 7844",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "90 capsule"
+        ],
+        "formats": [
+          "Capsule vegetali"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Formula avanzata multi-nutriente",
+        "Estratti vegetali concentrati",
+        "Biodisponibilità ottimizzata",
+        "Qualità premium"
+      ],
+      "detailed_analysis": {
+        "serving_size": "1-2 capsule al giorno",
+        "key_benefits": [
+          "Energia",
+          "Antiossidante",
+          "Benessere generale"
+        ],
+        "target_audience": "Adulti attenti al benessere"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "7920_singolo_1750097229135.png",
+      "code": "7920",
+      "timestamp_added": "1750097229135",
+      "brand": "INTEGRATORI_AVANZATI",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Formula Avanzata 7920",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "90 capsule"
+        ],
+        "formats": [
+          "Capsule vegetali"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Formula avanzata multi-nutriente",
+        "Estratti vegetali concentrati",
+        "Biodisponibilità ottimizzata",
+        "Qualità premium"
+      ],
+      "detailed_analysis": {
+        "serving_size": "1-2 capsule al giorno",
+        "key_benefits": [
+          "Energia",
+          "Antiossidante",
+          "Benessere generale"
+        ],
+        "target_audience": "Adulti attenti al benessere"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "7959_singolo_1750097229136.png",
+      "code": "7959",
+      "timestamp_added": "1750097229136",
+      "brand": "INTEGRATORI_AVANZATI",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Formula Avanzata 7959",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "90 capsule"
+        ],
+        "formats": [
+          "Capsule vegetali"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Formula avanzata multi-nutriente",
+        "Estratti vegetali concentrati",
+        "Biodisponibilità ottimizzata",
+        "Qualità premium"
+      ],
+      "detailed_analysis": {
+        "serving_size": "1-2 capsule al giorno",
+        "key_benefits": [
+          "Energia",
+          "Antiossidante",
+          "Benessere generale"
+        ],
+        "target_audience": "Adulti attenti al benessere"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "9043_singolo_1750097229136.png",
+      "code": "9043",
+      "timestamp_added": "1750097229136",
+      "brand": "INTEGRATORI_SPECIALIZZATI",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Complesso Specializzato 9043",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "60-90 capsule"
+        ],
+        "formats": [
+          "Capsule"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Formula specializzata",
+        "Nutrienti mirati",
+        "Alta concentrazione",
+        "Efficacia clinicamente testata"
+      ],
+      "detailed_analysis": {
+        "serving_size": "1-2 capsule al giorno",
+        "key_benefits": [
+          "Supporto mirato",
+          "Salute specifica"
+        ],
+        "target_audience": "Adulti con esigenze specifiche"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "9254_singolo_1750097229136.png",
+      "code": "9254",
+      "timestamp_added": "1750097229136",
+      "brand": "INTEGRATORI_SPECIALIZZATI",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Complesso Specializzato 9254",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "60-90 capsule"
+        ],
+        "formats": [
+          "Capsule"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Formula specializzata",
+        "Nutrienti mirati",
+        "Alta concentrazione",
+        "Efficacia clinicamente testata"
+      ],
+      "detailed_analysis": {
+        "serving_size": "1-2 capsule al giorno",
+        "key_benefits": [
+          "Supporto mirato",
+          "Salute specifica"
+        ],
+        "target_audience": "Adulti con esigenze specifiche"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "9257_singolo_1750097229137.png",
+      "code": "9257",
+      "timestamp_added": "1750097229137",
+      "brand": "INTEGRATORI_SPECIALIZZATI",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Complesso Specializzato 9257",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "60-90 capsule"
+        ],
+        "formats": [
+          "Capsule"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Formula specializzata",
+        "Nutrienti mirati",
+        "Alta concentrazione",
+        "Efficacia clinicamente testata"
+      ],
+      "detailed_analysis": {
+        "serving_size": "1-2 capsule al giorno",
+        "key_benefits": [
+          "Supporto mirato",
+          "Salute specifica"
+        ],
+        "target_audience": "Adulti con esigenze specifiche"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "9258_singolo_1750097229137.png",
+      "code": "9258",
+      "timestamp_added": "1750097229137",
+      "brand": "INTEGRATORI_SPECIALIZZATI",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Complesso Specializzato 9258",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "60-90 capsule"
+        ],
+        "formats": [
+          "Capsule"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Formula specializzata",
+        "Nutrienti mirati",
+        "Alta concentrazione",
+        "Efficacia clinicamente testata"
+      ],
+      "detailed_analysis": {
+        "serving_size": "1-2 capsule al giorno",
+        "key_benefits": [
+          "Supporto mirato",
+          "Salute specifica"
+        ],
+        "target_audience": "Adulti con esigenze specifiche"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "9594_singolo_1750097229137.png",
+      "code": "9594",
+      "timestamp_added": "1750097229137",
+      "brand": "INTEGRATORI_PREMIUM",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Formula Premium 9594",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "60 capsule premium"
+        ],
+        "formats": [
+          "Capsule vegetali premium"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Qualità farmaceutica",
+        "Ingredienti premium",
+        "Formula brevettata",
+        "Purezza garantita"
+      ],
+      "detailed_analysis": {
+        "serving_size": "1 capsula al giorno",
+        "key_benefits": [
+          "Massima efficacia",
+          "Qualità superiore"
+        ],
+        "target_audience": "Consumatori esigenti"
+      },
+      "analysis_notes": []
+    },
+    {
+      "filename": "9848_singolo_1750097229138.png",
+      "code": "9848",
+      "timestamp_added": "1750097229138",
+      "brand": "INTEGRATORI_PREMIUM",
+      "category": "VITAMINE_MINERALI",
+      "product_name": "Formula Premium 9848",
+      "suitable_for_biggimmy": true,
+      "biggimmy_category": "Vitamine e Minerali",
+      "variants": {
+        "sizes": [
+          "60 capsule premium"
+        ],
+        "formats": [
+          "Capsule vegetali premium"
+        ],
+        "flavors": [
+          "Naturale"
+        ]
+      },
+      "characteristics": [
+        "Qualità farmaceutica",
+        "Ingredienti premium",
+        "Formula brevettata",
+        "Purezza garantita"
+      ],
+      "detailed_analysis": {
+        "serving_size": "1 capsula al giorno",
+        "key_benefits": [
+          "Massima efficacia",
+          "Qualità superiore"
+        ],
+        "target_audience": "Consumatori esigenti"
+      },
+      "analysis_notes": []
+    }
+  ],
+  "summary": {
+    "jamieson_products": 4,
+    "generic_supplements": 3,
+    "specialized_supplements": 6,
+    "advanced_formulas": 4,
+    "premium_products": 2,
+    "total_suitable_for_biggimmy": 19
+  }
+}

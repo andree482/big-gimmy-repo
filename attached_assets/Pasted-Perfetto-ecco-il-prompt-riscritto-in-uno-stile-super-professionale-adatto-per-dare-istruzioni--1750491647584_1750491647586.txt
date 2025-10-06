@@ -1,0 +1,91 @@
+Perfetto, ecco il prompt riscritto in uno stile **super professionale**, adatto per dare istruzioni chiare, strutturate e impeccabili a Replit in un contesto di lavoro serio:
+
+---
+
+### 🧾 **ISTRUZIONI UFFICIALI – INSERIMENTO PRODOTTI & GESTIONE IMMAGINI**
+
+Ciao,
+è arrivato il momento di avviare la procedura di inserimento prodotti secondo la struttura che definiremo insieme, con il massimo livello di precisione.
+
+Hai già a disposizione la **guida ufficiale di riferimento**, che dovrai **seguire rigorosamente** in ogni fase operativa:
+
+📍 **Percorso guida:**
+`public/tips_da_leggere_PRODUCT_INSERTION_GUIDE.md`
+
+---
+
+## 🐍 **FASE 1 – Automazione della gestione immagini (script Python)**
+
+### 🎯 Obiettivo
+
+Prima di iniziare a inserire i prodotti manualmente, ti chiedo di sviluppare uno **script Python dedicato alla gestione intelligente delle immagini** prodotto.
+
+### ✅ Funzionalità richiesta
+
+Spesso i file immagine che ti fornisco hanno **nomi generici o non descrittivi** (es. `34535.png`), mentre corrispondono a prodotti specifici (es. *Ashwagandha*).
+Lo script dovrà consentire di:
+
+* Associare in modo univoco il **nome reale del prodotto/variante** al **nome del file immagine**
+* Generare un output strutturato che semplifichi e automatizzi il **processo di inserimento delle immagini corrette nelle rispettive schede prodotto**
+* Preparare un file di riferimento utile anche per altri operatori che in futuro si occuperanno dell’inserimento
+
+### 📌 Applicazione pratica
+
+A breve ti fornirò un blocco di **19 immagini**.
+Tieni presente che:
+
+> ❗ Il numero di immagini non corrisponde necessariamente al numero di prodotti.
+> Alcuni prodotti possono infatti contenere **più immagini** (una per ciascuna variante, gusto, o formato).
+
+Per questo motivo, l’automazione tramite Python sarà essenziale per garantire:
+
+* Ordine
+* Velocità
+* Riduzione di errori
+
+---
+
+## 🛠️ **FASE 2 – Aggiornamento documentazione**
+
+Una volta completato e testato lo script, ti chiedo di:
+
+* Inserire nella guida `public/tips_da_leggere_PRODUCT_INSERTION_GUIDE.md` una **sezione aggiuntiva**
+* Includere una spiegazione **chiara e dettagliata** su:
+
+  * come si usa lo script
+  * quando va eseguito
+  * quali input e output produce
+  * eventuali raccomandazioni per chi lavorerà sulle immagini
+
+---
+
+## 🔍 **MODELLO DI RIFERIMENTO – “FruitForce”**
+
+Per tutto ciò che riguarda:
+
+* la struttura interna del prodotto
+* la gestione delle **varianti (gusti + quantità)**
+* l’associazione corretta **immagine/variante**
+
+devi fare **riferimento assoluto** al prodotto **FruitForce**, che rappresenta il modello esatto da seguire.
+
+Studialo in tutte le sue componenti, perché le schede future dovranno replicare **quello stile**, sia dal punto di vista:
+
+* tecnico (frontend + backend)
+* che funzionale (animazioni, selezione gusti, ordine immagini)
+
+---
+
+## ✅ **RIASSUNTO OPERATIVO**
+
+1. 📖 Consulta attentamente la guida `public/tips_da_leggere_PRODUCT_INSERTION_GUIDE.md`
+2. 🐍 Crea uno script Python per associare file immagine ↔ prodotto/variante
+3. 🖼 Utilizza lo script per processare le 19 immagini che ti fornirò
+4. 📄 Aggiorna la guida includendo la nuova procedura per immagini
+5. 🍓 Segui il prodotto **FruitForce** come modello ufficiale per struttura e logica di inserimento
+6. 💾 Conserva e documenta lo script: verrà riutilizzato in ogni futuro caricamento immagini
+
+---
+
+Resto a disposizione per eventuali chiarimenti. Fammi sapere quando lo script sarà pronto.
+Grazie per l’attenzione e buon lavoro.

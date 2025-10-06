@@ -1,0 +1,127 @@
+⚙️ Regole generali da applicare (dove indicato):
+✅ Rimuovere la sezione “caratteristiche” dopo il prezzo, se presente.
+
+✅ Eliminare ogni prezzo barrato, mantenendo solo il prezzo reale.
+
+✅ Aggiornare i brand, se indicato.
+
+✅ Correggere immagini errate o invertite, come specificato.
+
+✅ Il prezzo in copertina deve sempre essere quello indicato qui.
+
+🔥 Se un prodotto non presenta attualmente la sezione “prezzo + quantità + selezione gusto/variante” → DEVE essere aggiunta
+Prendi come riferimento un prodotto che la possiede già correttamente (es. FruitForce, BCAA+ 8:1:1, ecc.).
+
+📦 Dettagli specifici per ogni prodotto
+Aminoacidi Essenziali + Polvere
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 58,99€
+
+Aminoacidi+
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 20,80€
+
+Aminotool EAA
+Brand: Volchem
+
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 48,90€
+
+Argin
+Brand: Volchem
+
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 24,99€
+
+Arginina+ Complex Capsule
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 18,99€
+
+BCAA 1000+B6
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 18,90€
+
+BCAA Liquid Carbo+
+⚠️ Aggiungere la sezione completa di: prezzo, quantità, e selezione gusti/varianti
+Prendi come riferimento uno dei prodotti già corretti.
+
+BCAA Ride Gel+
+⚠️ Aggiungere la sezione completa di: prezzo, quantità, e selezione gusti/varianti
+Deve funzionare esattamente come negli altri prodotti con varianti.
+
+BCAA Supreme 4:1:1
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 28,49€
+
+BCAA+ 8:1:1
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 15,99€
+
+BCAA+ 8:1:1 Polvere
+⚠️ Aggiungere sezione prezzo + quantità + gusto, se mancante
+
+D-Glucosio
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 18,99€
+
+Essential Amino 9.3
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 27,99€
+
+Essenziali Zero Carb
+Immagini invertite:
+
+Mela Lime → deve mostrare mela lime
+
+Tè alla pesca → deve mostrare tè alla pesca
+
+Prezzo copertina: 35,90€
+
+Glutamass
+Brand: Volchem
+
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 35,90€
+
+Glutammina Pure
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 28,90€
+
+Glutammina+ Polvere
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 27,90€
+
+Hard Beta Alanine
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 28,80€
+
+High BCAA 2:1:1
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 21,99€
+
+Norincol
+Brand: Volchem
+
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 26,99€
+
+Pocket Carnitine
+Rimuovere la sezione caratteristiche
+
+Prezzo copertina: 4,99€

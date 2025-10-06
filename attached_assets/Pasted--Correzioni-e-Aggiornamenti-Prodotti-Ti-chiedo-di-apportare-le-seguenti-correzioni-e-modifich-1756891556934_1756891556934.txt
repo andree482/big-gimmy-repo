@@ -1,0 +1,48 @@
+## Correzioni e Aggiornamenti Prodotti
+
+Ti chiedo di apportare le seguenti **correzioni e modifiche mirate** ai prodotti indicati. Procedi con **massima precisione**, assicurandoti che ogni cambiamento sia implementato correttamente sia nel database che nel frontend, mantenendo la coerenza grafica e funzionale.
+
+---
+### Parte 1 – Correzione Valori Nutrizionali (Rimozione colonne)
+
+Per i seguenti prodotti, devi **rimuovere la colonna "Per 100g"** dalla tabella dei valori nutrizionali, nella visualizzazione interna del prodotto, dove applicabile nel frontend: (prima foto)
+
+*   **Intra Pro Essential+**
+*   **D3/K2 Complex**
+*   **Hard ZMA XP**
+*   **Arginine NO**
+*   **Hard EAA 8:1**
+
+---
+### Parte 2 – Correzione Valori Nutrizionali (Rimozione colonna VNR)
+
+Per i seguenti prodotti, devi **rimuovere la colonna "VNR"** (Valori Nutritivi di Riferimento) dalla tabella dei valori nutrizionali, nella visualizzazione del **frontend**: (seconda foto)
+
+*   **OMNIA**
+*   **Super Hydro Tabs**
+*   **Pre Gara Endurance**
+
+---
+### Parte 3 – Ridenominazione Prodotto
+
+Rinomina il seguente prodotto con il nuovo nome specificato, assicurandoti che la modifica sia applicata ovunque (database, titoli, copertine, schede prodotto, riferimenti):
+
+*   **"Borraccia WHY Sport 500ml"** deve essere corretto in **"Borraccia in Acciaio 500 ml"**
+---
+### Parte 4 – Eliminazione Prodotti (Completa e definitiva)
+
+I seguenti prodotti devono essere **rimossi completamente** da ogni parte del sito e del database. Assicurati che non compaiano più né nel frontend né nel backend:
+
+*   **WHEY Concentrate**
+*   **Echinacea Purpurea**
+*   **Hard Amx Carbo**
+*   **Citrulline Malate**
+*   **Glutamine Ajinomoto**
+*   **Pre-Workout Dynamine**
+*   **Taurine**
+
+---
+📌 **Verifica finale:**
+Una volta applicate tutte le modifiche, controlla accuratamente che i prodotti siano stati aggiornati correttamente o eliminati come da istruzioni.
+
+Fammi sapere appena hai completato il lavoro o se hai bisogno di chiarimenti!

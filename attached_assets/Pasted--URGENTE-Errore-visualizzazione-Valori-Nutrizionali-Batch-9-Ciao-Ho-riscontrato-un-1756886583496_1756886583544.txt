@@ -1,0 +1,46 @@
+##  **URGENTE: Errore visualizzazione Valori Nutrizionali – Batch 9**⚠️
+Ciao!
+
+Ho riscontrato un **problema critico** con i prodotti del **Batch 9** appena inseriti.
+È fondamentale risolvere questa anomalia immediatamente, in quanto **compromette la visualizzazione delle informazioni essenziali nel frontend**.
+
+---
+###  **Problema riscontrato:**❌
+I **valori nutrizionali** per i prodotti elencati qui sotto **non vengono visualizzati correttamente nel frontend**. Invece di comparire la tabella, appare un **errore** (come puoi vedere nell'allegato che ti invio).
+
+---
+###  **Obiettivo:**✅
+1.  Identificare la causa dell'errore che impedisce la visualizzazione dei valori nutrizionali nel frontend.
+2.  Correggere il problema, assicurando che **ogni prodotto mostri la propria tabella nutrizionale** in modo completo, leggibile e **ben formattato**, seguendo lo stile che abbiamo già impostato per le altre categorie (es. **tabella professionale**, **grammi in blu**, ecc.).
+
+---
+###  **Prodotti interessati (Batch 9):**📦
+
+
+-   **Total Energy**
+-   **Hard Start X-Plode**
+-   **Glutamine Pure 1000**
+-   **High Pro Release**
+-   **Glutamine Pure 100%**
+-   **Maltodex Pure 100%**
+-   **Dietary Bar**
+-   **Hard Nitrox Xtreme**
+-   **Whey 100% Pro-Zyme**
+-   **Amino Pool BV104**
+-   **Hard Leucine Booster 4:1:1**
+-   **Hard BCAA Advanced 8:1:1**
+-   **Borraccia 600/800 ml**
+-   **Sacca**
+-   **T-Shirt EthicSport Limited Edition**
+-   **Cappellino EthicSport**
+-   **Ramtech - BCAA 2:1:1**
+-   **OMNIA Active Formula**
+-   **Super Hydro Tabs**
+-   **Pre Gara Endurance**
+
+---
+📌 **Ricorda:**
+-   I valori nutrizionali devono essere estratti e visualizzati esattamente come da file `.md` fornito in precedenza per il Batch 9.
+-   La formattazione deve essere **coerente con gli standard del sito**, in particolare con il **formato tabellare professionale** concordato.
+
+Fammi sapere non appena hai individuato la causa dell'errore e hai applicato le correzioni necessarie. Grazie per ancora! 💪

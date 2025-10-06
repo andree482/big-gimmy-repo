@@ -1,0 +1,70 @@
+le istruzioni precise e definitive per caricare correttamente i prodotti nel nostro e-commerce. Ti chiedo di seguire esattamente questi termini per garantire uniformità, qualità e coerenza in ogni scheda prodotto.
+
+✅ TERMINI DA RISPETTARE PER OGNI PRODOTTO
+📌 STRUTTURA GENERALE
+I prodotti vanno caricati seguendo l’ordine del file .md che ti fornisco.
+
+Ogni prodotto deve essere inserito con tutte le sezioni richieste, una dopo l’altra.
+
+L’ordine delle immagini è fondamentale (es. “1ª immagine” nel file corrisponde alla prima da caricare).
+
+Non saltare mai nessuna sezione, neanche se “sembra simile” a un'altra.
+
+🧾 SEZIONE COPERTINA
+Nome prodotto: uguale a quello nel file.
+
+Immagine: corrispondente a quanto indicato (“1ª immagine”, “2ª”, ecc.)
+
+Descrizione: se va scritta, va sempre messa.
+
+Recensioni: ❌ Disattivate
+
+Prezzo di partenza: es. “a partire da 35,90€” → va scritto esattamente così.
+
+Brand: sempre specificato (es. Premier, +Watt…)
+
+🧩 SEZIONE INTERNA PRODOTTO
+Variazioni (gusti/quantità)
+Inserire solo quelli presenti nel file .md.
+
+Ogni combinazione gusto/quantità deve avere l’immagine giusta (es. “Natural 900g → 1ª immagine”).
+
+Impostazioni da disattivare
+❌ Recensioni
+
+❌ Quantità manuale
+
+❌ Testo “disponibile per la spedizione”
+
+📚 SEZIONI DA GENERARE SEMPRE
+Per ogni prodotto, inserire queste sezioni (obbligatorie):
+
+Descrizione dettagliata
+
+Valori nutrizionali → con fonti attendibili (usando anche il link del brand nel file)
+
+Modalità d’uso
+
+⚠️ Avvertenze in giallo
+
+✅ Consiglio in lilla
+
+Ingredienti (per ogni gusto) → da scrivere usando fonti affidabili o link ufficiali
+
+💶 PREZZI PER VARIANTI
+Ogni gusto/quantità deve avere il prezzo preciso indicato nel file.
+
+🚨 COSA NON DEVE MAI ESSERE FATTO
+❌ Non cambiare l’ordine dei prodotti o delle immagini
+
+❌ Non lasciare sezioni vuote
+
+❌ Non usare testi copiati da altri siti se non indicato
+
+❌ Non inserire gusti, quantità o brand non previsti
+
+❌ Non saltare nessuna voce o sezione
+
+Grazie mille! 🙏
+Se hai qualsiasi dubbio, chiedi prima di procedere. Meglio una domanda in più che un errore da rifare!
+💪 Obiettivo: alta qualità + precisione al 100%.

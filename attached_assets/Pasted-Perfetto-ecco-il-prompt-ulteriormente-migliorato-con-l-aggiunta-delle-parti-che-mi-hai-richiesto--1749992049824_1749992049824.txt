@@ -1,0 +1,101 @@
+Perfetto, ecco il prompt ulteriormente migliorato, con l’aggiunta delle parti che mi hai richiesto:
+– i **prodotti vanno assolutamente inseriti sia in frontend che in backend**,
+– le **animazioni e la gestione dei gusti devono seguire il modello degli altri prodotti**,
+– ogni prodotto deve essere **diverso nei dati**, ma integrato in un sito **coerente, ordinato ed equo**.
+
+---
+
+**Perfetto, ora presta attenzione con molta precisione:**
+
+### 📎 Allegati: limite e struttura
+
+Ogni blocco di lavoro avrà **massimo 20 allegati**.
+Attenzione: **non significa 20 prodotti**, perché **alcuni hanno più varianti/gusti/immagini**.
+
+**L’ultimo allegato (il 20°)** sarà sempre un **file `.md` fondamentale**, contenente:
+
+* tutte le **informazioni dettagliate e strutturate dei prodotti**
+* varianti, gusti, grammature, brand, valori nutrizionali, ingredienti
+* note e istruzioni essenziali per l’inserimento
+
+➡️ **Devi assolutamente leggerlo con attenzione prima di lavorare**, altrimenti non capirai cosa inserire e come farlo.
+
+---
+
+### 🎯 Obiettivo generale
+
+Voglio inserire **circa 300 prodotti**, suddivisi per categoria, in un sito **funzionale, ordinato e coerente**.
+
+Il modo in cui abbiamo lavorato finora mi è piaciuto molto:
+✅ immagini corrette
+✅ gusti selezionabili
+✅ struttura fluida
+✅ estetica uniforme
+
+Abbiamo fatto questo grazie ai dati contenuti nel file `.md` e alle immagini allegate.
+(Se qualcosa non ti è chiaro, fammelo sapere subito.)
+
+---
+
+### ⚠️ Aspetto cruciale – Inserimento completo
+
+👉 **Ogni prodotto va inserito obbligatoriamente sia nel frontend che nel backend.**
+Deve essere visibile, accessibile, ricercabile, con i dati collegati correttamente.
+**Sottolineo: entrambi i contesti sono obbligatori**. Se manca uno dei due, non è un lavoro finito.
+
+---
+
+### 🎨 Aspetto grafico e funzionale
+
+Tutto deve rispettare **lo stile e il funzionamento dei primi 8 prodotti**.
+Quindi:
+
+* le **animazioni**
+* la **modalità di selezione dei gusti**
+* la **scheda prodotto**
+* l’**interazione dell’utente**
+
+…devono essere **uguali** nel comportamento, ma ovviamente ogni prodotto ha:
+
+* **i suoi dati**
+* **i suoi ingredienti**
+* **le sue immagini**
+* **le sue varianti**
+
+🟢 L’obiettivo è avere **un sito equo e armonioso**, dove ogni prodotto ha lo **stesso spazio**, ma **nessuno è uguale all’altro** nei contenuti.
+
+---
+
+### 🧠 Generazione delle descrizioni
+
+Nel file `.md` trovi sempre **i dati base** (funzioni, ingredienti, valori, brand, ecc.).
+Nel caso in cui manchi una descrizione esplicita, **puoi generarne una tu**, ma:
+
+* deve essere **basata su quei dati**
+* deve essere **coerente e professionale**
+* non deve mai essere **inventata a caso**
+
+---
+
+### 🛠 Metodo di lavoro
+
+1. Inserisci ogni blocco in base agli allegati (max 20 per volta).
+2. Il 20° allegato è sempre il file `.md`: **non iniziare mai senza leggerlo**.
+3. Una volta completati **20 prodotti**, faremo un **check completo insieme**.
+4. Solo dopo il check, procedi con il blocco successivo.
+
+---
+
+### ✅ Ultime regole chiave
+
+* Se un prodotto ha **più gusti o formati**, vanno inseriti **come varianti selezionabili**, non come prodotti separati.
+* ❌ Mai duplicare lo stesso prodotto solo perché cambia un gusto.
+* ✅ Tutti i prodotti devono essere **inseriti correttamente in frontend e backend**.
+* ✅ La struttura visiva deve essere **coerente e professionale**.
+
+---
+
+Fammi sapere se hai capito tutto o se vuoi chiarimenti.
+Il mio obiettivo è che tu lavori in autonomia, con precisione, e senza mai dubbi su cosa fare.
+
+P.S. Una volta completata la **categoria delle proteine**, passeremo insieme alle altre categorie.
