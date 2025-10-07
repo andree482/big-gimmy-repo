@@ -1,7 +1,7 @@
 
 import { google } from 'googleapis';
 import { db } from './db';
-import { productOptions, products } from '../shared/schema';
+import { productOptions, products } from '../shared/schema.ts';
 import { eq } from 'drizzle-orm';
 import * as fs from 'fs';
 

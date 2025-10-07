@@ -343,12 +343,14 @@ var init_schema = __esm({
 // server/db.ts
 import pkg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
+import dotenv from "dotenv";
 var Pool, connectionString, pool, db;
 var init_db = __esm({
   "server/db.ts"() {
     "use strict";
     init_schema();
     ({ Pool } = pkg);
+    dotenv.config();
     connectionString = process.env.DATABASE_URL;
     if (!connectionString) {
       throw new Error("DATABASE_URL is not defined in environment variables");
@@ -689,7 +691,7 @@ var init_autoStartPriceWatcher = __esm({
 
 // server/index.ts
 import express2 from "express";
-import path4 from "path";
+import path3 from "path";
 
 // server/routes.ts
 import { createServer } from "http";
@@ -2689,101 +2691,42 @@ async function registerRoutes(app2) {
 }
 
 // server/vite.ts
-import express from "express";
 import fs3 from "fs";
-import path3 from "path";
-import { createServer as createViteServer, createLogger } from "vite";
-
-// vite.config.ts
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import path2 from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
-var vite_config_default = defineConfig({
-  plugins: [
-    react(),
-    runtimeErrorOverlay(),
-    ...process.env.NODE_ENV !== "production" && process.env.REPL_ID !== void 0 ? [
-      await import("@replit/vite-plugin-cartographer").then(
-        (m) => m.cartographer()
-      )
-    ] : []
-  ],
-  resolve: {
-    alias: {
-      "@": path2.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path2.resolve(import.meta.dirname, "shared"),
-      "@assets": path2.resolve(import.meta.dirname, "attached_assets")
-    }
-  },
-  root: path2.resolve(import.meta.dirname, "dist"),
-  build: {
-    outDir: path2.resolve(import.meta.dirname, "dist/outDir"),
-    emptyOutDir: true
+import { fileURLToPath } from "url";
+import express from "express";
+var __filename = fileURLToPath(import.meta.url);
+var __dirname = path2.dirname(__filename);
+function serveStatic(app2) {
+  const distPath = path2.resolve(process.cwd(), "dist/public");
+  const indexPath = path2.join(distPath, "index.html");
+  if (!fs3.existsSync(indexPath)) {
+    throw new Error(
+      `index.html non trovato in ${indexPath}. Esegui 'npm run build:client' prima di avviare in produzione.`
+    );
   }
-});
-
-// server/vite.ts
-import { nanoid } from "nanoid";
-var viteLogger = createLogger();
-function log(message, source = "express") {
-  const formattedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true
+  app2.use(express.static(distPath, {
+    maxAge: "1y",
+    immutable: true,
+    setHeaders: (res, filepath) => {
+      if (filepath.endsWith("index.html")) {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      }
+    }
+  }));
+  app2.get("*", (_req, res) => {
+    res.sendFile(indexPath);
   });
-  console.log(`${formattedTime} [${source}] ${message}`);
+}
+function log(message) {
+  console.log(`[vite] ${message}`);
 }
 async function setupVite(app2, server) {
-  const serverOptions = {
-    middlewareMode: true,
-    hmr: { server },
-    allowedHosts: true
-  };
-  const vite = await createViteServer({
-    ...vite_config_default,
-    configFile: false,
-    customLogger: {
-      ...viteLogger,
-      error: (msg, options) => {
-        viteLogger.error(msg, options);
-        process.exit(1);
-      }
-    },
-    server: serverOptions,
-    appType: "custom"
+  const vite = await (await import("vite")).createServer({
+    server: { middlewareMode: true }
   });
   app2.use(vite.middlewares);
-  app2.use("*", async (req, res, next) => {
-    const url = req.originalUrl;
-    try {
-      const clientTemplate = path3.resolve(
-        import.meta.dirname,
-        "..",
-        "client",
-        "index.html"
-      );
-      let template = await fs3.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`
-      );
-      const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
-    } catch (e) {
-      vite.ssrFixStacktrace(e);
-      next(e);
-    }
-  });
-}
-var CLIENT_PATH = path3.resolve(process.cwd(), "client");
-var INDEX_PATH = path3.join(CLIENT_PATH, "index.html");
-function serveStatic(app2) {
-  app2.use(express.static(CLIENT_PATH));
-  app2.get("*", (req, res) => {
-    res.sendFile(INDEX_PATH);
-  });
+  return vite;
 }
 
 // server/index.ts
@@ -2806,8 +2749,8 @@ if (supabaseUrl && supabaseKey) {
   console.warn("\u26A0\uFE0F ATTENZIONE: SUPABASE_URL e/o SUPABASE_ANON_KEY non configurate!");
   console.warn("   L'applicazione continuer\xE0 senza database Supabase.");
 }
-app.use("/attached_assets", express2.static(path4.resolve(process.cwd(), "attached_assets")));
-app.use("/images", express2.static(path4.resolve(process.cwd(), "public/images")));
+app.use("/attached_assets", express2.static(path3.resolve(process.cwd(), "attached_assets")));
+app.use("/images", express2.static(path3.resolve(process.cwd(), "public/images")));
 app.use((req, res, next) => {
   const start = Date.now();
   const reqPath = req.path;

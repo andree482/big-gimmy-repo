@@ -1,10 +1,10 @@
 import { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage } from "./storage.ts";
 import { insertContactSchema } from "@shared/schema";
 import { z } from "zod";
-import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply } from './services/email';
-import { syncAllImages } from "./utils/imageSync";
+import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply } from './services/email.ts';
+import { syncAllImages } from "./utils/imageSync.ts";
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
 

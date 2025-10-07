@@ -1,81 +1,47 @@
-import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
-import { createServer as createViteServer, createLogger } from "vite";
-import { type Server } from "http";
-import viteConfig from "../vite.config";
-import { nanoid } from "nanoid";
+import { fileURLToPath } from "url";
+import { type Express } from "express";
+import express from "express";
 
-const viteLogger = createLogger();
-
-export function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-  console.log(`${formattedTime} [${source}] ${message}`);
-}
-
-export async function setupVite(app: Express, server: Server) {
-  const serverOptions = {
-    middlewareMode: true,
-    hmr: { server },
-    allowedHosts: true,
-  };
-
-  const vite = await createViteServer({
-    ...viteConfig,
-    configFile: false,
-    customLogger: {
-      ...viteLogger,
-      error: (msg, options) => {
-        viteLogger.error(msg, options);
-        process.exit(1);
-      },
-    },
-    server: serverOptions,
-    appType: "custom",
-  });
-
-  app.use(vite.middlewares);
-  app.use("*", async (req, res, next) => {
-    const url = req.originalUrl;
-
-    try {
-      const clientTemplate = path.resolve(
-        import.meta.dirname,
-        "..",
-        "client",
-        "index.html",
-      );
-
-      // always reload the index.html file from disk incase it changes
-      let template = await fs.promises.readFile(clientTemplate, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`,
-      );
-      const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
-    } catch (e) {
-      vite.ssrFixStacktrace(e as Error);
-      next(e);
-    }
-  });
-}
-
-const CLIENT_PATH = path.resolve(process.cwd(), "client");
-const INDEX_PATH = path.join(CLIENT_PATH, "index.html");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export function serveStatic(app: Express) {
-  // Serve static files from client directory
-  app.use(express.static(CLIENT_PATH));
+  const distPath = path.resolve(process.cwd(), "dist/public");
+  const indexPath = path.join(distPath, "index.html");
 
-  // Serve index.html for all other routes (SPA fallback)
-  app.get("*", (req, res) => {
-    res.sendFile(INDEX_PATH);
+  if (!fs.existsSync(indexPath)) {
+    throw new Error(
+      `index.html non trovato in ${indexPath}. Esegui 'npm run build:client' prima di avviare in produzione.`
+    );
+  }
+
+  // Serve static assets con cache
+  app.use(express.static(distPath, {
+    maxAge: '1y',
+    immutable: true,
+    setHeaders: (res, filepath) => {
+      if (filepath.endsWith('index.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+    }
+  }));
+
+  // Fallback SPA
+  app.get("*", (_req, res) => {
+    res.sendFile(indexPath);
   });
+}
+
+export function log(message: string) {
+  console.log(`[vite] ${message}`);
+}
+
+export async function setupVite(app: Express, server: any) {
+  const vite = await (await import("vite")).createServer({
+    server: { middlewareMode: true },
+  });
+  app.use(vite.middlewares);
+  return vite;
 }
