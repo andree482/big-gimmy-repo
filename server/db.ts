@@ -3,11 +3,11 @@ const { Pool } = pkg;
 import { createClient } from '@supabase/supabase-js';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '@shared/schema';
-/*
+
 import dotenv from 'dotenv';
 
 dotenv.config();
-*/
+
 // ✅ Prende direttamente la stringa dal file .env
 const connectionString = process.env.DATABASE_URL;
 

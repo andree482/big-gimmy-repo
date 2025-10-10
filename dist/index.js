@@ -425,12 +425,8 @@ var init_priceWatcher = __esm({
             console.log("\u274C Nessun dato trovato nel Google Sheets");
             return [];
           }
-          console.log(`\u{1F4CB} Struttura foglio - Header:`, rows[0]);
           console.log(`\u{1F4CB} Trovate ${rows.length - 1} righe di dati`);
           const changes = [];
-          for (let i = 1; i < Math.min(4, rows.length); i++) {
-            console.log(`\u{1F50D} Riga ${i + 1} completa:`, rows[i]);
-          }
           for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
             try {
@@ -440,20 +436,6 @@ var init_priceWatcher = __esm({
               const unit = row[3]?.toString();
               const currentPrice = parseFloat(row[4]);
               const newPrice = parseFloat(row[5]);
-              if (i <= 3) {
-                console.log(`\u{1F4CA} Debug riga ${i + 1}:`);
-                console.log(`   - Product ID: ${productId} (tipo: ${typeof productId})`);
-                console.log(`   - Product Name: "${productName}"`);
-                console.log(`   - Size: "${size}"`);
-                console.log(`   - Unit: "${unit}"`);
-                console.log(`   - Current Price: ${currentPrice} (tipo: ${typeof currentPrice}, isNaN: ${isNaN(currentPrice)})`);
-                console.log(`   - New Price: ${newPrice} (tipo: ${typeof newPrice}, isNaN: ${isNaN(newPrice)})`);
-                console.log(`   - Differenza prezzi: ${Math.abs(newPrice - currentPrice)}`);
-              }
-              if (!productId || !size || isNaN(newPrice) || newPrice <= 0) {
-                if (i <= 3) console.log(`\u274C Riga ${i + 1} invalida - saltata`);
-                continue;
-              }
               if (!isNaN(currentPrice) && Math.abs(newPrice - currentPrice) >= 0.01) {
                 console.log(`\u{1F504} Rilevata modifica prezzo riga ${i + 1}: ${currentPrice} \u2192 ${newPrice}`);
                 const priceInCents = Math.round(newPrice * 100);
@@ -523,7 +505,7 @@ var init_priceWatcher = __esm({
             size: productOptions.size,
             priceCents: productOptions.priceCents
           }).from(productOptions).innerJoin(products, eq2(productOptions.productId, products.id)).orderBy(productOptions.productId);
-          const header = ["Product ID", "Nome", "Flavor", "Unit", "Current Price", "New Price"];
+          const header = ["ID Prodotto", "Nome", "Gusto", "Unit\xE0", "Prezzo Attuale", "Nuovo Prezzo"];
           const rows = [header];
           for (const option of allOptions) {
             const currentPrice = (option.priceCents / 100).toFixed(2);
@@ -690,6 +672,7 @@ var init_autoStartPriceWatcher = __esm({
 });
 
 // server/index.ts
+import "dotenv/config";
 import express2 from "express";
 import path3 from "path";
 
@@ -2735,6 +2718,13 @@ import { createClient } from "@supabase/supabase-js";
 var app = express2();
 app.use(express2.json());
 app.use(express2.urlencoded({ extended: false }));
+var DIST_PATH = path3.resolve(process.cwd(), "dist");
+if (process.env.NODE_ENV === "production") {
+  app.use(express2.static(DIST_PATH));
+  app.get("*", (req, res) => {
+    res.sendFile(path3.join(DIST_PATH, "index.html"));
+  });
+}
 var supabaseUrl = process.env.SUPABASE_URL || "";
 var supabaseKey = process.env.SUPABASE_ANON_KEY || "";
 var supabase = null;

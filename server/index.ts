@@ -11,6 +11,16 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// vite
+const DIST_PATH = path.resolve(process.cwd(), "dist");
+
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(DIST_PATH));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(DIST_PATH, "index.html"));
+  });
+}
+
 // Supabase configuration
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || '';

@@ -58,15 +58,11 @@ class PriceWatcher {
         return [];
       }
 
-      console.log(`📋 Struttura foglio - Header:`, rows[0]);
       console.log(`📋 Trovate ${rows.length - 1} righe di dati`);
 
       const changes: PriceChange[] = [];
 
-      // Controlla le prime 3 righe per debug
-      for (let i = 1; i < Math.min(4, rows.length); i++) {
-        console.log(`🔍 Riga ${i + 1} completa:`, rows[i]);
-      }
+      // Controlla le prime 3 righe per debu
 
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
@@ -78,22 +74,7 @@ class PriceWatcher {
           const currentPrice = parseFloat(row[4]);
           const newPrice = parseFloat(row[5]);
 
-          // Debug dettagliato per le prime righe
-          if (i <= 3) {
-            console.log(`📊 Debug riga ${i + 1}:`);
-            console.log(`   - Product ID: ${productId} (tipo: ${typeof productId})`);
-            console.log(`   - Product Name: "${productName}"`);
-            console.log(`   - Size: "${size}"`);
-            console.log(`   - Unit: "${unit}"`);
-            console.log(`   - Current Price: ${currentPrice} (tipo: ${typeof currentPrice}, isNaN: ${isNaN(currentPrice)})`);
-            console.log(`   - New Price: ${newPrice} (tipo: ${typeof newPrice}, isNaN: ${isNaN(newPrice)})`);
-            console.log(`   - Differenza prezzi: ${Math.abs(newPrice - currentPrice)}`);
-          }
 
-          if (!productId || !size || isNaN(newPrice) || newPrice <= 0) {
-            if (i <= 3) console.log(`❌ Riga ${i + 1} invalida - saltata`);
-            continue;
-          }
 
           // Controlla se il prezzo è cambiato
           if (!isNaN(currentPrice) && Math.abs(newPrice - currentPrice) >= 0.01) {
@@ -198,7 +179,7 @@ class PriceWatcher {
         .orderBy(productOptions.productId);
 
       // Prepara i dati per Google Sheets
-      const header = ['Product ID', 'Nome', 'Flavor', 'Unit', 'Current Price', 'New Price'];
+      const header = ['ID Prodotto', 'Nome', 'Gusto', 'Unità', 'Prezzo Attuale', 'Nuovo Prezzo'];
       const rows = [header];
 
       for (const option of allOptions) {
