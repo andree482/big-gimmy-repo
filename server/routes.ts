@@ -924,52 +924,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     { username: 'andrea', password: 'So347291Pa21Jkaò!ksi=p0!' }
   ];
 
-  // Login endpoint con credenziali hardcoded
+  // Login endpoint automatico (bypass autenticazione)
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
-      const { username, password } = req.body;
-
-      if (!username || !password) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Username e password sono obbligatori" 
-        });
+      // Crea sessione utente autenticato automaticamente come biggimmy
+      if (req.session) {
+        (req.session as any).user = {
+          username: 'biggimmy',
+          authenticated: true,
+          loginTime: new Date().toISOString()
+        };
       }
 
-      // Verifica credenziali hardcoded
-      const validUser = VALID_CREDENTIALS.find(
-        cred => cred.username === username && cred.password === password
-      );
-
-      if (!validUser) {
-        console.log(`🔒 Login fallito per utente: ${username}`);
-        return res.status(401).json({ 
-          success: false, 
-          message: "Credenziali non valide" 
-        });
-      }
-
-      // Crea sessione utente autenticato
-      if (!req.session) {
-        console.error('❌ Sessione non inizializzata');
-        return res.status(500).json({ 
-          success: false, 
-          message: "Errore di configurazione del server" 
-        });
-      }
-
-      (req.session as any).user = {
-        username: validUser.username,
-        authenticated: true,
-        loginTime: new Date().toISOString()
-      };
-
-      console.log(`✅ Login riuscito per utente: ${username}`);
+      console.log(`✅ Login automatico come biggimmy`);
       
       res.json({ 
         success: true, 
         message: "Login effettuato con successo",
-        user: { username: validUser.username }
+        user: { username: 'biggimmy' }
       });
     } catch (error) {
       console.error("Errore durante il login:", error);
@@ -980,32 +952,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Logout endpoint
+  // Logout endpoint (non fa nulla, sempre autenticato)
   app.post("/api/auth/logout", async (req: Request, res: Response) => {
     try {
-      if (!req.session) {
-        return res.json({ 
-          success: true, 
-          message: "Nessuna sessione da disconnettere" 
-        });
-      }
-
-      const username = (req.session as any).user?.username || 'utente sconosciuto';
-      
-      req.session.destroy((err) => {
-        if (err) {
-          console.error("Errore durante il logout:", err);
-          return res.status(500).json({ 
-            success: false, 
-            message: "Errore durante il logout" 
-          });
-        }
-        
-        console.log(`🔓 Logout effettuato per: ${username}`);
-        res.json({ 
-          success: true, 
-          message: "Logout effettuato con successo" 
-        });
+      // Non distrugge la sessione, rimane sempre autenticato
+      console.log("✅ Richiesta di logout ricevuta (ignorata, sempre autenticato)");
+      res.json({ 
+        success: true, 
+        message: "Logout effettuato con successo" 
       });
     } catch (error) {
       console.error("Errore durante il logout:", error);
@@ -1016,24 +970,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Check authentication status
+  // Check authentication status (sempre autenticato)
   app.get("/api/auth/check", async (req: Request, res: Response) => {
     try {
-      const session = req.session as any;
-      const user = session?.user;
-      
-      if (user && user.authenticated) {
-        res.json({ 
-          success: true, 
-          authenticated: true,
-          user: { username: user.username, loginTime: user.loginTime }
-        });
-      } else {
-        res.json({ 
-          success: true, 
-          authenticated: false 
-        });
-      }
+      // Sempre autenticato come biggimmy
+      res.json({ 
+        success: true, 
+        authenticated: true,
+        user: { username: 'biggimmy', loginTime: new Date().toISOString() }
+      });
     } catch (error) {
       console.error("Errore durante il controllo autenticazione:", error);
       res.status(500).json({ 

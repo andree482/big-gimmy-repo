@@ -36,8 +36,14 @@ if (supabaseUrl && supabaseKey) {
 
 export { supabase };
 
+// Endpoint per bypassare completamente l'autenticazione
 app.get('/api/auth/check', (req, res) => {
-  res.json({ authenticated: false });
+  // Sempre autenticato come biggimmy
+  res.json({ 
+    success: true, 
+    authenticated: true,
+    user: { username: 'biggimmy', loginTime: new Date().toISOString() }
+  });
 });
 
 
