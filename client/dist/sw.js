@@ -1,7 +1,6 @@
 const CACHE_NAME = 'biggimmy-cache-v1';
 const STATIC_CACHE = [
-  '/images/placeholder-product.jpg',
-  '/favicon.ico'
+  '/images/placeholder-product.jpg'
 ];
 
 const API_CACHE_PATTERNS = [
@@ -13,7 +12,24 @@ const API_CACHE_PATTERNS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(STATIC_CACHE))
+      .then((cache) => {
+        // Gestione più robusta degli errori durante il caching
+        return Promise.all(
+          STATIC_CACHE.map(url => {
+            return fetch(url)
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error(`Failed to fetch ${url}`);
+                }
+                return cache.put(url, response);
+              })
+              .catch(error => {
+                console.error(`Caching error for ${url}:`, error);
+                // Continua con l'installazione anche se un elemento non può essere memorizzato nella cache
+              });
+          })
+        );
+      })
       .then(() => self.skipWaiting())
   );
 });
@@ -35,6 +51,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+
+  // Escludi le richieste di autenticazione dal caching
+  if (url.pathname.startsWith('/api/auth/')) {
+    // Passa direttamente la richiesta alla rete senza caching
+    return;
+  }
 
   // Cache per immagini prodotti
   if (request.destination === 'image' && url.pathname.includes('/images/products/')) {

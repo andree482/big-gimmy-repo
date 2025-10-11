@@ -8,7 +8,10 @@ import { createClient } from '@supabase/supabase-js';
 import { PriceWatcher } from "./priceWatcher";
 
 const app = express();
-app.use('/sw.js', express.static(path.resolve(process.cwd(), 'client/dist', 'sw.js')));
+app.use('/sw.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.sendFile(path.resolve(process.cwd(), 'client/dist', 'sw.js'));
+});
 app.use(express.json());
 
 app.use(express.urlencoded({ extended: false }));
@@ -35,11 +38,6 @@ if (supabaseUrl && supabaseKey) {
 }
 
 export { supabase };
-
-app.get('/api/auth/check', (req, res) => {
-  res.json({ authenticated: false });
-});
-
 
 // Serve attached assets statically
 app.use('/attached_assets', express.static(path.resolve(process.cwd(), 'attached_assets')));
@@ -157,8 +155,28 @@ app.use((req, res, next) => {
     }
   }
 
-  // API 404 fallback - catch unmatched API routes before Vite's catch-all
- app.use("/api", (req, res, next) => {
+  // Endpoint per verificare l'autenticazione con credenziali specifiche
+app.get("/api/auth/check", (req, res) => {
+  const session = req.session as any;
+  const user = session?.user;
+  
+  // Verifica se l'utente è biggimmy con la password specificata
+  if (user && user.authenticated && user.username === 'biggimmy') {
+    res.json({ 
+      success: true, 
+      authenticated: true,
+      user: { username: user.username, loginTime: user.loginTime }
+    });
+  } else {
+    res.json({ 
+      success: true, 
+      authenticated: false 
+    });
+  }
+});
+
+// API 404 fallback - catch unmatched API routes before Vite's catch-all
+app.use("/api", (req, res, next) => {
   res.status(404).json({
     success: false,
     message: "API route not found",
