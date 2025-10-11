@@ -8,8 +8,11 @@ import { createClient } from '@supabase/supabase-js';
 import { PriceWatcher } from "./priceWatcher";
 
 const app = express();
+app.use('/sw.js', express.static(path.resolve(process.cwd(), 'client/dist', 'sw.js')));
 app.use(express.json());
+
 app.use(express.urlencoded({ extended: false }));
+
 
 
 // Supabase configuration
@@ -32,6 +35,11 @@ if (supabaseUrl && supabaseKey) {
 }
 
 export { supabase };
+
+app.get('/api/auth/check', (req, res) => {
+  res.json({ authenticated: false });
+});
+
 
 // Serve attached assets statically
 app.use('/attached_assets', express.static(path.resolve(process.cwd(), 'attached_assets')));
