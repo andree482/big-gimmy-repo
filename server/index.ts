@@ -11,15 +11,6 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// vite
-const DIST_PATH = path.resolve(process.cwd(), "dist");
-
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(DIST_PATH));
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(DIST_PATH, "index.html"));
-  });
-}
 
 // Supabase configuration
 const supabaseUrl = process.env.SUPABASE_URL || '';
@@ -159,18 +150,14 @@ app.use((req, res, next) => {
   }
 
   // API 404 fallback - catch unmatched API routes before Vite's catch-all
-  app.use("/api", (req, res) => {
-    res.status(404).json({ 
-      success: false, 
-      message: "API route not found", 
-      path: req.originalUrl,
-      availableEndpoints: [
-        'GET /health',
-        'GET /api/test-db',
-        '... altre route registrate in routes.ts'
-      ]
-    });
+ app.use("/api", (req, res, next) => {
+  res.status(404).json({
+    success: false,
+    message: "API route not found",
+    path: req.originalUrl,
   });
+});
+
 
   // Setup Vite in development, serve static in production
   if (app.get("env") === "development") {
