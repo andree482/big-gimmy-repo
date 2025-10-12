@@ -1,21 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export default defineConfig({
-  plugins: [react()],
   root: path.resolve(__dirname, 'client'),
+  plugins: [react()],
   build: {
-    outDir: path.resolve(__dirname, 'client/dist'),
+    outDir: path.resolve(__dirname, 'dist/public'),
     emptyOutDir: true,
-    manifest: true,
-    rollupOptions: {
-      input: path.resolve(__dirname, 'client/index.html')
-    }
   },
   resolve: {
     alias: {
@@ -23,5 +15,10 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, 'shared'),
     },
   },
+
   
 });
+
+console.log('🧠 Current working directory:', process.cwd());
+console.log('🧩 Looking for client/index.html at:', path.resolve(__dirname, 'client/index.html'));
+

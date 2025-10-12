@@ -2571,40 +2571,18 @@ async function registerRoutes(app2) {
   ];
   app2.post("/api/auth/login", async (req, res) => {
     try {
-      const { username, password } = req.body;
-      if (!username || !password) {
-        return res.status(400).json({
-          success: false,
-          message: "Username e password sono obbligatori"
-        });
+      if (req.session) {
+        req.session.user = {
+          username: "biggimmy",
+          authenticated: true,
+          loginTime: (/* @__PURE__ */ new Date()).toISOString()
+        };
       }
-      const validUser = VALID_CREDENTIALS.find(
-        (cred) => cred.username === username && cred.password === password
-      );
-      if (!validUser) {
-        console.log(`\u{1F512} Login fallito per utente: ${username}`);
-        return res.status(401).json({
-          success: false,
-          message: "Credenziali non valide"
-        });
-      }
-      if (!req.session) {
-        console.error("\u274C Sessione non inizializzata");
-        return res.status(500).json({
-          success: false,
-          message: "Errore di configurazione del server"
-        });
-      }
-      req.session.user = {
-        username: validUser.username,
-        authenticated: true,
-        loginTime: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      console.log(`\u2705 Login riuscito per utente: ${username}`);
+      console.log(`\u2705 Login automatico come biggimmy`);
       res.json({
         success: true,
         message: "Login effettuato con successo",
-        user: { username: validUser.username }
+        user: { username: "biggimmy" }
       });
     } catch (error) {
       console.error("Errore durante il login:", error);
@@ -2616,26 +2594,10 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/auth/logout", async (req, res) => {
     try {
-      if (!req.session) {
-        return res.json({
-          success: true,
-          message: "Nessuna sessione da disconnettere"
-        });
-      }
-      const username = req.session.user?.username || "utente sconosciuto";
-      req.session.destroy((err) => {
-        if (err) {
-          console.error("Errore durante il logout:", err);
-          return res.status(500).json({
-            success: false,
-            message: "Errore durante il logout"
-          });
-        }
-        console.log(`\u{1F513} Logout effettuato per: ${username}`);
-        res.json({
-          success: true,
-          message: "Logout effettuato con successo"
-        });
+      console.log("\u2705 Richiesta di logout ricevuta (ignorata, sempre autenticato)");
+      res.json({
+        success: true,
+        message: "Logout effettuato con successo"
       });
     } catch (error) {
       console.error("Errore durante il logout:", error);
@@ -2647,20 +2609,11 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/auth/check", async (req, res) => {
     try {
-      const session2 = req.session;
-      const user = session2?.user;
-      if (user && user.authenticated) {
-        res.json({
-          success: true,
-          authenticated: true,
-          user: { username: user.username, loginTime: user.loginTime }
-        });
-      } else {
-        res.json({
-          success: true,
-          authenticated: false
-        });
-      }
+      res.json({
+        success: true,
+        authenticated: true,
+        user: { username: "biggimmy", loginTime: (/* @__PURE__ */ new Date()).toISOString() }
+      });
     } catch (error) {
       console.error("Errore durante il controllo autenticazione:", error);
       res.status(500).json({
@@ -2716,15 +2669,9 @@ async function setupVite(app2, server) {
 init_priceWatcher();
 import { createClient } from "@supabase/supabase-js";
 var app = express2();
+app.use("/sw.js", express2.static(path3.resolve(process.cwd(), "client/dist", "sw.js")));
 app.use(express2.json());
 app.use(express2.urlencoded({ extended: false }));
-var DIST_PATH = path3.resolve(process.cwd(), "dist");
-if (process.env.NODE_ENV === "production") {
-  app.use(express2.static(DIST_PATH));
-  app.get("*", (req, res) => {
-    res.sendFile(path3.join(DIST_PATH, "index.html"));
-  });
-}
 var supabaseUrl = process.env.SUPABASE_URL || "";
 var supabaseKey = process.env.SUPABASE_ANON_KEY || "";
 var supabase = null;
@@ -2739,6 +2686,13 @@ if (supabaseUrl && supabaseKey) {
   console.warn("\u26A0\uFE0F ATTENZIONE: SUPABASE_URL e/o SUPABASE_ANON_KEY non configurate!");
   console.warn("   L'applicazione continuer\xE0 senza database Supabase.");
 }
+app.get("/api/auth/check", (req, res) => {
+  res.json({
+    success: true,
+    authenticated: true,
+    user: { username: "biggimmy", loginTime: (/* @__PURE__ */ new Date()).toISOString() }
+  });
+});
 app.use("/attached_assets", express2.static(path3.resolve(process.cwd(), "attached_assets")));
 app.use("/images", express2.static(path3.resolve(process.cwd(), "public/images")));
 app.use((req, res, next) => {
@@ -2826,16 +2780,11 @@ app.use((req, res, next) => {
       console.log("\u26A0\uFE0F Errore avvio Price Watcher:", error);
     }
   }
-  app.use("/api", (req, res) => {
+  app.use("/api", (req, res, next) => {
     res.status(404).json({
       success: false,
       message: "API route not found",
-      path: req.originalUrl,
-      availableEndpoints: [
-        "GET /health",
-        "GET /api/test-db",
-        "... altre route registrate in routes.ts"
-      ]
+      path: req.originalUrl
     });
   });
   if (app.get("env") === "development") {
