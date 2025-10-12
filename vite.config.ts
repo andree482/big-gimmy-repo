@@ -17,6 +17,9 @@ export default defineConfig({
       input: path.resolve(__dirname, 'client/index.html')
     }
   },
+    server: {
+    hmr: false, // disabilita HMR
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'client/src'),
