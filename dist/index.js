@@ -2716,15 +2716,12 @@ async function setupVite(app2, server) {
 init_priceWatcher();
 import { createClient } from "@supabase/supabase-js";
 var app = express2();
+app.use("/sw.js", (req, res) => {
+  res.setHeader("Content-Type", "application/javascript");
+  res.sendFile(path3.resolve(process.cwd(), "client/dist", "sw.js"));
+});
 app.use(express2.json());
 app.use(express2.urlencoded({ extended: false }));
-var DIST_PATH = path3.resolve(process.cwd(), "dist");
-if (process.env.NODE_ENV === "production") {
-  app.use(express2.static(DIST_PATH));
-  app.get("*", (req, res) => {
-    res.sendFile(path3.join(DIST_PATH, "index.html"));
-  });
-}
 var supabaseUrl = process.env.SUPABASE_URL || "";
 var supabaseKey = process.env.SUPABASE_ANON_KEY || "";
 var supabase = null;
@@ -2826,16 +2823,27 @@ app.use((req, res, next) => {
       console.log("\u26A0\uFE0F Errore avvio Price Watcher:", error);
     }
   }
-  app.use("/api", (req, res) => {
+  app.get("/api/auth/check", (req, res) => {
+    const session2 = req.session;
+    const user = session2?.user;
+    if (user && user.authenticated && user.username === "biggimmy") {
+      res.json({
+        success: true,
+        authenticated: true,
+        user: { username: user.username, loginTime: user.loginTime }
+      });
+    } else {
+      res.json({
+        success: true,
+        authenticated: false
+      });
+    }
+  });
+  app.use("/api", (req, res, next) => {
     res.status(404).json({
       success: false,
       message: "API route not found",
-      path: req.originalUrl,
-      availableEndpoints: [
-        "GET /health",
-        "GET /api/test-db",
-        "... altre route registrate in routes.ts"
-      ]
+      path: req.originalUrl
     });
   });
   if (app.get("env") === "development") {
