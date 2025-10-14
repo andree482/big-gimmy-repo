@@ -1,0 +1,37 @@
+// server/routes/products.ts
+import { Router } from "express";
+import { supabase } from "../index";
+
+const router = Router();
+
+router.get("/products/:id/variants", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const { data, error } = await supabase
+      .from("product_options")
+      .select("id, flavor, size, price_cents, image")
+      .eq("product_id", id); // ✅ colonna corretta
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      variants: data.map(opt => ({
+        id: opt.id,
+        flavor: opt.flavor,
+        size: opt.size,
+        price: opt.price_cents / 100,
+        image: opt.image,
+      })),
+    });
+  } catch (error: any) {
+    console.error("Supabase error fetching variants:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+export default router;
