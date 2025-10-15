@@ -2571,15 +2571,46 @@ async function registerRoutes(app2) {
   ];
   app2.post("/api/auth/login", async (req, res) => {
     try {
-      const { username, password } = req.body;
-      if (!username || !password) {
+      const { email, password } = req.body || {};
+      if (email) {
+        if (!password) {
+          return res.status(400).json({
+            success: false,
+            message: "Email e password sono obbligatori"
+          });
+        }
+        if (!req.session) {
+          console.error("\u274C Sessione non inizializzata");
+          return res.status(500).json({
+            success: false,
+            message: "Errore di configurazione del server"
+          });
+        }
+        const now = (/* @__PURE__ */ new Date()).toISOString();
+        req.session.user = {
+          id: Date.now(),
+          email,
+          authenticated: true,
+          loginTime: now,
+          createdAt: now,
+          updatedAt: now
+        };
+        console.log(`\u2705 Login cliente via email: ${email}`);
+        return res.json({
+          success: true,
+          message: "Login effettuato con successo",
+          user: { email }
+        });
+      }
+      const { username, password: pwd } = req.body;
+      if (!username || !pwd) {
         return res.status(400).json({
           success: false,
           message: "Username e password sono obbligatori"
         });
       }
       const validUser = VALID_CREDENTIALS.find(
-        (cred) => cred.username === username && cred.password === password
+        (cred) => cred.username === username && cred.password === pwd
       );
       if (!validUser) {
         console.log(`\u{1F512} Login fallito per utente: ${username}`);
@@ -2614,59 +2645,88 @@ async function registerRoutes(app2) {
       });
     }
   });
-  app2.post("/api/auth/logout", async (req, res) => {
-    try {
-      if (!req.session) {
-        return res.json({
-          success: true,
-          message: "Nessuna sessione da disconnettere"
-        });
-      }
-      const username = req.session.user?.username || "utente sconosciuto";
-      req.session.destroy((err) => {
-        if (err) {
-          console.error("Errore durante il logout:", err);
-          return res.status(500).json({
-            success: false,
-            message: "Errore durante il logout"
-          });
-        }
-        console.log(`\u{1F513} Logout effettuato per: ${username}`);
-        res.json({
-          success: true,
-          message: "Logout effettuato con successo"
-        });
-      });
-    } catch (error) {
-      console.error("Errore durante il logout:", error);
-      res.status(500).json({
-        success: false,
-        message: "Errore interno del server"
-      });
-    }
-  });
-  app2.get("/api/auth/check", async (req, res) => {
+  app2.get("/api/auth/me", async (req, res) => {
     try {
       const session2 = req.session;
       const user = session2?.user;
       if (user && user.authenticated) {
-        res.json({
-          success: true,
-          authenticated: true,
-          user: { username: user.username, loginTime: user.loginTime }
-        });
-      } else {
-        res.json({
-          success: true,
-          authenticated: false
-        });
+        const userPayload = {
+          id: user.id ?? 0,
+          email: user.email ?? (user.username ? `${user.username}@local` : void 0),
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          address: user.address,
+          city: user.city,
+          postalCode: user.postalCode,
+          province: user.province,
+          country: user.country,
+          createdAt: user.createdAt ?? user.loginTime ?? (/* @__PURE__ */ new Date()).toISOString(),
+          updatedAt: user.updatedAt ?? (/* @__PURE__ */ new Date()).toISOString(),
+          username: user.username
+        };
+        return res.json({ success: true, authenticated: true, user: userPayload });
       }
+      return res.json({ success: true, authenticated: false });
     } catch (error) {
-      console.error("Errore durante il controllo autenticazione:", error);
-      res.status(500).json({
-        success: false,
-        message: "Errore interno del server"
+      console.error("Errore durante /api/auth/me:", error);
+      res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  app2.post("/api/auth/register", async (req, res) => {
+    try {
+      const { email, password, firstName, lastName, phone, address, city, postalCode, province, country } = req.body || {};
+      if (!email || !password) {
+        return res.status(400).json({ success: false, message: "Email e password sono obbligatori" });
+      }
+      if (!req.session) {
+        return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
+      }
+      const now = (/* @__PURE__ */ new Date()).toISOString();
+      req.session.user = {
+        id: Date.now(),
+        email,
+        authenticated: true,
+        createdAt: now,
+        updatedAt: now,
+        firstName,
+        lastName,
+        phone,
+        address,
+        city,
+        postalCode,
+        province,
+        country
+      };
+      return res.json({
+        success: true,
+        message: "Registrazione effettuata con successo",
+        user: req.session.user
       });
+    } catch (error) {
+      console.error("Errore durante /api/auth/register:", error);
+      res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  app2.put("/api/auth/profile", async (req, res) => {
+    try {
+      if (!req.session || !req.session.user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const allowed = ["firstName", "lastName", "phone", "address", "city", "postalCode", "province", "country"];
+      const updates = {};
+      for (const key of allowed) {
+        if (key in req.body) updates[key] = req.body[key];
+      }
+      req.session.user = {
+        ...req.session.user,
+        ...updates,
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      return res.json({ success: true, message: "Profilo aggiornato", user: req.session.user });
+    } catch (error) {
+      console.error("Errore durante /api/auth/profile:", error);
+      res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
   const httpServer = createServer(app2);
@@ -2851,6 +2911,9 @@ app.use((req, res, next) => {
   } else {
     serveStatic(app);
   }
+  app.get("*", (req, res) => {
+    res.sendFile(path3.resolve(process.cwd(), "client/dist/index.html"));
+  });
   const PORT = parseInt(process.env.PORT || "5000", 10);
   app.listen(PORT, "0.0.0.0", async () => {
     console.log("=================================");
