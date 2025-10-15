@@ -924,21 +924,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     { username: 'andrea', password: 'So347291Pa21Jkaò!ksi=p0!' }
   ];
 
-  // Login endpoint con credenziali hardcoded
+  // Login endpoint aggiornato: supporta anche email/password per login clienti (session-only)
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
-      const { username, password } = req.body;
+      // NEW: ramo per login clienti via email/password (usato da AuthModal)
+      const { email, password } = req.body || {};
+      if (email) {
+        if (!password) {
+          return res.status(400).json({
+            success: false,
+            message: "Email e password sono obbligatori"
+          });
+        }
+        if (!req.session) {
+          console.error('❌ Sessione non inizializzata');
+          return res.status(500).json({
+            success: false,
+            message: "Errore di configurazione del server"
+          });
+        }
 
-      if (!username || !password) {
+        const now = new Date().toISOString();
+        (req.session as any).user = {
+          id: Date.now(),
+          email,
+          authenticated: true,
+          loginTime: now,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        console.log(`✅ Login cliente via email: ${email}`);
+        return res.json({
+          success: true,
+          message: "Login effettuato con successo",
+          user: { email }
+        });
+      }
+
+      // ... existing code ...
+      const { username, password: pwd } = req.body;
+
+      if (!username || !pwd) {
         return res.status(400).json({ 
           success: false, 
           message: "Username e password sono obbligatori" 
         });
       }
 
-      // Verifica credenziali hardcoded
       const validUser = VALID_CREDENTIALS.find(
-        cred => cred.username === username && cred.password === password
+        cred => cred.username === username && cred.password === pwd
       );
 
       if (!validUser) {
@@ -949,7 +984,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Crea sessione utente autenticato
       if (!req.session) {
         console.error('❌ Sessione non inizializzata');
         return res.status(500).json({ 
@@ -980,66 +1014,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Logout endpoint
-  app.post("/api/auth/logout", async (req: Request, res: Response) => {
-    try {
-      if (!req.session) {
-        return res.json({ 
-          success: true, 
-          message: "Nessuna sessione da disconnettere" 
-        });
-      }
-
-      const username = (req.session as any).user?.username || 'utente sconosciuto';
-      
-      req.session.destroy((err) => {
-        if (err) {
-          console.error("Errore durante il logout:", err);
-          return res.status(500).json({ 
-            success: false, 
-            message: "Errore durante il logout" 
-          });
-        }
-        
-        console.log(`🔓 Logout effettuato per: ${username}`);
-        res.json({ 
-          success: true, 
-          message: "Logout effettuato con successo" 
-        });
-      });
-    } catch (error) {
-      console.error("Errore durante il logout:", error);
-      res.status(500).json({ 
-        success: false, 
-        message: "Errore interno del server" 
-      });
-    }
-  });
-
-  // Check authentication status
-  app.get("/api/auth/check", async (req: Request, res: Response) => {
+  // NEW: Current user endpoint compatibile con il client
+  app.get("/api/auth/me", async (req: Request, res: Response) => {
     try {
       const session = req.session as any;
       const user = session?.user;
-      
+
       if (user && user.authenticated) {
-        res.json({ 
-          success: true, 
-          authenticated: true,
-          user: { username: user.username, loginTime: user.loginTime }
-        });
-      } else {
-        res.json({ 
-          success: true, 
-          authenticated: false 
-        });
+        const userPayload = {
+          id: user.id ?? 0,
+          email: user.email ?? (user.username ? `${user.username}@local` : undefined),
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          address: user.address,
+          city: user.city,
+          postalCode: user.postalCode,
+          province: user.province,
+          country: user.country,
+          createdAt: user.createdAt ?? user.loginTime ?? new Date().toISOString(),
+          updatedAt: user.updatedAt ?? new Date().toISOString(),
+          username: user.username,
+        };
+        return res.json({ success: true, authenticated: true, user: userPayload });
       }
+
+      return res.json({ success: true, authenticated: false });
     } catch (error) {
-      console.error("Errore durante il controllo autenticazione:", error);
-      res.status(500).json({ 
-        success: false, 
-        message: "Errore interno del server" 
+      console.error("Errore durante /api/auth/me:", error);
+      res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // NEW: Registrazione cliente (session-only, no DB)
+  app.post("/api/auth/register", async (req: Request, res: Response) => {
+    try {
+      const { email, password, firstName, lastName, phone, address, city, postalCode, province, country } = req.body || {};
+      if (!email || !password) {
+        return res.status(400).json({ success: false, message: "Email e password sono obbligatori" });
+      }
+      if (!req.session) {
+        return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
+      }
+      const now = new Date().toISOString();
+      (req.session as any).user = {
+        id: Date.now(),
+        email,
+        authenticated: true,
+        createdAt: now,
+        updatedAt: now,
+        firstName,
+        lastName,
+        phone,
+        address,
+        city,
+        postalCode,
+        province,
+        country,
+      };
+      return res.json({
+        success: true,
+        message: "Registrazione effettuata con successo",
+        user: (req.session as any).user,
       });
+    } catch (error) {
+      console.error("Errore durante /api/auth/register:", error);
+      res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // NEW: Aggiornamento profilo cliente (session-only)
+  app.put("/api/auth/profile", async (req: Request, res: Response) => {
+    try {
+      if (!req.session || !(req.session as any).user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const allowed = ["firstName","lastName","phone","address","city","postalCode","province","country"];
+      const updates: Record<string, any> = {};
+      for (const key of allowed) {
+        if (key in req.body) updates[key] = req.body[key];
+      }
+      (req.session as any).user = {
+        ...(req.session as any).user,
+        ...updates,
+        updatedAt: new Date().toISOString(),
+      };
+      return res.json({ success: true, message: "Profilo aggiornato", user: (req.session as any).user });
+    } catch (error) {
+      console.error("Errore durante /api/auth/profile:", error);
+      res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
 
