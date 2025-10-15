@@ -1,16 +1,11 @@
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useLocalFavorites } from "@/hooks/useLocalFavorites";
+import { useFavorites } from "@/hooks/useFavorites";
 import { useState } from "react";
 
 interface FavoriteButtonProps {
   productId: number;
-  productSlug: string;
-  productName: string;
-  brandName?: string;
-  categoryName?: string;
-  categorySlug?: string;
-  basePrice?: number;
+  userId?: number;
   variant?: "icon" | "button";
   size?: "sm" | "md" | "lg";
   className?: string;
@@ -18,17 +13,12 @@ interface FavoriteButtonProps {
 
 export function FavoriteButton({ 
   productId, 
-  productSlug,
-  productName,
-  brandName,
-  categoryName,
-  categorySlug,
-  basePrice,
+  userId = 1, // Mock user ID for now - in real app this would come from auth
   variant = "icon",
   size = "md",
   className = ""
 }: FavoriteButtonProps) {
-  const { toggleFavorite, useIsFavorite, isAddingToFavorites, isRemovingFromFavorites } = useLocalFavorites();
+  const { toggleFavorite, useIsFavorite, isAddingToFavorites, isRemovingFromFavorites } = useFavorites({ userId });
   const [localFavorite, setLocalFavorite] = useState(false);
 
   // Check if product is favorite
@@ -40,19 +30,17 @@ export function FavoriteButton({
   const handleToggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    if (!userId) {
+      // In real app, this would trigger login modal
+      return;
+    }
 
     // Optimistic update
     setLocalFavorite(!isFavorite);
     
     try {
-      await toggleFavorite(productId, {
-        slug: productSlug,
-        name: productName,
-        brandName,
-        categoryName,
-        categorySlug,
-        basePrice
-      });
+      await toggleFavorite(productId);
     } catch (error) {
       // Revert optimistic update on error
       setLocalFavorite(isFavorite);

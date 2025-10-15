@@ -7,35 +7,43 @@ import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { getProductImagePath } from "@/lib/imageUtils";
 
-// Componente per la scheda prodotto (copiato da ProductCategory.tsx)
-const ProductCard = ({
-  product,
-}: {
-  product: any;
-}) => {
+// 🔹 Aggiunti import dal ProductCategory.tsx
+import { useCartContext } from "@/components/cart/CartProvider";
+import { AddToCartDialog } from "@/components/cart/AddToCartDialog";
+import {
+  getProductVariants,
+  getDefaultVariant,
+  getMinimumPrice,
+} from "@/lib/productVariants";
+
+// Componente per la scheda prodotto (ora con carrello e dialog)
+const ProductCard = ({ product }: { product: any }) => {
+  const [showAddToCartDialog, setShowAddToCartDialog] = useState(false);
+  const { addToCart } = useCartContext();
+
+  const handleAddToCartFromDialog = (productData: any) => {
+    addToCart(productData);
+    setShowAddToCartDialog(false);
+  };
+
   // Gestisce sia prodotti dal database che prodotti statici
   const getProductImage = () => {
-    // Se il prodotto ha immagini nella struttura corretta (prodotti statici)
     if (product.images && product.images.length > 0 && product.images[0].src) {
       return product.images[0].src;
     }
 
-    // Per prodotti dal database, usa primaryImage se disponibile
     if (product.primaryImage) {
       return product.primaryImage;
     }
 
-    // Usa il sistema universale di gestione immagini per prodotti dal database
     if (product.slug) {
       return getProductImagePath(product.slug);
     }
 
-    // Prova anche con l'ID se slug non è presente
     if (product.id) {
       return getProductImagePath(product.id.toString());
     }
 
-    // Fallback finale
     return "/images/placeholder-product.jpg";
   };
 
@@ -43,14 +51,11 @@ const ProductCard = ({
     return product.brand_name || product.brand || "BigGimmy";
   };
 
-  // Funzione per calcolare il prezzo minimo del prodotto - DATABASE COME UNICA FONTE
-  const getMinimumPrice = (product: any) => {
-    // UNICA FONTE: Prezzo minimo dal database (campo min_price_cents dalla query SQL)
-    // Database come single source of truth per rispettare la direttiva pricing
+  // Funzione per calcolare il prezzo minimo del prodotto
+  const getMinPrice = (product: any) => {
     if (product.min_price_cents && product.min_price_cents > 0) {
-      return product.min_price_cents / 100; // Converti da centesimi a euro
+      return product.min_price_cents / 100;
     }
-
     return null;
   };
 
@@ -94,13 +99,14 @@ const ProductCard = ({
         <p className="text-sm text-gray-600 mb-3 line-clamp-2 overflow-hidden">
           {product.description && product.description.length > 90
             ? `${product.description.substring(0, 87)}...`
-            : product.description || "Descrizione del prodotto non disponibile"}
+            : product.description ||
+              "Descrizione del prodotto non disponibile"}
         </p>
 
         {/* Prezzo */}
         <div className="mb-4">
           {(() => {
-            const minPrice = getMinimumPrice(product);
+            const minPrice = getMinPrice(product);
             if (minPrice && minPrice > 0) {
               return (
                 <div className="flex flex-col">
@@ -134,27 +140,44 @@ const ProductCard = ({
           })()}
         </div>
 
-        {/* Pulsante di azione */}
+        {/* 🔹 Pulsanti di azione (Aggiungi al Carrello + Dettagli + Preferiti) */}
         <div className="flex gap-2">
+          <button
+            className="flex-1 bg-[#FFD100] hover:bg-yellow-500 text-black font-bold py-2 px-4 rounded-md transition-colors duration-200 text-center"
+            onClick={() => setShowAddToCartDialog(true)}
+          >
+            Aggiungi al carrello
+          </button>
+
           <Link
             href={`/prodotti/${product.category_slug}/${product.slug || product.id}`}
-            className="flex-1 bg-[#FFD100] hover:bg-yellow-500 text-black font-bold py-2 px-4 rounded-md transition-colors duration-200 text-center"
+            className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-3 rounded-md transition-colors duration-200 text-center"
           >
-            Vedi Dettagli
+            Dettagli
           </Link>
+
           <FavoriteButton
-            productId={product.id}
-            productSlug={product.slug}
-            productName={product.name}
-            brandName={product.brand_name || product.brandName}
-            categoryName={product.category_name || product.categoryName}
-            categorySlug={product.category_slug}
-            basePrice={null}
+             productId={product.id}
             variant="icon"
             size="md"
             className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 p-2 rounded-md transition-colors duration-200"
           />
         </div>
+
+        {/* 🔹 Dialog per Aggiungi al Carrello */}
+        <AddToCartDialog
+          isOpen={showAddToCartDialog}
+          onClose={() => setShowAddToCartDialog(false)}
+          product={{
+            id: product.id,
+            name: product.name,
+            slug: product.slug,
+            price: product.price,
+            image: getProductImage(),
+            variants: getProductVariants(product),
+          }}
+          onAddToCart={handleAddToCartFromDialog}
+        />
       </div>
     </div>
   );
@@ -162,10 +185,10 @@ const ProductCard = ({
 
 const Products = () => {
   const [searchFilters, setSearchFilters] = useState({
-    searchQuery: '',
-    brandSlug: 'all',
-    priceRange: 'all',
-    sortBy: 'name',
+    searchQuery: "",
+    brandSlug: "all",
+    priceRange: "all",
+    sortBy: "name",
   });
 
   // Carica tutti i prodotti dal database
@@ -177,26 +200,27 @@ const Products = () => {
     queryKey: ["products", "all", searchFilters],
     queryFn: async () => {
       const params = new URLSearchParams();
-      
+
       if (searchFilters.searchQuery) {
-        params.append('search', searchFilters.searchQuery);
+        params.append("search", searchFilters.searchQuery);
       }
-      if (searchFilters.brandSlug !== 'all') {
-        params.append('brand', searchFilters.brandSlug);
+      if (searchFilters.brandSlug !== "all") {
+        params.append("brand", searchFilters.brandSlug);
       }
-      if (searchFilters.priceRange !== 'all') {
-        params.append('priceRange', searchFilters.priceRange);
+      if (searchFilters.priceRange !== "all") {
+        params.append("priceRange", searchFilters.priceRange);
       }
-      if (searchFilters.sortBy !== 'name') {
-        params.append('sortBy', searchFilters.sortBy);
+      if (searchFilters.sortBy !== "name") {
+        params.append("sortBy", searchFilters.sortBy);
       }
 
-      const url = params.toString() ? `/api/products?${params}` : '/api/products';
+      const url = params.toString()
+        ? `/api/products?${params}`
+        : "/api/products";
       const response = await fetch(url);
       if (!response.ok) return [];
       return response.json();
     },
-    // Usa la configurazione globale di cache per aggiornamenti prezzi immediati
   });
 
   const handleSearch = (filters: any) => {
@@ -212,7 +236,8 @@ const Products = () => {
             I Nostri <span className="text-[#FFD100]">Prodotti</span>
           </h1>
           <p className="max-w-3xl mx-auto text-base sm:text-lg px-2">
-            Scopri la nostra selezione completa di integratori e accessori per il fitness di alta qualità.
+            Scopri la nostra selezione completa di integratori e accessori per
+            il fitness di alta qualità.
           </p>
         </div>
       </section>
@@ -282,9 +307,17 @@ const Products = () => {
             <>
               <div className="flex justify-between items-center mb-6">
                 <p className="text-gray-600">
-                  <span className="font-semibold">{products.length}</span> prodotti
+                  <span className="font-semibold">{products.length}</span>{" "}
+                  prodotti
                   {searchFilters.searchQuery && (
-                    <span> per "<span className="font-semibold">{searchFilters.searchQuery}</span>"</span>
+                    <span>
+                      {" "}
+                      per "
+                      <span className="font-semibold">
+                        {searchFilters.searchQuery}
+                      </span>
+                      "
+                    </span>
                   )}
                 </p>
               </div>

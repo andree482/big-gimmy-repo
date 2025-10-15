@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Star, Package, Palette } from "lucide-react";
 
 
@@ -29,8 +28,8 @@ export default function ProductVariantSelector({
   onVariantChange,
   className = "" 
 }: ProductVariantSelectorProps) {
-  const [selectedFlavor, setSelectedFlavor] = useState<string | null>(null);
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [selectedFlavor, setSelectedFlavor] = useState<string>("");
+  const [selectedSize, setSelectedSize] = useState<string>("");
   const [currentVariant, setCurrentVariant] = useState<ProductVariant | null>(null);
   const [preloadedImages, setPreloadedImages] = useState<Set<string>>(new Set());
 
@@ -38,7 +37,7 @@ export default function ProductVariantSelector({
   const availableFlavors = Array.from(new Set(variants.map(v => v.flavor)));
 
   // Ottieni formati disponibili per il gusto selezionato
-  const availableSizes = selectedFlavor != null 
+  const availableSizes = selectedFlavor 
     ? Array.from(new Set(variants.filter(v => v.flavor === selectedFlavor).map(v => v.size)))
     : [];
 
@@ -53,11 +52,11 @@ export default function ProductVariantSelector({
         img.src = variant.image;
       }
     });
-  }, [variants]); // Rimosso preloadedImages per evitare loop infinito
+  }, [variants, preloadedImages]);
 
   // Trova la variante corrente con cambio istantaneo
   useEffect(() => {
-    if (selectedFlavor != null && selectedSize != null) {
+    if (selectedFlavor && selectedSize) {
       const variant = variants.find(v => 
         v.flavor === selectedFlavor && v.size === selectedSize
       );
@@ -70,18 +69,18 @@ export default function ProductVariantSelector({
 
   // Reset del formato quando cambia il gusto
   useEffect(() => {
-    setSelectedSize(null);
+    setSelectedSize("");
   }, [selectedFlavor]);
 
   // Seleziona automaticamente il primo gusto e formato disponibili
   useEffect(() => {
-    if (availableFlavors.length > 0 && selectedFlavor == null) {
+    if (availableFlavors.length > 0 && !selectedFlavor) {
       setSelectedFlavor(availableFlavors[0]);
     }
   }, [availableFlavors, selectedFlavor]);
 
   useEffect(() => {
-    if (availableSizes.length > 0 && selectedSize == null) {
+    if (availableSizes.length > 0 && !selectedSize) {
       setSelectedSize(availableSizes[0]);
     }
   }, [availableSizes, selectedSize]);
@@ -153,34 +152,31 @@ export default function ProductVariantSelector({
             <Palette className="h-4 w-4 mr-2" />
             Gusto
           </label>
-          <Select value={selectedFlavor ?? undefined} onValueChange={setSelectedFlavor}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Seleziona un gusto">
-                {selectedFlavor && (
-                  <div className="flex items-center">
-                    <div 
-                      className="w-3 h-3 rounded-full mr-2 border border-gray-300"
-                      style={{ backgroundColor: getFlavorColor(selectedFlavor) }}
-                    />
-                    {selectedFlavor}
-                  </div>
-                )}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {availableFlavors.map((flavor) => (
-                <SelectItem key={flavor} value={flavor}>
-                  <div className="flex items-center">
-                    <div 
-                      className="w-3 h-3 rounded-full mr-2 border border-gray-300"
-                      style={{ backgroundColor: getFlavorColor(flavor) }}
-                    />
-                    {flavor}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap gap-2">
+            {availableFlavors.map((flavor) => (
+              <Button
+                key={flavor}
+                variant={selectedFlavor === flavor ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedFlavor(flavor)}
+                className={`relative transition-all duration-200 ${
+                  selectedFlavor === flavor 
+                    ? 'bg-[#FFD100] text-black border-[#FFD100] shadow-md scale-105' 
+                    : 'hover:border-[#FFD100] hover:text-[#FFD100]'
+                }`}
+                style={{
+                  borderLeftColor: selectedFlavor === flavor ? getFlavorColor(flavor) : undefined,
+                  borderLeftWidth: selectedFlavor === flavor ? '4px' : undefined
+                }}
+              >
+                <div 
+                  className="w-3 h-3 rounded-full mr-2 border border-gray-300"
+                  style={{ backgroundColor: getFlavorColor(flavor) }}
+                />
+                {flavor}
+              </Button>
+            ))}
+          </div>
         </div>
       )}
 

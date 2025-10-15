@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Star, Package, Shield, Clock, Award, AlertTriangle, Heart, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProductVariantSelector from "@/components/ProductVariantSelector";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { getProductVariants, getProductVariantsList, formatEuropeanPrice } from "@/lib/productVariants";
+import { getProductImagePath } from "@/lib/imageUtils";
+import { useCartContext } from "@/components/cart/CartProvider";
+import { useToast } from "@/hooks/use-toast";
+import { AddToCartDialog } from "@/components/cart/AddToCartDialog";
+
 // Interface locale per varianti prodotto (prezzi ora vengono dall'API)
 interface ProductVariant {
   flavor: string;
@@ -17,7 +23,6 @@ interface ProductVariant {
   image: string;
   inStock: boolean;
 }
-import { getProductImagePath } from "@/lib/imageUtils";
 
 // Funzione per ottenere immagini specifiche per variante
 function getVariantSpecificImage(slug: string, size: string): string | null {
@@ -4896,6 +4901,20 @@ export default function ProductDetail() {
   const [imageLoaded, setImageLoaded] = useState<boolean>(false);
   const [shareConfirmation, setShareConfirmation] = useState<boolean>(false);
   const [preloadedImages, setPreloadedImages] = useState<Set<string>>(new Set());
+   const [addToCartDialogOpen, setAddToCartDialogOpen] = useState<boolean>(false);
+  const [ , setLocation] = useLocation();
+  const { addToCart } = useCartContext();
+  const { toast } = useToast();
+
+   const handleAddToCartFromDialog = (productData: any) => {
+    console.log('handleAddToCartFromDialog chiamato con:', productData);
+    addToCart(productData);
+    setAddToCartDialogOpen(false);
+    
+    // Vai alla pagina carrello
+    setLocation('/carrello');
+  };
+
 
   // Fetch dati prodotto dal database
   const { data: product, isLoading, error } = useQuery({
@@ -5338,24 +5357,33 @@ export default function ProductDetail() {
               </Card>
             )}
 
-            {/* Azioni */}
-            <div className="flex gap-3">
+             <div className="flex gap-3">
+              {(() => {
+                const currentVariant = selectedVariant || (variantsList.length > 0 ? variantsList[0] : null);
+                const productPrice = currentVariant?.price 
+                  ? (currentVariant.price > 100 ? currentVariant.price / 100 : currentVariant.price)
+                  : ((product.sizes?.[0]?.price || 1990) / 100);
+                
+                return (
+                  <button
+                    className="flex-1 bg-[#FFD100] hover:bg-[#FFD100]/90 text-black font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+                    onClick={() => setAddToCartDialogOpen(true)}
+                  >
+                    Compra ora - {formatEuropeanPrice(productPrice)}
+                  </button>
+                );
+              })()}
               <FavoriteButton 
                 productId={product.id}
-                productSlug={product.slug}
-                productName={product.name}
-                brandName={product.brand_name}
-                categoryName={product.category_name}
-                categorySlug={product.category_slug}
-                basePrice={product.base_price}
-                variant="button"
+                variant="icon"
                 size="lg"
-                className="flex-1 bg-[#FFD100] hover:bg-[#FFD100]/90 text-black font-semibold"
+                className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 p-3 rounded-lg"
               />
               <Button variant="outline" size="icon" onClick={handleShare}>
                 <Share2 className="h-4 w-4" />
               </Button>
             </div>
+
             
             {/* Messaggio conferma condivisione */}
             {shareConfirmation && (
@@ -5540,6 +5568,23 @@ export default function ProductDetail() {
           </Tabs>
         </div>
       </div>
+      {/* Dialog Aggiungi al Carrello */}
+    {product && (
+      <AddToCartDialog
+        isOpen={addToCartDialogOpen}
+        onClose={() => setAddToCartDialogOpen(false)}
+        product={{
+          id: product.id,
+          name: product.name,
+          price: selectedVariant?.price 
+            ? (selectedVariant.price > 100 ? selectedVariant.price / 100 : selectedVariant.price)
+            : ((product.sizes?.[0]?.price || 1990) / 100),
+          image: getProductImage(),
+          variant: selectedVariant ? `${selectedVariant.flavor || ''} ${selectedVariant.size || ''}`.trim() : ''
+        }}
+        onAddToCart={handleAddToCartFromDialog}
+      />
+    )}
     </div>
     </div>
   );

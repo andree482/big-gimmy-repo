@@ -26,10 +26,11 @@ interface BaseProduct {
   category_name: string;
   description: string;
   long_description: string;
+  available_flavors: string[];
+  available_quantities: string[];
   price_range_min: number;
   price_range_max: number;
-  primaryImage: string;
-  variants: any[];
+  base_image: string;
 }
 
 interface ProductWithVariantsProps {
@@ -41,30 +42,37 @@ export default function ProductWithVariants({ baseProduct }: ProductWithVariants
   const [selectedFlavor, setSelectedFlavor] = useState<string>("");
   const [currentImage, setCurrentImage] = useState<string>("/images/products/default.jpg");
 
-  // Usa le varianti già incluse nel baseProduct
-  const variants = baseProduct.variants || [];
+  // Fetch varianti per questo prodotto base
+  const { data: variants } = useQuery({
+    queryKey: ['/api/base-product', baseProduct.slug, 'variants'],
+    queryFn: async () => {
+      const response = await fetch(`/api/base-product/${baseProduct.slug}/variants`);
+      if (!response.ok) throw new Error('Failed to fetch variants');
+      return response.json() as ProductVariant[];
+    },
+  });
 
   // Ottieni quantità disponibili dalle varianti
-  const availableQuantities = variants.length > 0 
-    ? Array.from(new Set(variants.map((v: any) => v.quantity || v.size).filter(Boolean)))
+  const availableQuantities = variants && variants.length > 0 
+    ? [...new Set(variants.map(v => v.quantity).filter(Boolean))]
     : [];
 
   // Ottieni gusti disponibili per la quantità selezionata
   const availableFlavors = selectedQuantity && variants
-    ? Array.from(new Set(variants.filter((v: any) => (v.quantity || v.size) === selectedQuantity).map((v: any) => v.flavor).filter(Boolean)))
+    ? [...new Set(variants.filter(v => v.quantity === selectedQuantity).map(v => v.flavor).filter(Boolean))]
     : variants && !selectedQuantity
-    ? Array.from(new Set(variants.map((v: any) => v.flavor).filter(Boolean)))
+    ? [...new Set(variants.map(v => v.flavor).filter(Boolean))]
     : [];
 
   // Trova la variante corrispondente alla selezione corrente
-  const currentVariant = variants.find((v: any) => 
-    (v.quantity || v.size) === selectedQuantity && v.flavor === selectedFlavor
+  const currentVariant = variants?.find(v => 
+    v.quantity === selectedQuantity && v.flavor === selectedFlavor
   );
 
   // Aggiorna l'immagine istantaneamente quando cambia la variante
   useEffect(() => {
     // Cambio istantaneo senza delay
-    const newImage = currentVariant?.image_path || baseProduct.primaryImage || 
+    const newImage = currentVariant?.image_path || 
                      baseProduct.base_image || 
                      "/images/products/default.jpg";
     setCurrentImage(newImage);

@@ -7,14 +7,12 @@ import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply } fr
 import { syncAllImages } from "./utils/imageSync.ts";
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
-// server/routes/index.ts (o dove registri le rotte)
-import productsRouter from "./routes/products.ts";
-// ...
-
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
-app.use("/api", productsRouter);
+  // ================================
+  // SESSION CONFIGURATION
+  // ================================
   
   console.log('🔧 Configurazione middleware di sessione con PostgreSQL...');
   

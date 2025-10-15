@@ -1,47 +1,56 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Heart } from "lucide-react";
+import { Menu, X, Heart, ShoppingCart, User, LogOut, Settings } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 import Logo from "../ui/Logo";
+import { useAuthQuery } from "@/hooks/useAuth";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { useToast } from "@/hooks/use-toast";
+import { useCartContext } from "@/components/cart/CartProvider";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
   const [location] = useLocation();
   const { scrollY, scrollDirection } = useScrollAnimation();
   const [isNavigating, setIsNavigating] = useState(false);
-  
+  const { user, isAuthenticated, logout, isLogoutLoading } = useAuthQuery();
+  const { toast } = useToast();
+  const { totalItems } = useCartContext();
+
   // Close mobile menu when location changes
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location]);
 
-  // Memoizza i valori computati con isteresi per evitare oscillazioni
-  const isScrolled = useMemo(() => {
-    // Isteresi: attiva a 130px, disattiva a 110px per evitare flicker
-    const currentIsScrolled = scrollY > 120 && !mobileMenuOpen;
-    const prevIsScrolled = scrollY > 110 && !mobileMenuOpen;
-    return scrollY > 130 ? true : scrollY < 110 ? false : currentIsScrolled;
-  }, [scrollY, mobileMenuOpen]);
-  
-  const shouldHide = useMemo(() => scrollDirection === 'down' && scrollY > 400 && !isNavigating && !mobileMenuOpen, [scrollDirection, scrollY, isNavigating, mobileMenuOpen]);
-  
-  // Memoizza gli stili per evitare re-calcoli - ottimizzazione GPU per eliminar lag
+  // Memoizza i valori computati per prestazioni ottimali - soglie più elevate per evitare lag
+  const isScrolled = useMemo(() => scrollY > 80 && !mobileMenuOpen, [scrollY, mobileMenuOpen]);
+  const shouldHide = useMemo(() => scrollDirection === 'down' && scrollY > 300 && !isNavigating && !mobileMenuOpen, [scrollDirection, scrollY, isNavigating, mobileMenuOpen]);
+
+  // Memoizza gli stili per evitare re-calcoli - transizioni più fluide
   const headerStyles = useMemo(() => ({
     transform: shouldHide ? 'translate3d(0, -100%, 0)' : 'translate3d(0, 0, 0)',
-    transition: mobileMenuOpen ? 'none' : 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+    transition: mobileMenuOpen ? 'none' : 'all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)',
     backfaceVisibility: 'hidden' as const,
-    perspective: '1000px',
-    contain: 'layout style paint'
+    perspective: 1000,
+    willChange: 'transform, background-color, backdrop-filter'
   }), [shouldHide, mobileMenuOpen]);
-  
+
   const containerStyles = useMemo(() => ({
     paddingTop: isScrolled ? '0.5rem' : '1rem',
     paddingBottom: isScrolled ? '0.5rem' : '1rem',
-    transition: mobileMenuOpen ? 'none' : 'padding 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-    contain: 'layout style'
+    transition: mobileMenuOpen ? 'none' : 'all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)'
   }), [isScrolled, mobileMenuOpen]);
-  
+
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
   };
@@ -52,6 +61,32 @@ const Navbar = () => {
     setTimeout(() => {
       setIsNavigating(false);
     }, 1000);
+  };
+
+  const handleLoginClick = () => {
+    setAuthModalTab('login');
+    setAuthModalOpen(true);
+  };
+
+  const handleRegisterClick = () => {
+    setAuthModalTab('register');
+    setAuthModalOpen(true);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast({
+        title: 'Logout effettuato',
+        description: 'Sei stato disconnesso con successo',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Errore logout',
+        description: error.message || 'Si è verificato un errore durante il logout',
+        variant: 'destructive',
+      });
+    }
   };
 
   const navLinks = [
@@ -65,24 +100,26 @@ const Navbar = () => {
   return (
     <header 
       className={`sticky top-0 z-50 ${mobileMenuOpen ? '' : 'navbar-transition'} ${
-        isScrolled ? 'bg-[#212121] shadow-lg' : 'bg-[#212121]'
+        isScrolled ? 'bg-[#212121]/95 backdrop-blur-md shadow-lg' : 'bg-[#212121]'
       }`}
       style={headerStyles}
     >
       <div className="container mx-auto px-4">
         <div 
-          className="flex justify-between items-center"
+          className="flex items-center"
           style={containerStyles}
         >
-          <div className="flex items-center">
+          {/* Logo - Fixed width left */}
+          <div className="flex items-center w-44">
             <div className="font-montserrat font-bold">
               <Link href="/" className="flex items-center">
                 <Logo size={isScrolled ? 120 : 150} />
               </Link>
             </div>
           </div>
-          
-          <div className="hidden md:flex space-x-6 text-white font-montserrat font-semibold">
+
+          {/* Navigation Menu - Centered */}
+          <div className="hidden md:flex space-x-8 text-white font-montserrat font-semibold justify-center flex-1">
             {navLinks.map((link) => (
               <div key={link.href}>
                 <Link
@@ -100,9 +137,74 @@ const Navbar = () => {
               </div>
             ))}
           </div>
-          
-          {/* Favorites Link - Desktop */}
-          <div className="hidden md:flex items-center">
+
+          {/* Auth, Favorites and Cart - Fixed width right */}
+          <div className="hidden md:flex items-center gap-3 w-44 justify-end">
+            {/* Authentication */}
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 px-3 py-2 rounded-full transition-colors duration-200 text-white hover:text-[#FFD100] hover:bg-white/5">
+                    <User className="w-5 h-5" />
+                    <span className="text-sm font-medium">
+                      {user?.firstName || user?.email}
+                    </span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem disabled>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>{user?.email}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {!user?.isAdmin && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/profilo" onClick={handleNavClick}>
+                          <User className="mr-2 h-4 w-4" />
+                          <span>Profilo</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/profilo" onClick={handleNavClick}>
+                          <ShoppingCart className="mr-2 h-4 w-4" />
+                          <span>I miei ordini</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {user?.isAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/admin/users" onClick={handleNavClick}>
+                          <Settings className="mr-2 h-4 w-4" />
+                          <span>Admin Panel</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={handleLogout}
+                    disabled={isLogoutLoading}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>{isLogoutLoading ? 'Disconnessione...' : 'Logout'}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <button
+                onClick={handleLoginClick}
+                className="flex items-center gap-2 px-3 py-2 rounded-full transition-colors duration-200 text-white hover:text-[#FFD100] hover:bg-white/5"
+              >
+                <User className="w-5 h-5" />
+                <span className="text-sm font-medium">Accedi</span>
+              </button>
+            )}
+
+            {/* Favorites */}
             <div>
               <Link
                 href="/preferiti"
@@ -118,8 +220,32 @@ const Navbar = () => {
                 <span className="text-sm font-medium">Preferiti</span>
               </Link>
             </div>
+
+            {/* Cart */}
+            <div>
+              <Link
+                href="/carrello"
+                onClick={handleNavClick}
+                className={`flex items-center gap-2 px-3 py-2 rounded-full transition-colors duration-200 relative ${
+                  location === "/carrello"
+                    ? "text-[#FFD100] bg-white/10"
+                    : "text-white hover:text-[#FFD100] hover:bg-white/5"
+                }`}
+                aria-label="Carrello"
+              >
+                <div className="relative">
+                  <ShoppingCart className="w-5 h-5" />
+                  {totalItems > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-[#FFD100] text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {totalItems}
+                    </span>
+                  )}
+                </div>
+                <span className="text-sm font-medium">Carrello</span>
+              </Link>
+            </div>
           </div>
-          
+
           <div className="md:hidden">
             <button
               onClick={toggleMobileMenu}
@@ -160,23 +286,116 @@ const Navbar = () => {
                     {link.label}
                   </Link>
                 ))}
+
+                {/* Authentication Mobile */}
+                {isAuthenticated ? (
+                  <>
+                    <div className="flex items-center gap-2 py-2 font-montserrat font-semibold text-[#FFD100]">
+                      <User className="w-5 h-5" />
+                      {user?.firstName || user?.email}
+                    </div>
+                    {user?.isAdmin && (
+                      <Link
+                        href="/admin/ordini"
+                        onClick={() => {
+                          handleNavClick();
+                          setMobileMenuOpen(false);
+                        }}
+                        className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                      >
+                        <Settings className="w-5 h-5" />
+                        Gestione Ordini
+                      </Link>
+                    )}
+                    <button
+                      onClick={handleLogout}
+                      disabled={isLogoutLoading}
+                      className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      {isLogoutLoading ? 'Disconnessione...' : 'Logout'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        handleLoginClick();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                    >
+                      <User className="w-5 h-5" />
+                      Accedi
+                    </button>
+                  </>
+                )}
+
+                {/* Cart Mobile */}
                 <Link
-                  href="/preferiti"
-                  onClick={handleNavClick}
+                  href="/carrello"
+                  onClick={() => {
+                    handleNavClick();
+                    setMobileMenuOpen(false);
+                  }}
                   className={`flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 ${
-                    location === "/preferiti"
+                    location === "/carrello"
                       ? "text-[#FFD100]"
                       : "text-white hover:text-[#FFD100]"
                   }`}
                 >
-                  <Heart className={`w-5 h-5 ${location === "/preferiti" ? "fill-current" : ""}`} />
+                  <div className="relative">
+                    <ShoppingCart className="w-5 h-5" />
+                    {totalItems > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-[#FFD100] text-black text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                        {totalItems}
+                      </span>
+                    )}
+                  </div>
+                  Carrello
+                </Link>
+
+                {/* Favorites Mobile */}
+                <Link
+                  href="/preferiti"
+                  onClick={() => {
+                    handleNavClick();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                >
+                  <Heart className="w-5 h-5" />
                   Preferiti
                 </Link>
+
+                {!isAuthenticated && (
+                  <>
+                    <button
+                      onClick={() => {
+                        handleRegisterClick();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                    >
+                      <User className="w-5 h-5" />
+                      Registrati
+                    </button>
+                  </>
+                )}
+
+
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Authentication Modal */}
+      <AuthModal 
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        defaultTab={authModalTab}
+      />
     </header>
   );
 };

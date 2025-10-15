@@ -20,6 +20,10 @@ import { getProductImagePath } from "@/lib/imageUtils";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import SearchBar from "@/components/SearchBar";
+import { useToast } from "@/hooks/use-toast";
+import { useCartContext } from "@/components/cart/CartProvider";
+import { getProductVariants, getProductVariantsList, ProductVariant, getDefaultVariant, getMinimumPrice } from "@/lib/productVariants";
+import { AddToCartDialog } from "@/components/cart/AddToCartDialog";
 
 
 
@@ -107,15 +111,7 @@ const EffectivenessInfo = ({ product }: { product: any }) => {
 };
 
 // Funzione per calcolare il prezzo minimo del prodotto - DATABASE COME UNICA FONTE
-const getMinimumPrice = (product: any) => {
-  // UNICA FONTE: Prezzo minimo dal database (campo min_price_cents dalla query SQL)
-  // Database come single source of truth per rispettare la direttiva pricing
-  if (product.min_price_cents && product.min_price_cents > 0) {
-    return product.min_price_cents / 100; // Converti da centesimi a euro
-  }
 
-  return null;
-};
 
 // Componente per la scheda prodotto
 const ProductCard = ({
@@ -124,7 +120,17 @@ const ProductCard = ({
 }: {
   product: any;
   categorySlug?: string;
+  onSelectProduct: (product: any) => void;
 }) => {
+  const [showAddToCartDialog, setShowAddToCartDialog] = useState(false);
+  const { toast } = useToast();
+  const { addToCart } = useCartContext();
+
+  // Handler per aggiungere al carrello dal dialog - va alla pagina carrello
+  const handleAddToCartFromDialog = (productData: any) => {
+    addToCart(productData);
+    setShowAddToCartDialog(false);
+  };
   // Gestisce sia prodotti dal database che prodotti statici
   const getProductImage = () => {
     // Se il prodotto ha immagini nella struttura corretta (prodotti statici)
@@ -248,26 +254,62 @@ const ProductCard = ({
 
         {/* Pulsante di azione */}
         <div className="flex gap-2">
+          {(() => {
+            const defaultVariant = getDefaultVariant(product);
+            const variants = getProductVariants(product);
+            const minPrice = getMinimumPrice(product);
+            
+            const productPrice = defaultVariant?.price 
+              ? (defaultVariant.price > 100 ? defaultVariant.price / 100 : defaultVariant.price)
+              : minPrice || 19.90;
+            
+            const flavors = variants.filter(v => v.flavor).map(v => v.flavor);
+            const sizes = variants.filter(v => v.size).map(v => v.size);
+            
+            return (
+              <>
+                <button
+                  className="flex-1 bg-[#FFD100] hover:bg-yellow-500 text-black font-bold py-2 px-4 rounded-md transition-colors duration-200 text-center"
+                  onClick={() => setShowAddToCartDialog(true)}
+                >
+                  Aggiungi al carrello
+                </button>
+
+              </>
+            );
+          })()}
           <Link
             href={`/prodotti/${categorySlug}/${product.slug || product.id}`}
-            className="flex-1 bg-[#FFD100] hover:bg-yellow-500 text-black font-bold py-2 px-4 rounded-md transition-colors duration-200 text-center"
+            className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-3 rounded-md transition-colors duration-200 text-center"
           >
-            Vedi Dettagli
+            Dettagli
           </Link>
           <FavoriteButton
             productId={product.id}
-            productSlug={product.slug}
-            productName={product.name}
-            brandName={product.brand_name || product.brandName}
-            categoryName={product.category_name || product.categoryName}
-            categorySlug={categorySlug}
-            basePrice={null}
             variant="icon"
             size="md"
             className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 p-2 rounded-md transition-colors duration-200"
           />
         </div>
+
+
+
       </div>
+      
+      {/* Dialog unificato per Aggiungi al Carrello */}
+      <AddToCartDialog
+        isOpen={showAddToCartDialog}
+        onClose={() => setShowAddToCartDialog(false)}
+        product={{
+          id: product.id,
+          name: product.name,
+          slug: product.slug,
+          price: product.price,
+          image: getProductImage(),
+          variants: getProductVariants(product)
+        }}
+        onAddToCart={handleAddToCartFromDialog}
+      />
     </div>
   );
 };
@@ -385,6 +427,11 @@ const getCategoryInfo = (slug: string) => {
 export default function ProductCategory() {
   const params = useParams<{ category: string }>();
   const [location] = useLocation();
+  const [sortBy, setSortBy] = useState<string>("name");
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedBrand, setSelectedBrand] = useState<string>("all");
+  const [priceRange, setPriceRange] = useState<string>("all");
+  const { addToCart } = useCartContext();
   const [searchFilters, setSearchFilters] = useState({
     searchQuery: '',
     brandSlug: 'all',
@@ -555,13 +602,16 @@ export default function ProductCategory() {
             {/* Griglia prodotti */}
             {products.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {products.map((product) => (
-                  <ProductCard
-                    key={product.id || product.slug}
-                    product={product}
-                    categorySlug={params.category}
-                  />
-                ))}
+{products.map((product: any) => (
+  <ProductCard
+    key={product.id || product.slug}
+    product={product}
+    categorySlug={params.category}
+    onSelectProduct={addToCart}
+  />
+))}
+
+
               </div>
             ) : (
               <div className="text-center py-12">
