@@ -2,8 +2,8 @@ import { Truck, Euro } from "lucide-react";
 
 export default function InfoBanner() {
   return (
-    <div 
-      className="sticky top-0 z-40 bg-gradient-to-r from-gray-900 to-black border-b border-gray-200 shadow-sm info-banner"
+    <div> 
+    {/*  className="sticky top-0 z-40 bg-gradient-to-r from-gray-900 to-black border-b border-gray-200 shadow-sm info-banner"
       role="banner" 
       aria-label="Informazioni spedizione e ordine minimo"
     >
@@ -22,6 +22,7 @@ export default function InfoBanner() {
           </div>
         </div>
       </div>
+      */}
     </div>
   );
 }
