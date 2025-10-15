@@ -1375,311 +1375,6 @@ var DatabaseStorage = class {
 };
 var storage = new DatabaseStorage();
 
-// server/routes.ts
-init_schema();
-import { z } from "zod";
-
-// server/services/email.ts
-import { MailService } from "@sendgrid/mail";
-var ADMIN_EMAIL = "info@biggimmyintegratori.com";
-var FROM_EMAIL = "noreply@biggimmyintegratori.com";
-var SIMULATION_MODE = false;
-var mailService = null;
-if (!SIMULATION_MODE) {
-  if (!process.env.SENDGRID_API_KEY) {
-    throw new Error("SENDGRID_API_KEY deve essere impostata nelle variabili d'ambiente");
-  }
-  mailService = new MailService();
-  mailService.setApiKey(process.env.SENDGRID_API_KEY);
-}
-async function sendAdminNotification(formData) {
-  const { name, email, phone, message } = formData;
-  if (SIMULATION_MODE) {
-    console.log("=== SIMULAZIONE: Email di notifica all'amministratore ===");
-    console.log("A:", ADMIN_EMAIL);
-    console.log("Da:", FROM_EMAIL);
-    console.log("Oggetto:", `Nuovo messaggio dal sito web da ${name}`);
-    console.log("Nome:", name);
-    console.log("Email:", email);
-    console.log("Telefono:", phone || "Non fornito");
-    console.log("Messaggio:", message);
-    console.log("=== FINE SIMULAZIONE ===");
-    return true;
-  }
-  try {
-    if (!mailService) {
-      throw new Error("Servizio email non configurato");
-    }
-    const emailHTML = `
-      <!DOCTYPE html>
-      <html lang="it">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Nuovo Contatto - Big Gimmy Integratori</title>
-      </head>
-      <body style="margin: 0; padding: 0; background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-          
-          <!-- Header -->
-          <div style="background: linear-gradient(135deg, #FFD100 0%, #FFC700 100%); padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h1 style="color: #212121; margin: 0; font-size: 28px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-              \u{1F3CB}\uFE0F Big Gimmy Integratori
-            </h1>
-            <p style="color: #333; margin: 8px 0 0 0; font-size: 16px; font-weight: 500;">
-              Nuovo messaggio dal sito web
-            </p>
-          </div>
-          
-          <!-- Content -->
-          <div style="padding: 30px 25px; background-color: #ffffff;">
-            <div style="background-color: #f8f9fa; border-left: 4px solid #FFD100; padding: 20px; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
-              <h2 style="color: #212121; margin: 0 0 15px 0; font-size: 20px; font-weight: 600;">
-                \u{1F4E7} Dettagli del Contatto
-              </h2>
-            </div>
-            
-            <div style="margin-bottom: 20px;">
-              <div style="display: inline-block; background-color: #e3f2fd; padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; width: 100%; box-sizing: border-box;">
-                <strong style="color: #1976d2; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">\u{1F464} Nome:</strong>
-                <p style="margin: 5px 0 0 0; font-size: 16px; color: #333; font-weight: 500;">${name}</p>
-              </div>
-              
-              <div style="display: inline-block; background-color: #e8f5e8; padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; width: 100%; box-sizing: border-box;">
-                <strong style="color: #2e7d32; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">\u{1F4E7} Email:</strong>
-                <p style="margin: 5px 0 0 0; font-size: 16px; color: #333; font-weight: 500;">
-                  <a href="mailto:${email}" style="color: #1976d2; text-decoration: none;">${email}</a>
-                </p>
-              </div>
-              
-              <div style="display: inline-block; background-color: #fff3e0; padding: 12px 16px; border-radius: 8px; margin-bottom: 15px; width: 100%; box-sizing: border-box;">
-                <strong style="color: #f57c00; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">\u{1F4F1} Telefono:</strong>
-                <p style="margin: 5px 0 0 0; font-size: 16px; color: #333; font-weight: 500;">
-                  ${phone ? `<a href="tel:${phone}" style="color: #1976d2; text-decoration: none;">${phone}</a>` : "Non fornito"}
-                </p>
-              </div>
-            </div>
-            
-            <div style="background-color: #f3e5f5; padding: 20px; border-radius: 8px; border-left: 4px solid #9c27b0;">
-              <strong style="color: #7b1fa2; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 10px;">\u{1F4AC} Messaggio:</strong>
-              <div style="background-color: #ffffff; padding: 15px; border-radius: 6px; border: 1px solid #e0e0e0; line-height: 1.6;">
-                <p style="margin: 0; color: #333; font-size: 15px; white-space: pre-wrap;">${message}</p>
-              </div>
-            </div>
-            
-            <!-- Action Button -->
-            <div style="text-align: center; margin-top: 30px;">
-              <a href="mailto:${email}?subject=Re: Risposta alla tua richiesta - Big Gimmy Integratori&body=Ciao ${name},%0D%0A%0D%0AGrazie per averci contattato tramite il nostro sito web.%0D%0A%0D%0AIn riferimento al tuo messaggio:%0D%0A"${message.replace(/"/g, "").replace(/\n/g, "%0D%0A")}"%0D%0A%0D%0A[Scrivi qui la tua risposta]%0D%0A%0D%0ACordiali saluti,%0D%0AIl team di Big Gimmy Integratori%0D%0Ainfo@biggimmyintegratori.com%0D%0A%0D%0A---%0D%0ABig Gimmy Integratori%0D%0ACorso Torino, 85 - 10090 Buttigliera Alta (TO)%0D%0ACorso Saint-Martin-de-Corl\xE9ans, 55 - Aosta (AO)%0D%0Awww.biggimmyintegratori.it" style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC700 100%); color: #212121; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(255, 209, 0, 0.3); transition: all 0.3s ease;">
-                \u2709\uFE0F Rispondi al Cliente
-              </a>
-            </div>
-          </div>
-          
-          <!-- Footer -->
-          <div style="background-color: #212121; color: #ffffff; padding: 25px 20px; text-align: center; border-radius: 0 0 8px 8px;">
-            <div style="margin-bottom: 15px;">
-              <h3 style="margin: 0; color: #FFD100; font-size: 18px; font-weight: bold;">Big Gimmy Integratori</h3>
-              <p style="margin: 5px 0 0 0; color: #cccccc; font-size: 14px;">P.IVA 09256080012</p>
-            </div>
-            
-            <div style="border-top: 1px solid #444; padding-top: 15px; margin-top: 15px;">
-              <p style="margin: 0; color: #999999; font-size: 12px; line-height: 1.5;">
-                \u{1F4CD} <strong>Sede Principale:</strong> Corso Torino, 85 - 10090 Buttigliera Alta (TO)<br>
-                \u{1F4CD} <strong>Filiale:</strong> Corso Saint-Martin-de-Corl\xE9ans, 55 - Aosta (AO)<br>
-                \u{1F310} <a href="https://biggimmyintegratori.it" style="color: #FFD100; text-decoration: none;">www.biggimmyintegratori.it</a>
-              </p>
-            </div>
-            
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #444;">
-              <p style="margin: 0; color: #888888; font-size: 11px;">
-                &copy; ${(/* @__PURE__ */ new Date()).getFullYear()} Big Gimmy Integratori. Tutti i diritti riservati.<br>
-                Questa \xE8 un'email automatica generata dal sito web.
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Mobile Responsive -->
-        <style>
-          @media only screen and (max-width: 600px) {
-            .email-container { width: 100% !important; }
-            .content-padding { padding: 20px 15px !important; }
-            h1 { font-size: 24px !important; }
-            h2 { font-size: 18px !important; }
-          }
-        </style>
-      </body>
-      </html>
-    `;
-    const emailText = `
-      NUOVO MESSAGGIO DAL SITO WEB BIG GIMMY
-      
-      Nome: ${name}
-      Email: ${email}
-      Telefono: ${phone || "Non fornito"}
-      Messaggio: ${message}
-    `;
-    const recipients = [ADMIN_EMAIL];
-    await mailService?.send({
-      to: recipients,
-      from: FROM_EMAIL,
-      subject: `Nuovo messaggio dal sito web da ${name}`,
-      text: emailText,
-      html: emailHTML,
-      trackingSettings: {
-        clickTracking: { enable: false },
-        openTracking: { enable: false },
-        subscriptionTracking: { enable: false }
-      }
-    });
-    console.log("Email all'amministratore inviata con successo ai seguenti destinatari:", recipients);
-    return true;
-  } catch (error) {
-    console.error("Errore nell'invio dell'email all'amministratore:", error);
-    if (error instanceof Error) {
-      console.error("Dettagli errore:", {
-        message: error.message,
-        stack: error.stack,
-        recipients: [ADMIN_EMAIL],
-        fromEmail: FROM_EMAIL
-      });
-    }
-    return false;
-  }
-}
-async function sendUserConfirmation(formData) {
-  const { name, email } = formData;
-  if (SIMULATION_MODE) {
-    console.log("=== SIMULAZIONE: Email di conferma all'utente ===");
-    console.log("A:", email);
-    console.log("Da:", FROM_EMAIL);
-    console.log("Oggetto:", "Conferma ricezione messaggio - Big Gimmy");
-    console.log("Contenuto:", `Ciao ${name}, grazie per averci contattato. Abbiamo ricevuto il tuo messaggio e ti risponderemo al pi\xF9 presto.`);
-    console.log("=== FINE SIMULAZIONE ===");
-    return true;
-  }
-  try {
-    if (!mailService) {
-      throw new Error("Servizio email non configurato");
-    }
-    await mailService?.send({
-      to: email,
-      from: FROM_EMAIL,
-      subject: "Conferma ricezione messaggio - Big Gimmy",
-      text: `
-        Ciao ${name},
-
-        Grazie per averci contattato. Abbiamo ricevuto il tuo messaggio e ti risponderemo al pi\xF9 presto.
-        
-        Il team di Big Gimmy
-      `,
-      trackingSettings: {
-        clickTracking: { enable: false },
-        openTracking: { enable: false },
-        subscriptionTracking: { enable: false }
-      },
-      html: `
-        <!DOCTYPE html>
-        <html lang="it">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Conferma Ricezione - Big Gimmy Integratori</title>
-        </head>
-        <body style="margin: 0; padding: 0; background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-            
-            <!-- Header -->
-            <div style="background: linear-gradient(135deg, #FFD100 0%, #FFC700 100%); padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
-              <h1 style="color: #212121; margin: 0; font-size: 28px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                \u{1F3CB}\uFE0F Big Gimmy Integratori
-              </h1>
-              <p style="color: #333; margin: 8px 0 0 0; font-size: 16px; font-weight: 500;">
-                Conferma ricezione messaggio
-              </p>
-            </div>
-            
-            <!-- Content -->
-            <div style="padding: 30px 25px; background-color: #ffffff;">
-              <div style="background-color: #e8f5e8; border-left: 4px solid #4caf50; padding: 20px; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
-                <h2 style="color: #2e7d32; margin: 0 0 10px 0; font-size: 20px; font-weight: 600;">
-                  \u2705 Messaggio Ricevuto!
-                </h2>
-                <p style="margin: 0; color: #4caf50; font-size: 14px; font-weight: 500;">
-                  Ti risponderemo al pi\xF9 presto
-                </p>
-              </div>
-              
-              <div style="margin-bottom: 25px;">
-                <p style="margin: 0 0 15px 0; font-size: 18px; color: #333; font-weight: 500;">
-                  Ciao <strong style="color: #FFD100; background-color: #333; padding: 2px 8px; border-radius: 4px;">${name}</strong> \u{1F44B}
-                </p>
-                
-                <p style="margin: 0 0 20px 0; color: #555; font-size: 16px; line-height: 1.6;">
-                  Grazie per averci contattato! Abbiamo ricevuto il tuo messaggio e il nostro team ti risponder\xE0 entro <strong>24 ore</strong>.
-                </p>
-                
-                <div style="background-color: #e3f2fd; padding: 20px; border-radius: 8px; border-left: 4px solid #2196f3; margin: 20px 0;">
-                  <h3 style="color: #1976d2; margin: 0 0 10px 0; font-size: 16px; font-weight: 600;">
-                    \u{1F50D} Nel frattempo, puoi:
-                  </h3>
-                  <ul style="margin: 0; padding-left: 20px; color: #555; font-size: 14px; line-height: 1.8;">
-                    <li>Visitare il nostro <a href="https://biggimmyintegratori.it/prodotti" style="color: #1976d2; text-decoration: none; font-weight: 500;">catalogo prodotti</a></li>
-                    <li>Scoprire i nostri <a href="https://biggimmyintegratori.it/negozi" style="color: #1976d2; text-decoration: none; font-weight: 500;">punti vendita</a></li>
-                    <li>Seguirci sui social per offerte esclusive</li>
-                  </ul>
-                </div>
-              </div>
-              
-              <!-- CTA Button -->
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="https://biggimmyintegratori.it" style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC700 100%); color: #212121; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(255, 209, 0, 0.3);">
-                  \u{1F6D2} Visita il nostro Sito
-                </a>
-              </div>
-              
-              <div style="text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-                <p style="margin: 0; color: #666; font-size: 15px; font-weight: 500;">
-                  Cordiali saluti,<br>
-                  <strong style="color: #FFD100; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);">Il team di Big Gimmy Integratori</strong> \u{1F4AA}
-                </p>
-              </div>
-            </div>
-            
-            <!-- Footer -->
-            <div style="background-color: #212121; color: #ffffff; padding: 25px 20px; text-align: center; border-radius: 0 0 8px 8px;">
-              <div style="margin-bottom: 15px;">
-                <h3 style="margin: 0; color: #FFD100; font-size: 18px; font-weight: bold;">Big Gimmy Integratori</h3>
-                <p style="margin: 5px 0 0 0; color: #cccccc; font-size: 14px;">P.IVA 09256080012</p>
-              </div>
-              
-              <div style="border-top: 1px solid #444; padding-top: 15px; margin-top: 15px;">
-                <p style="margin: 0; color: #999999; font-size: 12px; line-height: 1.5;">
-                  \u{1F4CD} <strong>Sede Principale:</strong> Corso Torino, 85 - 10090 Buttigliera Alta (TO)<br>
-                  \u{1F4CD} <strong>Filiale:</strong> Corso Saint-Martin-de-Corl\xE9ans, 55 - Aosta (AO)<br>
-                  \u{1F4E7} <a href="mailto:info@biggimmyintegratori.com" style="color: #FFD100; text-decoration: none;">info@biggimmyintegratori.com</a>
-                </p>
-              </div>
-              
-              <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #444;">
-                <p style="margin: 0; color: #888888; font-size: 11px;">
-                  &copy; ${(/* @__PURE__ */ new Date()).getFullYear()} Big Gimmy Integratori. Tutti i diritti riservati.<br>
-                  Questa \xE8 un'email automatica, si prega di non rispondere direttamente.
-                </p>
-              </div>
-            </div>
-          </div>
-        </body>
-        </html>
-      `
-    });
-    return true;
-  } catch (error) {
-    console.error("Errore nell'invio dell'email di conferma all'utente:", error);
-    return false;
-  }
-}
-
 // server/utils/imageSync.ts
 import { promises as fs } from "fs";
 import path from "path";
@@ -1754,12 +1449,14 @@ async function registerRoutes(app2) {
           return res.status(400).json({ success: false, message: "Email e password sono obbligatori" });
         }
         if (!req.session) {
-          console.error("\u274C Sessione non inizializzata");
           return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
         }
-        const now = (/* @__PURE__ */ new Date()).toISOString();
         const isAdmin = email === "admin@example.com" && password === "XNCahKl09P!298Gq20LkAns!1";
         const isTestUser = email === "lorenzorossi@example.com" && password === "So347291Pa21Jka\xF2!ksi=p0!";
+        if (!isAdmin && !isTestUser) {
+          return res.status(401).json({ success: false, message: "Credenziali non valide" });
+        }
+        const now = (/* @__PURE__ */ new Date()).toISOString();
         req.session.user = {
           id: Date.now(),
           email,
@@ -1767,9 +1464,10 @@ async function registerRoutes(app2) {
           isAdmin,
           loginTime: now,
           createdAt: now,
-          updatedAt: now
+          updatedAt: now,
+          firstName: isAdmin ? "Admin" : "Lorenzo",
+          lastName: isAdmin ? "User" : "Rossi"
         };
-        console.log(`\u2705 Login via email: ${email} (${isAdmin ? "admin" : isTestUser ? "utente di test" : "utente"})`);
         return res.json({ success: true, message: "Login effettuato con successo", user: { email, isAdmin } });
       }
       const { username, password: pwd } = req.body;
@@ -1780,11 +1478,9 @@ async function registerRoutes(app2) {
         (cred) => cred.username === username && cred.password === pwd
       );
       if (!validUser) {
-        console.log(`\u{1F512} Login fallito per utente: ${username}`);
         return res.status(401).json({ success: false, message: "Credenziali non valide" });
       }
       if (!req.session) {
-        console.error("\u274C Sessione non inizializzata");
         return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
       }
       req.session.user = {
@@ -1793,19 +1489,20 @@ async function registerRoutes(app2) {
         isAdmin: validUser.username === "biggimmy",
         loginTime: (/* @__PURE__ */ new Date()).toISOString()
       };
-      console.log(`\u2705 Login riuscito per utente: ${username}`);
-      res.json({ success: true, message: "Login effettuato con successo", user: { username: validUser.username, isAdmin: validUser.username === "biggimmy" } });
+      res.json({
+        success: true,
+        message: "Login effettuato con successo",
+        user: { username: validUser.username, isAdmin: validUser.username === "biggimmy" }
+      });
     } catch (error) {
-      console.error("Errore durante il login:", error);
       res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
   app2.get("/api/auth/me", async (req, res) => {
     try {
-      const session2 = req.session;
-      const user = session2?.user;
+      const user = req.session?.user;
       if (user && user.authenticated) {
-        const userPayload = {
+        const payload = {
           id: user.id ?? 0,
           email: user.email ?? (user.username ? `${user.username}@local` : void 0),
           firstName: user.firstName,
@@ -1821,12 +1518,11 @@ async function registerRoutes(app2) {
           username: user.username,
           isAdmin: !!user.isAdmin
         };
-        return res.json({ success: true, authenticated: true, user: userPayload });
+        return res.json({ success: true, authenticated: true, user: payload });
       }
       return res.json({ success: true, authenticated: false });
-    } catch (error) {
-      console.error("Errore durante /api/auth/me:", error);
-      res.status(500).json({ success: false, message: "Errore interno del server" });
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
   app2.post("/api/auth/register", async (req, res) => {
@@ -1856,71 +1552,113 @@ async function registerRoutes(app2) {
         country
       };
       return res.json({ success: true, message: "Registrazione effettuata con successo", user: req.session.user });
-    } catch (error) {
-      console.error("Errore durante /api/auth/register:", error);
-      res.status(500).json({ success: false, message: "Errore interno del server" });
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
   app2.put("/api/auth/profile", async (req, res) => {
     try {
-      if (!req.session || !req.session.user?.authenticated) {
+      const sessUser = req.session?.user;
+      if (!sessUser?.authenticated) {
         return res.status(401).json({ success: false, message: "Non autenticato" });
       }
       const allowed = ["firstName", "lastName", "phone", "address", "city", "postalCode", "province", "country"];
       const updates = {};
-      for (const key of allowed) {
-        if (key in req.body) updates[key] = req.body[key];
-      }
-      req.session.user = {
-        ...req.session.user,
-        ...updates,
-        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-      };
+      for (const k of allowed) if (k in req.body) updates[k] = req.body[k];
+      req.session.user = { ...sessUser, ...updates, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
       return res.json({ success: true, message: "Profilo aggiornato", user: req.session.user });
-    } catch (error) {
-      console.error("Errore durante /api/auth/profile:", error);
-      res.status(500).json({ success: false, message: "Errore interno del server" });
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
-  app2.post("/api/contact", async (req, res) => {
+  const MOCK_ORDERS = [
+    {
+      id: 1001,
+      userId: 501,
+      snipcartOrderId: "SNIP-001001",
+      total: 4599,
+      status: "ordered",
+      items: [
+        { id: "p-1", name: "Proteine Whey 1kg", quantity: 1, price: 2999 },
+        { id: "p-2", name: "Creatina Monoidrato 300g", quantity: 1, price: 1600 }
+      ],
+      shippingAddress: { street: "Via Roma 10", city: "Torino", postalCode: "10121", province: "TO" },
+      billingAddress: { street: "Via Roma 10", city: "Torino", postalCode: "10121", province: "TO" },
+      createdAt: new Date(Date.now() - 1e3 * 60 * 60 * 24).toISOString(),
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      userEmail: "mario.rossi@example.com",
+      userFirstName: "Mario",
+      userLastName: "Rossi"
+    },
+    {
+      id: 1002,
+      userId: 502,
+      snipcartOrderId: "SNIP-001002",
+      total: 8999,
+      status: "completed",
+      items: [
+        { id: "p-3", name: "Omega-3 120 cps", quantity: 2, price: 1999 },
+        { id: "p-4", name: "Multivitaminico", quantity: 1, price: 5001 }
+      ],
+      shippingAddress: { street: "Via Garibaldi 5", city: "Milano", postalCode: "20100", province: "MI" },
+      billingAddress: { street: "Via Garibaldi 5", city: "Milano", postalCode: "20100", province: "MI" },
+      createdAt: new Date(Date.now() - 1e3 * 60 * 60 * 48).toISOString(),
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      userEmail: "laura.bianchi@example.com",
+      userFirstName: "Laura",
+      userLastName: "Bianchi"
+    },
+    {
+      id: 1003,
+      userId: 503,
+      snipcartOrderId: "SNIP-001003",
+      total: 6599,
+      status: "processing",
+      items: [
+        { id: "p-5", name: "Termogenico X", quantity: 1, price: 3299 },
+        { id: "p-6", name: "Barrette Proteiche (box)", quantity: 1, price: 3300 }
+      ],
+      shippingAddress: { street: "Corso Francia 45", city: "Torino", postalCode: "10138", province: "TO" },
+      billingAddress: { street: "Corso Francia 45", city: "Torino", postalCode: "10138", province: "TO" },
+      createdAt: new Date(Date.now() - 1e3 * 60 * 60 * 6).toISOString(),
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      userEmail: "giulia.verdi@example.com",
+      userFirstName: "Giulia",
+      userLastName: "Verdi"
+    }
+  ];
+  app2.get("/api/admin/orders", async (req, res) => {
     try {
-      const contactData = insertContactSchema.parse(req.body);
-      const contact = await storage.createContact(contactData);
-      const adminEmailSent = await sendAdminNotification({
-        name: contactData.name,
-        email: contactData.email,
-        phone: contactData.phone || void 0,
-        message: contactData.message
-      });
-      const userEmailSent = await sendUserConfirmation({
-        name: contactData.name,
-        email: contactData.email,
-        phone: contactData.phone || void 0,
-        message: contactData.message
-      });
-      return res.status(201).json({
-        success: true,
-        message: "Contact form submitted successfully",
-        data: contact,
-        emailStatus: {
-          adminNotified: adminEmailSent,
-          userConfirmationSent: userEmailSent,
-          simulationMode: false
-        }
-      });
-    } catch (error) {
-      console.error("Error submitting contact form:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({
-          success: false,
-          message: "Validation error",
-          errors: error.errors
-        });
+      const user = req.session?.user;
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
       }
-      return res.status(500).json({
-        success: false,
-        message: "Server error, please try again later"
-      });
+      if (!user?.isAdmin) {
+        return res.status(403).json({ success: false, message: "Accesso negato" });
+      }
+      return res.json(MOCK_ORDERS);
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  const MOCK_USERS = [
+    { email: "admin@example.com", first_name: "Admin", last_name: "User", phone: null },
+    { email: "lorenzorossi@example.com", first_name: "Lorenzo", last_name: "Rossi", phone: "3331234567" },
+    { email: "mario.rossi@example.com", first_name: "Mario", last_name: "Rossi", phone: "3332221111" },
+    { email: "laura.bianchi@example.com", first_name: "Laura", last_name: "Bianchi", phone: null }
+  ];
+  app2.get("/api/admin/users", async (req, res) => {
+    try {
+      const user = req.session?.user;
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      if (!user?.isAdmin) {
+        return res.status(403).json({ success: false, message: "Accesso negato" });
+      }
+      return res.json({ success: true, users: MOCK_USERS });
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
   app2.get("/api/contacts", async (req, res) => {

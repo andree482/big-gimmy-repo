@@ -33,9 +33,6 @@ export default function AdminSidebar() {
         <h2 className="text-xl font-bold text-gray-900 font-montserrat">
           Admin Panel
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
-          BigGimmy Integratori
-        </p>
       </div>
       
       <nav className="px-4 space-y-2">

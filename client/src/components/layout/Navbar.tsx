@@ -8,6 +8,7 @@ import { useAuthQuery } from "@/hooks/useAuth";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { useToast } from "@/hooks/use-toast";
 import { useCartContext } from "@/components/cart/CartProvider";
+import InfoBanner from "@/components/layout/InfoBanner";
 import {
   DropdownMenu,
   DropdownMenuContent,
