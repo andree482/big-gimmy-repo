@@ -192,6 +192,12 @@ app.use("/api", (req, res, next) => {
     serveStatic(app);
   }
 
+  // ✅ Fallback per tutte le route React: serve index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.resolve(process.cwd(), 'client/dist/index.html'));
+});
+
+
   // Use PORT from environment or default to 5000
   const PORT = parseInt(process.env.PORT || '5000', 10);
 
