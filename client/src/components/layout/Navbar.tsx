@@ -19,57 +19,71 @@ import {
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+  const [authModalTab, setAuthModalTab] = useState<"login" | "register">("login");
   const [location] = useLocation();
   const { scrollY, scrollDirection } = useScrollAnimation();
   const [isNavigating, setIsNavigating] = useState(false);
-  const { user, isAuthenticated, logout, isLogoutLoading } = useAuthQuery();
+
+  // 🔹 Aggiornato con isLoading
+  const { user, isAuthenticated, isLoading, logout, isLogoutLoading } = useAuthQuery();
+
   const { toast } = useToast();
   const { totalItems } = useCartContext();
 
-  // Close mobile menu when location changes
+  // 🔹 Auto-apertura modale autenticazione
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      setAuthModalTab("login");
+      setAuthModalOpen(true);
+    }
+  }, [isLoading, isAuthenticated]);
+
+  // Chiudi il menu mobile quando cambia la pagina
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location]);
 
-  // Memoizza i valori computati per prestazioni ottimali - soglie più elevate per evitare lag
+  // Memoizza i valori computati per prestazioni ottimali
   const isScrolled = useMemo(() => scrollY > 80 && !mobileMenuOpen, [scrollY, mobileMenuOpen]);
-  const shouldHide = useMemo(() => scrollDirection === 'down' && scrollY > 300 && !isNavigating && !mobileMenuOpen, [scrollDirection, scrollY, isNavigating, mobileMenuOpen]);
+  const shouldHide = useMemo(
+    () => scrollDirection === "down" && scrollY > 300 && !isNavigating && !mobileMenuOpen,
+    [scrollDirection, scrollY, isNavigating, mobileMenuOpen]
+  );
 
-  // Memoizza gli stili per evitare re-calcoli - transizioni più fluide
-  const headerStyles = useMemo(() => ({
-    transform: shouldHide ? 'translate3d(0, -100%, 0)' : 'translate3d(0, 0, 0)',
-    transition: mobileMenuOpen ? 'none' : 'all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)',
-    backfaceVisibility: 'hidden' as const,
-    perspective: 1000,
-    willChange: 'transform, background-color, backdrop-filter'
-  }), [shouldHide, mobileMenuOpen]);
+  const headerStyles = useMemo(
+    () => ({
+      transform: shouldHide ? "translate3d(0, -100%, 0)" : "translate3d(0, 0, 0)",
+      transition: mobileMenuOpen ? "none" : "all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)",
+      backfaceVisibility: "hidden" as const,
+      perspective: 1000,
+      willChange: "transform, background-color, backdrop-filter",
+    }),
+    [shouldHide, mobileMenuOpen]
+  );
 
-  const containerStyles = useMemo(() => ({
-    paddingTop: isScrolled ? '0.5rem' : '1rem',
-    paddingBottom: isScrolled ? '0.5rem' : '1rem',
-    transition: mobileMenuOpen ? 'none' : 'all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)'
-  }), [isScrolled, mobileMenuOpen]);
+  const containerStyles = useMemo(
+    () => ({
+      paddingTop: isScrolled ? "0.5rem" : "1rem",
+      paddingBottom: isScrolled ? "0.5rem" : "1rem",
+      transition: mobileMenuOpen ? "none" : "all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)",
+    }),
+    [isScrolled, mobileMenuOpen]
+  );
 
-  const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
-  };
+  const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
 
   const handleNavClick = () => {
     setIsNavigating(true);
-    // Mantieni la navbar visibile per 1 secondo durante la navigazione
-    setTimeout(() => {
-      setIsNavigating(false);
-    }, 1000);
+    setTimeout(() => setIsNavigating(false), 1000);
   };
 
   const handleLoginClick = () => {
-    setAuthModalTab('login');
+    setAuthModalTab("login");
     setAuthModalOpen(true);
   };
 
   const handleRegisterClick = () => {
-    setAuthModalTab('register');
+    setAuthModalTab("register");
     setAuthModalOpen(true);
   };
 
@@ -77,14 +91,14 @@ const Navbar = () => {
     try {
       await logout();
       toast({
-        title: 'Logout effettuato',
-        description: 'Sei stato disconnesso con successo',
+        title: "Logout effettuato",
+        description: "Sei stato disconnesso con successo",
       });
     } catch (error: any) {
       toast({
-        title: 'Errore logout',
-        description: error.message || 'Si è verificato un errore durante il logout',
-        variant: 'destructive',
+        title: "Errore logout",
+        description: error.message || "Si è verificato un errore durante il logout",
+        variant: "destructive",
       });
     }
   };
@@ -98,18 +112,15 @@ const Navbar = () => {
   ];
 
   return (
-    <header 
-      className={`sticky top-0 z-50 ${mobileMenuOpen ? '' : 'navbar-transition'} ${
-        isScrolled ? 'bg-[#212121]/95 backdrop-blur-md shadow-lg' : 'bg-[#212121]'
+    <header
+      className={`sticky top-0 z-50 ${mobileMenuOpen ? "" : "navbar-transition"} ${
+        isScrolled ? "bg-[#212121]/95 backdrop-blur-md shadow-lg" : "bg-[#212121]"
       }`}
       style={headerStyles}
     >
       <div className="container mx-auto px-4">
-        <div 
-          className="flex items-center"
-          style={containerStyles}
-        >
-          {/* Logo - Fixed width left */}
+        <div className="flex items-center" style={containerStyles}>
+          {/* Logo */}
           <div className="flex items-center w-44">
             <div className="font-montserrat font-bold">
               <Link href="/" className="flex items-center">
@@ -118,7 +129,7 @@ const Navbar = () => {
             </div>
           </div>
 
-          {/* Navigation Menu - Centered */}
+          {/* Navigation Menu */}
           <div className="hidden md:flex space-x-8 text-white font-montserrat font-semibold justify-center flex-1">
             {navLinks.map((link) => (
               <div key={link.href}>
@@ -138,7 +149,7 @@ const Navbar = () => {
             ))}
           </div>
 
-          {/* Auth, Favorites and Cart - Fixed width right */}
+          {/* Auth, Favorites, Cart */}
           <div className="hidden md:flex items-center gap-3 w-44 justify-end">
             {/* Authentication */}
             {isAuthenticated ? (
@@ -146,9 +157,7 @@ const Navbar = () => {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 px-3 py-2 rounded-full transition-colors duration-200 text-white hover:text-[#FFD100] hover:bg-white/5">
                     <User className="w-5 h-5" />
-                    <span className="text-sm font-medium">
-                      {user?.firstName || user?.email}
-                    </span>
+                    <span className="text-sm font-medium">{user?.firstName || user?.email}</span>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
@@ -185,12 +194,9 @@ const Navbar = () => {
                     </>
                   )}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={handleLogout}
-                    disabled={isLogoutLoading}
-                  >
+                  <DropdownMenuItem onClick={handleLogout} disabled={isLogoutLoading}>
                     <LogOut className="mr-2 h-4 w-4" />
-                    <span>{isLogoutLoading ? 'Disconnessione...' : 'Logout'}</span>
+                    <span>{isLogoutLoading ? "Disconnessione..." : "Logout"}</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -246,23 +252,20 @@ const Navbar = () => {
             </div>
           </div>
 
+          {/* Mobile Toggle */}
           <div className="md:hidden">
             <button
               onClick={toggleMobileMenu}
               className="text-white hover:text-[#FFD100] transition-colors duration-200"
               aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
             >
-              {mobileMenuOpen ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
+              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Navigation Menu */}
+      {/* Mobile Menu */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
@@ -313,7 +316,7 @@ const Navbar = () => {
                       className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
                     >
                       <LogOut className="w-5 h-5" />
-                      {isLogoutLoading ? 'Disconnessione...' : 'Logout'}
+                      {isLogoutLoading ? "Disconnessione..." : "Logout"}
                     </button>
                   </>
                 ) : (
@@ -382,18 +385,22 @@ const Navbar = () => {
                     </button>
                   </>
                 )}
-
-
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Authentication Modal */}
-      <AuthModal 
+      {/* 🔹 Authentication Modal aggiornato */}
+      <AuthModal
         isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
+        onClose={() => {
+          if (!isAuthenticated) {
+            setAuthModalOpen(true);
+            return;
+          }
+          setAuthModalOpen(false);
+        }}
         defaultTab={authModalTab}
       />
     </header>

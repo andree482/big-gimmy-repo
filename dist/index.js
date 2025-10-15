@@ -1547,140 +1547,6 @@ async function sendAdminNotification(formData) {
     return false;
   }
 }
-async function sendPersonalizedReply(recipientEmail, recipientName, subject, replyMessage) {
-  if (SIMULATION_MODE) {
-    console.log("=== SIMULAZIONE: Email di risposta personalizzata ===");
-    console.log("A:", recipientEmail);
-    console.log("Da:", ADMIN_EMAIL);
-    console.log("Oggetto:", subject);
-    console.log("Contenuto:", replyMessage);
-    console.log("=== FINE SIMULAZIONE ===");
-    return true;
-  }
-  try {
-    if (!mailService) {
-      throw new Error("Servizio email non configurato");
-    }
-    await mailService?.send({
-      to: recipientEmail,
-      from: ADMIN_EMAIL,
-      // Inviamo da info@biggimmyintegratori.com
-      subject,
-      text: `
-        Ciao ${recipientName},
-
-        ${replyMessage}
-        
-        Cordiali saluti,
-        Il team di Big Gimmy Integratori
-        info@biggimmyintegratori.com
-      `,
-      trackingSettings: {
-        clickTracking: { enable: false },
-        openTracking: { enable: false },
-        subscriptionTracking: { enable: false }
-      },
-      html: `
-        <!DOCTYPE html>
-        <html lang="it">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Risposta - Big Gimmy Integratori</title>
-        </head>
-        <body style="margin: 0; padding: 0; background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-            
-            <!-- Header -->
-            <div style="background: linear-gradient(135deg, #FFD100 0%, #FFC700 100%); padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0;">
-              <h1 style="color: #212121; margin: 0; font-size: 28px; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                \u{1F3CB}\uFE0F Big Gimmy Integratori
-              </h1>
-              <p style="color: #333; margin: 8px 0 0 0; font-size: 16px; font-weight: 500;">
-                Risposta dal nostro team
-              </p>
-            </div>
-            
-            <!-- Content -->
-            <div style="padding: 30px 25px; background-color: #ffffff;">
-              <div style="background-color: #e8f5e8; border-left: 4px solid #4caf50; padding: 20px; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
-                <h2 style="color: #2e7d32; margin: 0 0 10px 0; font-size: 20px; font-weight: 600;">
-                  \u{1F44B} Ciao ${recipientName}!
-                </h2>
-                <p style="margin: 0; color: #4caf50; font-size: 14px; font-weight: 500;">
-                  Ti rispondiamo personalmente
-                </p>
-              </div>
-              
-              <div style="margin-bottom: 25px;">
-                <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e0e0e0; line-height: 1.6; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                  <p style="margin: 0; color: #333; font-size: 16px; white-space: pre-wrap;">${replyMessage}</p>
-                </div>
-                
-                <div style="background-color: #e3f2fd; padding: 20px; border-radius: 8px; border-left: 4px solid #2196f3; margin: 25px 0;">
-                  <h3 style="color: #1976d2; margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">
-                    \u{1F4DE} Contattaci per ulteriori informazioni:
-                  </h3>
-                  <div style="color: #555; font-size: 14px; line-height: 1.8;">
-                    <p style="margin: 5px 0;"><strong>\u{1F4E7} Email:</strong> <a href="mailto:info@biggimmyintegratori.com" style="color: #1976d2; text-decoration: none;">info@biggimmyintegratori.com</a></p>
-                    <p style="margin: 5px 0;"><strong>\u{1F4CD} Sede Principale:</strong> Corso Torino, 85 - 10090 Buttigliera Alta (TO)</p>
-                    <p style="margin: 5px 0;"><strong>\u{1F4CD} Filiale:</strong> Corso Saint-Martin-de-Corl\xE9ans, 55 - Aosta (AO)</p>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- CTA Button -->
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="https://biggimmyintegratori.it" style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC700 100%); color: #212121; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(255, 209, 0, 0.3);">
-                  \u{1F6D2} Visita il nostro Sito
-                </a>
-              </div>
-              
-              <div style="text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-                <p style="margin: 0; color: #666; font-size: 15px; font-weight: 500;">
-                  Cordiali saluti,<br>
-                  <strong style="color: #FFD100; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);">Il team di Big Gimmy Integratori</strong> \u{1F4AA}
-                </p>
-                <p style="margin: 10px 0 0 0; color: #999; font-size: 13px;">
-                  <a href="mailto:info@biggimmyintegratori.com" style="color: #FFD100; text-decoration: none; font-weight: 500;">info@biggimmyintegratori.com</a>
-                </p>
-              </div>
-            </div>
-            
-            <!-- Footer -->
-            <div style="background-color: #212121; color: #ffffff; padding: 25px 20px; text-align: center; border-radius: 0 0 8px 8px;">
-              <div style="margin-bottom: 15px;">
-                <h3 style="margin: 0; color: #FFD100; font-size: 18px; font-weight: bold;">Big Gimmy Integratori</h3>
-                <p style="margin: 5px 0 0 0; color: #cccccc; font-size: 14px;">P.IVA 09256080012</p>
-              </div>
-              
-              <div style="border-top: 1px solid #444; padding-top: 15px; margin-top: 15px;">
-                <p style="margin: 0; color: #999999; font-size: 12px; line-height: 1.5;">
-                  \u{1F4CD} <strong>Sede Principale:</strong> Corso Torino, 85 - 10090 Buttigliera Alta (TO)<br>
-                  \u{1F4CD} <strong>Filiale:</strong> Corso Saint-Martin-de-Corl\xE9ans, 55 - Aosta (AO)<br>
-                  \u{1F310} <a href="https://biggimmyintegratori.it" style="color: #FFD100; text-decoration: none;">www.biggimmyintegratori.it</a>
-                </p>
-              </div>
-              
-              <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #444;">
-                <p style="margin: 0; color: #888888; font-size: 11px;">
-                  &copy; ${(/* @__PURE__ */ new Date()).getFullYear()} Big Gimmy Integratori. Tutti i diritti riservati.<br>
-                  Questa email \xE8 stata inviata dal nostro team di supporto.
-                </p>
-              </div>
-            </div>
-          </div>
-        </body>
-        </html>
-      `
-    });
-    console.log("Email di risposta personalizzata inviata con successo a:", recipientEmail);
-    return true;
-  } catch (error) {
-    console.error("Errore nell'invio dell'email di risposta personalizzata:", error);
-    return false;
-  }
-}
 async function sendUserConfirmation(formData) {
   const { name, email } = formData;
   if (SIMULATION_MODE) {
@@ -1865,47 +1731,155 @@ async function registerRoutes(app2) {
     store: new pgSession({
       conString: process.env.DATABASE_URL,
       tableName: "session",
-      // Nome tabella per le sessioni
       createTableIfMissing: true
-      // Crea automaticamente la tabella se non esiste
     }),
     secret: process.env.SESSION_SECRET || "big-gimmy-secret-key-2025",
     resave: false,
     saveUninitialized: false,
     cookie: {
       maxAge: 1e3 * 60 * 60 * 24 * 30,
-      // 30 giorni
       secure: false,
-      // true solo in produzione con HTTPS
       httpOnly: true,
-      // Sicurezza: cookie non accessibile da JavaScript
       sameSite: "lax"
-      // Protezione CSRF
     },
     rolling: true,
-    // Rinnova il cookie ad ogni richiesta
     name: "biggimmy-session"
   }));
   console.log("\u2705 Middleware di sessione PostgreSQL configurato");
-  app2.post("/api/send-reply", async (req, res) => {
+  app2.post("/api/auth/login", async (req, res) => {
     try {
-      const { recipientEmail, recipientName, subject, message } = req.body;
-      if (!recipientEmail || !recipientName || !subject || !message) {
-        return res.status(400).json({
-          error: "Tutti i campi sono obbligatori (recipientEmail, recipientName, subject, message)"
-        });
+      const { email, password } = req.body || {};
+      if (email) {
+        if (!password) {
+          return res.status(400).json({ success: false, message: "Email e password sono obbligatori" });
+        }
+        if (!req.session) {
+          console.error("\u274C Sessione non inizializzata");
+          return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
+        }
+        const now = (/* @__PURE__ */ new Date()).toISOString();
+        const isAdmin = email === "admin@example.com" && password === "XNCahKl09P!298Gq20LkAns!1";
+        const isTestUser = email === "lorenzorossi@example.com" && password === "So347291Pa21Jka\xF2!ksi=p0!";
+        req.session.user = {
+          id: Date.now(),
+          email,
+          authenticated: true,
+          isAdmin,
+          loginTime: now,
+          createdAt: now,
+          updatedAt: now
+        };
+        console.log(`\u2705 Login via email: ${email} (${isAdmin ? "admin" : isTestUser ? "utente di test" : "utente"})`);
+        return res.json({ success: true, message: "Login effettuato con successo", user: { email, isAdmin } });
       }
-      const emailSent = await sendPersonalizedReply(recipientEmail, recipientName, subject, message);
-      res.json({
-        success: true,
-        message: "Email di risposta personalizzata inviata con successo",
-        emailSent
-      });
+      const { username, password: pwd } = req.body;
+      if (!username || !pwd) {
+        return res.status(400).json({ success: false, message: "Username e password sono obbligatori" });
+      }
+      const validUser = VALID_CREDENTIALS.find(
+        (cred) => cred.username === username && cred.password === pwd
+      );
+      if (!validUser) {
+        console.log(`\u{1F512} Login fallito per utente: ${username}`);
+        return res.status(401).json({ success: false, message: "Credenziali non valide" });
+      }
+      if (!req.session) {
+        console.error("\u274C Sessione non inizializzata");
+        return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
+      }
+      req.session.user = {
+        username: validUser.username,
+        authenticated: true,
+        isAdmin: validUser.username === "biggimmy",
+        loginTime: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      console.log(`\u2705 Login riuscito per utente: ${username}`);
+      res.json({ success: true, message: "Login effettuato con successo", user: { username: validUser.username, isAdmin: validUser.username === "biggimmy" } });
     } catch (error) {
-      console.error("Errore nell'invio dell'email personalizzata:", error);
-      res.status(500).json({
-        error: "Errore interno del server durante l'invio dell'email personalizzata"
-      });
+      console.error("Errore durante il login:", error);
+      res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  app2.get("/api/auth/me", async (req, res) => {
+    try {
+      const session2 = req.session;
+      const user = session2?.user;
+      if (user && user.authenticated) {
+        const userPayload = {
+          id: user.id ?? 0,
+          email: user.email ?? (user.username ? `${user.username}@local` : void 0),
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          address: user.address,
+          city: user.city,
+          postalCode: user.postalCode,
+          province: user.province,
+          country: user.country,
+          createdAt: user.createdAt ?? user.loginTime ?? (/* @__PURE__ */ new Date()).toISOString(),
+          updatedAt: user.updatedAt ?? (/* @__PURE__ */ new Date()).toISOString(),
+          username: user.username,
+          isAdmin: !!user.isAdmin
+        };
+        return res.json({ success: true, authenticated: true, user: userPayload });
+      }
+      return res.json({ success: true, authenticated: false });
+    } catch (error) {
+      console.error("Errore durante /api/auth/me:", error);
+      res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  app2.post("/api/auth/register", async (req, res) => {
+    try {
+      const { email, password, firstName, lastName, phone, address, city, postalCode, province, country } = req.body || {};
+      if (!email || !password) {
+        return res.status(400).json({ success: false, message: "Email e password sono obbligatori" });
+      }
+      if (!req.session) {
+        return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
+      }
+      const now = (/* @__PURE__ */ new Date()).toISOString();
+      req.session.user = {
+        id: Date.now(),
+        email,
+        authenticated: true,
+        isAdmin: false,
+        createdAt: now,
+        updatedAt: now,
+        firstName,
+        lastName,
+        phone,
+        address,
+        city,
+        postalCode,
+        province,
+        country
+      };
+      return res.json({ success: true, message: "Registrazione effettuata con successo", user: req.session.user });
+    } catch (error) {
+      console.error("Errore durante /api/auth/register:", error);
+      res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  app2.put("/api/auth/profile", async (req, res) => {
+    try {
+      if (!req.session || !req.session.user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const allowed = ["firstName", "lastName", "phone", "address", "city", "postalCode", "province", "country"];
+      const updates = {};
+      for (const key of allowed) {
+        if (key in req.body) updates[key] = req.body[key];
+      }
+      req.session.user = {
+        ...req.session.user,
+        ...updates,
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      return res.json({ success: true, message: "Profilo aggiornato", user: req.session.user });
+    } catch (error) {
+      console.error("Errore durante /api/auth/profile:", error);
+      res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
   app2.post("/api/contact", async (req, res) => {
@@ -2734,33 +2708,11 @@ async function registerRoutes(app2) {
 }
 
 // server/vite.ts
-import fs3 from "fs";
 import path2 from "path";
 import { fileURLToPath } from "url";
 import express from "express";
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path2.dirname(__filename);
-function serveStatic(app2) {
-  const distPath = path2.resolve(process.cwd(), "dist/public");
-  const indexPath = path2.join(distPath, "index.html");
-  if (!fs3.existsSync(indexPath)) {
-    throw new Error(
-      `index.html non trovato in ${indexPath}. Esegui 'npm run build:client' prima di avviare in produzione.`
-    );
-  }
-  app2.use(express.static(distPath, {
-    maxAge: "1y",
-    immutable: true,
-    setHeaders: (res, filepath) => {
-      if (filepath.endsWith("index.html")) {
-        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-      }
-    }
-  }));
-  app2.get("*", (_req, res) => {
-    res.sendFile(indexPath);
-  });
-}
 function log(message) {
   console.log(`[vite] ${message}`);
 }
@@ -2909,11 +2861,20 @@ app.use((req, res, next) => {
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
-    serveStatic(app);
+    const distPath = path3.resolve(process.cwd(), "client/dist");
+    const assetsPath = path3.join(distPath, "assets");
+    app.use(express2.static(distPath));
+    app.use("/assets", express2.static(assetsPath));
+    app.get("*", (req, res) => {
+      if (req.path.startsWith("/api")) {
+        return res.status(404).json({
+          success: false,
+          message: "API route not found"
+        });
+      }
+      res.sendFile(path3.join(distPath, "index.html"));
+    });
   }
-  app.get("*", (req, res) => {
-    res.sendFile(path3.resolve(process.cwd(), "client/dist/index.html"));
-  });
   const PORT = parseInt(process.env.PORT || "5000", 10);
   app.listen(PORT, "0.0.0.0", async () => {
     console.log("=================================");

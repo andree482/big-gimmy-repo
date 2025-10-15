@@ -186,16 +186,28 @@ app.use("/api", (req, res, next) => {
 
 
   // Setup Vite in development, serve static in production
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
+if (app.get("env") === "development") {
+  await setupVite(app, server);
+} else {
+  const distPath = path.resolve(process.cwd(), "client/dist");
+  const assetsPath = path.join(distPath, "assets");
 
-  // ✅ Fallback per tutte le route React: serve index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.resolve(process.cwd(), 'client/dist/index.html'));
-});
+  // Serve tutto il contenuto della build Vite (JS, CSS, immagini, ecc.)
+  app.use(express.static(distPath));
+  app.use("/assets", express.static(assetsPath));
+
+  // Fallback per le rotte client-side (React Router)
+  app.get("*", (req, res) => {
+    if (req.path.startsWith("/api")) {
+      return res.status(404).json({
+        success: false,
+        message: "API route not found",
+      });
+    }
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+}
+
 
 
   // Use PORT from environment or default to 5000

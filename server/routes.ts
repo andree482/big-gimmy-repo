@@ -21,108 +21,271 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(session({
     store: new pgSession({
       conString: process.env.DATABASE_URL,
-      tableName: 'session', // Nome tabella per le sessioni
-      createTableIfMissing: true, // Crea automaticamente la tabella se non esiste
+      tableName: 'session',
+      createTableIfMissing: true,
     }),
     secret: process.env.SESSION_SECRET || 'big-gimmy-secret-key-2025',
     resave: false,
     saveUninitialized: false,
     cookie: {
-      maxAge: 1000 * 60 * 60 * 24 * 30, // 30 giorni
-      secure: false, // true solo in produzione con HTTPS
-      httpOnly: true, // Sicurezza: cookie non accessibile da JavaScript
-      sameSite: 'lax' // Protezione CSRF
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+      secure: false,
+      httpOnly: true,
+      sameSite: 'lax'
     },
-    rolling: true, // Rinnova il cookie ad ogni richiesta
+    rolling: true,
     name: 'biggimmy-session'
   }));
   
   console.log('✅ Middleware di sessione PostgreSQL configurato');
 
-  // put application routes here
-  // prefix all routes with /api
+  // ================================
+  // AUTHENTICATION & SESSION ROUTES
+  // ================================
 
-  // Endpoint per l'invio di email personalizzate da parte del team
-  app.post('/api/send-reply', async (req: Request, res: Response) => {
+
+
+  // Login endpoint
+ app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
-      const { recipientEmail, recipientName, subject, message } = req.body;
+      const { email, password } = req.body || {};
 
-      // Validazione dei dati
-      if (!recipientEmail || !recipientName || !subject || !message) {
-        return res.status(400).json({ 
-          error: 'Tutti i campi sono obbligatori (recipientEmail, recipientName, subject, message)' 
-        });
+      // Login via email/password (admin + utente test)
+      if (email) {
+        if (!password) {
+          return res.status(400).json({ success: false, message: "Email e password sono obbligatori" });
+        }
+        if (!req.session) {
+          return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
+        }
+
+        const isAdmin = email === 'admin@example.com' && password === 'XNCahKl09P!298Gq20LkAns!1';
+        const isTestUser = email === 'lorenzorossi@example.com' && password === 'So347291Pa21Jkaò!ksi=p0!';
+
+        // Per i test, permettiamo login solo a queste due identità
+        if (!isAdmin && !isTestUser) {
+          return res.status(401).json({ success: false, message: "Credenziali non valide" });
+        }
+
+        const now = new Date().toISOString();
+        (req.session as any).user = {
+          id: Date.now(),
+          email,
+          authenticated: true,
+          isAdmin,
+          loginTime: now,
+          createdAt: now,
+          updatedAt: now,
+          firstName: isAdmin ? "Admin" : "Lorenzo",
+          lastName: isAdmin ? "User" : "Rossi",
+        };
+
+        return res.json({ success: true, message: "Login effettuato con successo", user: { email, isAdmin } });
       }
 
-      // Invio dell'email personalizzata
-      const emailSent = await sendPersonalizedReply(recipientEmail, recipientName, subject, message);
+      // ... existing code ...
+      const { username, password: pwd } = req.body;
+
+      if (!username || !pwd) {
+        return res.status(400).json({ success: false, message: "Username e password sono obbligatori" });
+      }
+
+      const validUser = VALID_CREDENTIALS.find(
+        cred => cred.username === username && cred.password === pwd
+      );
+
+      if (!validUser) {
+        return res.status(401).json({ success: false, message: "Credenziali non valide" });
+      }
+
+      if (!req.session) {
+        return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
+      }
+
+      (req.session as any).user = {
+        username: validUser.username,
+        authenticated: true,
+        isAdmin: validUser.username === 'biggimmy',
+        loginTime: new Date().toISOString()
+      };
 
       res.json({
         success: true,
-        message: 'Email di risposta personalizzata inviata con successo',
-        emailSent
+        message: "Login effettuato con successo",
+        user: { username: validUser.username, isAdmin: validUser.username === 'biggimmy' }
       });
     } catch (error) {
-      console.error('Errore nell\'invio dell\'email personalizzata:', error);
-      res.status(500).json({ 
-        error: 'Errore interno del server durante l\'invio dell\'email personalizzata' 
-      });
+      res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
 
-  // Endpoint per l'invio del form di contatto
-  app.post('/api/contact', async (req: Request, res: Response) => {
+  // Endpoint current user per client/auth gating
+  app.get("/api/auth/me", async (req: Request, res: Response) => {
     try {
-      // Validate the request body
-      const contactData = insertContactSchema.parse(req.body);
-
-      // Save the contact in storage
-      const contact = await storage.createContact(contactData);
-
-      // Send notification email to admin
-      const adminEmailSent = await sendAdminNotification({
-        name: contactData.name,
-        email: contactData.email,
-        phone: contactData.phone || undefined,
-        message: contactData.message
-      });
-
-      // Send confirmation email to user
-      const userEmailSent = await sendUserConfirmation({
-        name: contactData.name,
-        email: contactData.email,
-        phone: contactData.phone || undefined,
-        message: contactData.message
-      });
-
-      // Return success response
-      return res.status(201).json({ 
-        success: true, 
-        message: "Contact form submitted successfully", 
-        data: contact,
-        emailStatus: {
-          adminNotified: adminEmailSent,
-          userConfirmationSent: userEmailSent,
-          simulationMode: false
-        }
-      });
-    } catch (error) {
-      console.error("Error submitting contact form:", error);
-
-      // Handle validation errors
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Validation error", 
-          errors: error.errors 
-        });
+      const user = (req.session as any)?.user;
+      if (user && user.authenticated) {
+        const payload = {
+          id: user.id ?? 0,
+          email: user.email ?? (user.username ? `${user.username}@local` : undefined),
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          address: user.address,
+          city: user.city,
+          postalCode: user.postalCode,
+          province: user.province,
+          country: user.country,
+          createdAt: user.createdAt ?? user.loginTime ?? new Date().toISOString(),
+          updatedAt: user.updatedAt ?? new Date().toISOString(),
+          username: user.username,
+          isAdmin: !!user.isAdmin,
+        };
+        return res.json({ success: true, authenticated: true, user: payload });
       }
+      return res.json({ success: true, authenticated: false });
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
 
-      // Handle other errors
-      return res.status(500).json({ 
-        success: false, 
-        message: "Server error, please try again later" 
-      });
+  // Registrazione session-only (test)
+  app.post("/api/auth/register", async (req: Request, res: Response) => {
+    try {
+      const { email, password, firstName, lastName, phone, address, city, postalCode, province, country } = req.body || {};
+      if (!email || !password) {
+        return res.status(400).json({ success: false, message: "Email e password sono obbligatori" });
+      }
+      if (!req.session) {
+        return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
+      }
+      const now = new Date().toISOString();
+      (req.session as any).user = {
+        id: Date.now(),
+        email,
+        authenticated: true,
+        isAdmin: false,
+        createdAt: now,
+        updatedAt: now,
+        firstName, lastName, phone, address, city, postalCode, province, country
+      };
+      return res.json({ success: true, message: "Registrazione effettuata con successo", user: (req.session as any).user });
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // Aggiornamento profilo (session-only)
+  app.put("/api/auth/profile", async (req: Request, res: Response) => {
+    try {
+      const sessUser = (req.session as any)?.user;
+      if (!sessUser?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const allowed = ["firstName","lastName","phone","address","city","postalCode","province","country"];
+      const updates: Record<string, any> = {};
+      for (const k of allowed) if (k in req.body) updates[k] = req.body[k];
+      (req.session as any).user = { ...sessUser, ...updates, updatedAt: new Date().toISOString() };
+      return res.json({ success: true, message: "Profilo aggiornato", user: (req.session as any).user });
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // ================================
+  // ADMIN ORDERS (mock) - solo admin
+  // ================================
+   const MOCK_ORDERS = [
+    {
+      id: 1001,
+      userId: 501,
+      snipcartOrderId: "SNIP-001001",
+      total: 4599,
+      status: "ordered",
+      items: [
+        { id: "p-1", name: "Proteine Whey 1kg", quantity: 1, price: 2999 },
+        { id: "p-2", name: "Creatina Monoidrato 300g", quantity: 1, price: 1600 },
+      ],
+      shippingAddress: { street: "Via Roma 10", city: "Torino", postalCode: "10121", province: "TO" },
+      billingAddress: { street: "Via Roma 10", city: "Torino", postalCode: "10121", province: "TO" },
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+      updatedAt: new Date().toISOString(),
+      userEmail: "mario.rossi@example.com",
+      userFirstName: "Mario",
+      userLastName: "Rossi",
+    },
+    {
+      id: 1002,
+      userId: 502,
+      snipcartOrderId: "SNIP-001002",
+      total: 8999,
+      status: "completed",
+      items: [
+        { id: "p-3", name: "Omega-3 120 cps", quantity: 2, price: 1999 },
+        { id: "p-4", name: "Multivitaminico", quantity: 1, price: 5001 },
+      ],
+      shippingAddress: { street: "Via Garibaldi 5", city: "Milano", postalCode: "20100", province: "MI" },
+      billingAddress: { street: "Via Garibaldi 5", city: "Milano", postalCode: "20100", province: "MI" },
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+      updatedAt: new Date().toISOString(),
+      userEmail: "laura.bianchi@example.com",
+      userFirstName: "Laura",
+      userLastName: "Bianchi",
+    },
+    {
+      id: 1003,
+      userId: 503,
+      snipcartOrderId: "SNIP-001003",
+      total: 6599,
+      status: "processing",
+      items: [
+        { id: "p-5", name: "Termogenico X", quantity: 1, price: 3299 },
+        { id: "p-6", name: "Barrette Proteiche (box)", quantity: 1, price: 3300 },
+      ],
+      shippingAddress: { street: "Corso Francia 45", city: "Torino", postalCode: "10138", province: "TO" },
+      billingAddress: { street: "Corso Francia 45", city: "Torino", postalCode: "10138", province: "TO" },
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
+      updatedAt: new Date().toISOString(),
+      userEmail: "giulia.verdi@example.com",
+      userFirstName: "Giulia",
+      userLastName: "Verdi",
+    },
+  ];
+
+  app.get("/api/admin/orders", async (req: Request, res: Response) => {
+    try {
+      const user = (req.session as any)?.user;
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      if (!user?.isAdmin) {
+        return res.status(403).json({ success: false, message: "Accesso negato" });
+      }
+      // Restituisce l'array puro come atteso dal client
+      return res.json(MOCK_ORDERS);
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  const MOCK_USERS = [
+    { email: "admin@example.com", first_name: "Admin", last_name: "User", phone: null },
+    { email: "lorenzorossi@example.com", first_name: "Lorenzo", last_name: "Rossi", phone: "3331234567" },
+    { email: "mario.rossi@example.com", first_name: "Mario", last_name: "Rossi", phone: "3332221111" },
+    { email: "laura.bianchi@example.com", first_name: "Laura", last_name: "Bianchi", phone: null },
+  ];
+
+  app.get("/api/admin/users", async (req: Request, res: Response) => {
+    try {
+      const user = (req.session as any)?.user;
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      if (!user?.isAdmin) {
+        return res.status(403).json({ success: false, message: "Accesso negato" });
+      }
+      return res.json({ success: true, users: MOCK_USERS });
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
 

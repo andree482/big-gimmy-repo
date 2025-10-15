@@ -131,7 +131,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onForgotPassword }: L
               Hai dimenticato la password?
             </button>
           </div>
-
+{/*
           {onSwitchToRegister && (
             <div className="text-center text-sm">
               <span className="text-gray-600">Non hai un account? </span>
@@ -144,6 +144,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onForgotPassword }: L
               </button>
             </div>
           )}
+          */}
         </form>
       </CardContent>
     </Card>
