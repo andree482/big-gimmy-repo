@@ -1417,8 +1417,11 @@ async function syncAllImages() {
 }
 
 // server/routes.ts
+init_db();
+init_schema();
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import { eq as eq3, and as and2 } from "drizzle-orm";
 async function registerRoutes(app2) {
   console.log("\u{1F527} Configurazione middleware di sessione con PostgreSQL...");
   const pgSession = connectPgSimple(session);
@@ -2439,6 +2442,122 @@ async function registerRoutes(app2) {
     } catch (error) {
       console.error("Errore durante /api/auth/profile:", error);
       res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  async function buildCartItem(productId, variant, quantity, price) {
+    const [product] = await db.select().from(products).where(eq3(products.id, productId)).limit(1);
+    if (!product) {
+      throw new Error("Product not found");
+    }
+    const [primaryImg] = await db.select().from(productImages).where(and2(eq3(productImages.productId, product.id), eq3(productImages.isPrimary, true))).limit(1);
+    const imageUrl = primaryImg?.src ? primaryImg.src.startsWith("/images/") || primaryImg.src.startsWith("/attached_assets/") ? primaryImg.src : `/images/products/${primaryImg.src}` : void 0;
+    return {
+      id: productId.toString(),
+      name: product.name,
+      price,
+      variant,
+      quantity,
+      image: imageUrl
+    };
+  }
+  app2.get("/api/cart/:userId", async (req, res) => {
+    try {
+      const sess = req.session;
+      const user = sess?.user;
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const items = sess.cart || [];
+      return res.json({ success: true, items });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  app2.post("/api/cart", async (req, res) => {
+    try {
+      const sess = req.session;
+      const user = sess?.user;
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const { productId, variant, quantity, price } = req.body || {};
+      if (!productId || !variant || !quantity || typeof price !== "number") {
+        return res.status(400).json({ success: false, message: "Parametri non validi" });
+      }
+      const newItem = await buildCartItem(parseInt(productId), String(variant), parseInt(quantity), price);
+      const current = Array.isArray(sess.cart) ? [...sess.cart] : [];
+      const idx = current.findIndex((i) => i.id === newItem.id && i.variant === newItem.variant);
+      if (idx >= 0) {
+        current[idx] = { ...current[idx], quantity: current[idx].quantity + newItem.quantity };
+      } else {
+        current.push(newItem);
+      }
+      sess.cart = current;
+      return res.json({ success: true, items: current });
+    } catch (error) {
+      if (error?.message === "Product not found") {
+        return res.status(404).json({ success: false, message: "Prodotto non trovato" });
+      }
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  app2.put("/api/cart", async (req, res) => {
+    try {
+      const sess = req.session;
+      const user = sess?.user;
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const { productId, variant, quantity } = req.body || {};
+      if (!productId || !variant || typeof quantity !== "number") {
+        return res.status(400).json({ success: false, message: "Parametri non validi" });
+      }
+      let current = Array.isArray(sess.cart) ? [...sess.cart] : [];
+      const idx = current.findIndex((i) => i.id === String(productId) && i.variant === String(variant));
+      if (idx < 0) {
+        return res.status(404).json({ success: false, message: "Item non trovato" });
+      }
+      if (quantity <= 0) {
+        current = current.filter((_, i) => i !== idx);
+      } else {
+        current[idx] = { ...current[idx], quantity };
+      }
+      sess.cart = current;
+      return res.json({ success: true, items: current });
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  app2.delete("/api/cart", async (req, res) => {
+    try {
+      const sess = req.session;
+      const user = sess?.user;
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const { productId, variant } = req.body || {};
+      if (!productId || !variant) {
+        return res.status(400).json({ success: false, message: "Parametri non validi" });
+      }
+      const current = Array.isArray(sess.cart) ? [...sess.cart] : [];
+      const next = current.filter((i) => !(i.id === String(productId) && i.variant === String(variant)));
+      sess.cart = next;
+      return res.json({ success: true, items: next });
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  app2.delete("/api/cart/:userId", async (req, res) => {
+    try {
+      const sess = req.session;
+      const user = sess?.user;
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      sess.cart = [];
+      return res.json({ success: true, items: [] });
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
   const httpServer = createServer(app2);

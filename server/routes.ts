@@ -7,6 +7,10 @@ import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply } fr
 import { syncAllImages } from "./utils/imageSync.ts";
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
+// ... existing code ...
+import { db } from "./db";
+import { products, productImages } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
@@ -1268,6 +1272,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
+
+  async function buildCartItem(
+      productId: number,
+      variant: string,
+      quantity: number,
+      price: number
+    ) {
+      const [product] = await db.select().from(products).where(eq(products.id, productId)).limit(1);
+      if (!product) {
+        throw new Error("Product not found");
+      }
+      const [primaryImg] = await db
+        .select()
+        .from(productImages)
+        .where(and(eq(productImages.productId, product.id), eq(productImages.isPrimary, true)))
+        .limit(1);
+
+      const imageUrl = primaryImg?.src
+        ? (primaryImg.src.startsWith('/images/') || primaryImg.src.startsWith('/attached_assets/')
+            ? primaryImg.src
+            : `/images/products/${primaryImg.src}`)
+        : undefined;
+
+      return {
+        id: productId.toString(),
+        name: product.name,
+        price: price,
+        variant,
+        quantity,
+        image: imageUrl,
+      };
+    }
+
+    // Carica carrello utente
+    app.get("/api/cart/:userId", async (req: Request, res: Response) => {
+      try {
+        const sess = req.session as any;
+        const user = sess?.user;
+        if (!user?.authenticated) {
+          return res.status(401).json({ success: false, message: "Non autenticato" });
+        }
+        const items = sess.cart || [];
+        return res.json({ success: true, items });
+      } catch (error) {
+        return res.status(500).json({ success: false, message: "Errore interno del server" });
+      }
+    });
+
+    // Aggiungi al carrello
+    app.post("/api/cart", async (req: Request, res: Response) => {
+      try {
+        const sess = req.session as any;
+        const user = sess?.user;
+        if (!user?.authenticated) {
+          return res.status(401).json({ success: false, message: "Non autenticato" });
+        }
+
+        const { productId, variant, quantity, price } = req.body || {};
+        if (!productId || !variant || !quantity || typeof price !== "number") {
+          return res.status(400).json({ success: false, message: "Parametri non validi" });
+        }
+
+        // Costruisci item completo (nome + immagine dal DB)
+        const newItem = await buildCartItem(parseInt(productId), String(variant), parseInt(quantity), price);
+
+        const current: any[] = Array.isArray(sess.cart) ? [...sess.cart] : [];
+        const idx = current.findIndex(i => i.id === newItem.id && i.variant === newItem.variant);
+        if (idx >= 0) {
+          current[idx] = { ...current[idx], quantity: current[idx].quantity + newItem.quantity };
+        } else {
+          current.push(newItem);
+        }
+        sess.cart = current;
+        return res.json({ success: true, items: current });
+      } catch (error: any) {
+        if (error?.message === "Product not found") {
+          return res.status(404).json({ success: false, message: "Prodotto non trovato" });
+        }
+        return res.status(500).json({ success: false, message: "Errore interno del server" });
+      }
+    });
+
+    // Aggiorna quantità
+    app.put("/api/cart", async (req: Request, res: Response) => {
+      try {
+        const sess = req.session as any;
+        const user = sess?.user;
+        if (!user?.authenticated) {
+          return res.status(401).json({ success: false, message: "Non autenticato" });
+        }
+
+        const { productId, variant, quantity } = req.body || {};
+        if (!productId || !variant || typeof quantity !== "number") {
+          return res.status(400).json({ success: false, message: "Parametri non validi" });
+        }
+
+        let current: any[] = Array.isArray(sess.cart) ? [...sess.cart] : [];
+        const idx = current.findIndex(i => i.id === String(productId) && i.variant === String(variant));
+        if (idx < 0) {
+          return res.status(404).json({ success: false, message: "Item non trovato" });
+        }
+
+        if (quantity <= 0) {
+          current = current.filter((_, i) => i !== idx);
+        } else {
+          current[idx] = { ...current[idx], quantity };
+        }
+        sess.cart = current;
+        return res.json({ success: true, items: current });
+      } catch {
+        return res.status(500).json({ success: false, message: "Errore interno del server" });
+      }
+    });
+
+    // Rimuovi item dal carrello
+    app.delete("/api/cart", async (req: Request, res: Response) => {
+      try {
+        const sess = req.session as any;
+        const user = sess?.user;
+        if (!user?.authenticated) {
+          return res.status(401).json({ success: false, message: "Non autenticato" });
+        }
+
+        const { productId, variant } = req.body || {};
+        if (!productId || !variant) {
+          return res.status(400).json({ success: false, message: "Parametri non validi" });
+        }
+
+        const current: any[] = Array.isArray(sess.cart) ? [...sess.cart] : [];
+        const next = current.filter(i => !(i.id === String(productId) && i.variant === String(variant)));
+        sess.cart = next;
+        return res.json({ success: true, items: next });
+      } catch {
+        return res.status(500).json({ success: false, message: "Errore interno del server" });
+      }
+    });
+
+    // Svuota carrello utente
+    app.delete("/api/cart/:userId", async (req: Request, res: Response) => {
+      try {
+        const sess = req.session as any;
+        const user = sess?.user;
+        if (!user?.authenticated) {
+          return res.status(401).json({ success: false, message: "Non autenticato" });
+        }
+        sess.cart = [];
+        return res.json({ success: true, items: [] });
+      } catch {
+        return res.status(500).json({ success: false, message: "Errore interno del server" });
+      }
+    });
 
   const httpServer = createServer(app);
 
