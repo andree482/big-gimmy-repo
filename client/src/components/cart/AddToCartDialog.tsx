@@ -22,17 +22,16 @@ interface AddToCartDialogProps {
 }
 
 export function AddToCartDialog({ isOpen, onClose, product, onAddToCart }: AddToCartDialogProps) {
+  const initialVariants = product.variants ?? (product.slug ? getProductVariants(product) : (product.sizes || []));
+  const [variantsState, setVariantsState] = useState<any[]>(initialVariants);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState<string>('');
   const [selectedPrice, setSelectedPrice] = useState<number>(product.price);
 
-  // Ottieni varianti del prodotto - usa variants esplicite se disponibili
-  const variants = product.variants || (product.slug ? getProductVariants(product) : (product.sizes || []));
-  const hasVariants = variants.length > 0;
-  
-  // Crea lista completa varianti con formato "Gusto + Grammatura"
-  const availableVariants = hasVariants 
-    ? variants.map(variant => ({
+  const hasVariants = variantsState.length > 0;
+
+  const availableVariants = hasVariants
+    ? variantsState.map(variant => ({
         id: `${variant.flavor}-${variant.size}`,
         display: `${variant.flavor} ${variant.size}`,
         flavor: variant.flavor,
@@ -43,40 +42,50 @@ export function AddToCartDialog({ isOpen, onClose, product, onAddToCart }: AddTo
     : [];
 
   useEffect(() => {
-    if (isOpen) {
-      setQuantity(1);
-      if (hasVariants && availableVariants.length > 0) {
-        // Seleziona la prima variante disponibile
-        const firstVariant = availableVariants[0];
-        setSelectedVariant(firstVariant.id);
-        setSelectedPrice(firstVariant.price > 100 ? firstVariant.price / 100 : firstVariant.price);
-      } else {
+    if (!isOpen) return;
+
+    setQuantity(1);
+
+    // Se non ho varianti pronte e ho lo slug, provo a prendere le opzioni dal server (prezzi già in euro)
+    if (!hasVariants && product.slug) {
+      (async () => {
+        try {
+          const res = await fetch(`/api/product/${product.slug}/options`);
+          const data = res.ok ? await res.json() : null;
+          if (Array.isArray(data) && data.length > 0) {
+            setVariantsState(data);
+            const first = data[0];
+            setSelectedVariant(`${first.flavor}-${first.size}`);
+            setSelectedPrice(first.price);
+            return;
+          }
+        } catch (_) {}
+        // Fallback: nessuna variante disponibile
         setSelectedVariant(product.variant || '');
         setSelectedPrice(product.price);
-      }
+      })();
+    } else if (hasVariants && availableVariants.length > 0) {
+      const firstVariant = availableVariants[0];
+      setSelectedVariant(firstVariant.id);
+      setSelectedPrice(firstVariant.price);
+    } else {
+      setSelectedVariant(product.variant || '');
+      setSelectedPrice(product.price);
     }
-  }, [isOpen, product.id]); // Rimosso availableVariants per evitare loop infinito
+  }, [isOpen, product.id]);
 
   const handleVariantChange = (variantId: string) => {
-    console.log('Variante selezionata:', variantId);
     setSelectedVariant(variantId);
-    // Aggiorna il prezzo in base alla variante selezionata
     const matchingVariant = availableVariants.find(v => v.id === variantId);
     if (matchingVariant) {
-      console.log('Variante trovata:', matchingVariant);
-      setSelectedPrice(matchingVariant.price > 100 ? matchingVariant.price / 100 : matchingVariant.price);
+      // Prezzo già in euro (sia endpoint server sia database statico)
+      setSelectedPrice(matchingVariant.price);
     }
   };
 
   const handleAddToCart = () => {
-    // Trova la variante selezionata completa
     const selectedVariantData = availableVariants.find(v => v.id === selectedVariant);
-    
-    console.log('AddToCartDialog - handleAddToCart chiamato');
-    console.log('Variante selezionata:', selectedVariantData);
-    console.log('Prezzo selezionato:', selectedPrice);
-    console.log('Quantità:', quantity);
-    
+
     onAddToCart({
       id: product.id,
       name: product.name,
@@ -88,11 +97,6 @@ export function AddToCartDialog({ isOpen, onClose, product, onAddToCart }: AddTo
     onClose();
   };
 
-  const handleCancel = () => {
-    setQuantity(1);
-    setSelectedVariant('');
-    onClose();
-  };
 
   // Genera opzioni da 1 a 30
   const quantityOptions = Array.from({ length: 30 }, (_, i) => i + 1);
@@ -113,13 +117,14 @@ export function AddToCartDialog({ isOpen, onClose, product, onAddToCart }: AddTo
                 <SelectTrigger>
                   <SelectValue placeholder="Seleziona variante" />
                 </SelectTrigger>
-                <SelectContent>
-                  {availableVariants.map((variant) => (
-                    <SelectItem key={variant.id} value={variant.id}>
-                      {variant.display}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+<SelectContent>
+  {availableVariants.map((variant) => (
+    <SelectItem key={variant.id} value={variant.id}>
+      {variant.display.replace(/Unico/gi, "").trim()}
+    </SelectItem>
+  ))}
+</SelectContent>
+
               </Select>
             </div>
           )}
@@ -151,13 +156,8 @@ export function AddToCartDialog({ isOpen, onClose, product, onAddToCart }: AddTo
 
           {/* Bottoni */}
           <div className="flex gap-3">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={handleCancel}
-            >
-              Annulla
-            </Button>
+<Button variant="outline" onClick={onClose}>Annulla</Button>
+
             <Button
               className="flex-1 bg-[#FFD100] hover:bg-[#E6BC00] text-black font-semibold"
               onClick={handleAddToCart}

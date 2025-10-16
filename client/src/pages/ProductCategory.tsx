@@ -125,12 +125,20 @@ const ProductCard = ({
   const [showAddToCartDialog, setShowAddToCartDialog] = useState(false);
   const { toast } = useToast();
   const { addToCart } = useCartContext();
-
-  // Handler per aggiungere al carrello dal dialog - va alla pagina carrello
   const handleAddToCartFromDialog = (productData: any) => {
     addToCart(productData);
     setShowAddToCartDialog(false);
   };
+
+  const priceForCart =
+    product?.min_price_cents != null
+      ? product.min_price_cents / 100
+      : product?.basePrice != null
+      ? product.basePrice / 100
+      : typeof product?.price === 'number'
+      ? (product.price > 100 ? product.price / 100 : product.price)
+      : 0;
+
   // Gestisce sia prodotti dal database che prodotti statici
   const getProductImage = () => {
     // Se il prodotto ha immagini nella struttura corretta (prodotti statici)
@@ -298,18 +306,19 @@ const ProductCard = ({
       
       {/* Dialog unificato per Aggiungi al Carrello */}
       <AddToCartDialog
-        isOpen={showAddToCartDialog}
-        onClose={() => setShowAddToCartDialog(false)}
-        product={{
-          id: product.id,
-          name: product.name,
-          slug: product.slug,
-          price: product.price,
-          image: getProductImage(),
-          variants: getProductVariants(product)
-        }}
-        onAddToCart={handleAddToCartFromDialog}
-      />
+  isOpen={showAddToCartDialog}
+  onClose={() => setShowAddToCartDialog(false)}
+  product={{
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    price: priceForCart,
+    image: getProductImage(),
+    variants: getProductVariants(product),
+  }}
+  onAddToCart={handleAddToCartFromDialog}
+/>
+
     </div>
   );
 };

@@ -18,13 +18,15 @@ import {
 
 // Componente per la scheda prodotto (ora con carrello e dialog)
 const ProductCard = ({ product }: { product: any }) => {
-  const [showAddToCartDialog, setShowAddToCartDialog] = useState(false);
   const { addToCart } = useCartContext();
 
-  const handleAddToCartFromDialog = (productData: any) => {
-    addToCart(productData);
-    setShowAddToCartDialog(false);
-  };
+  const [showAddToCartDialog, setShowAddToCartDialog] = useState(false);
+
+const handleAddToCartFromDialog = (productData: any) => {
+  addToCart(productData);
+  setShowAddToCartDialog(false);
+};
+
 
   // Gestisce sia prodotti dal database che prodotti statici
   const getProductImage = () => {
@@ -58,6 +60,15 @@ const ProductCard = ({ product }: { product: any }) => {
     }
     return null;
   };
+// Prezzo da passare al dialog, sempre in euro
+const priceForCart =
+  product?.min_price_cents != null
+    ? product.min_price_cents / 100
+    : product?.basePrice != null
+    ? product.basePrice / 100
+    : typeof product?.price === 'number'
+    ? (product.price > 100 ? product.price / 100 : product.price)
+    : 0;
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300">
@@ -165,19 +176,23 @@ const ProductCard = ({ product }: { product: any }) => {
         </div>
 
         {/* 🔹 Dialog per Aggiungi al Carrello */}
-        <AddToCartDialog
-          isOpen={showAddToCartDialog}
-          onClose={() => setShowAddToCartDialog(false)}
-          product={{
-            id: product.id,
-            name: product.name,
-            slug: product.slug,
-            price: product.price,
-            image: getProductImage(),
-            variants: getProductVariants(product),
-          }}
-          onAddToCart={handleAddToCartFromDialog}
-        />
+{/* 🔹 Dialog per Aggiungi al Carrello */}
+{/* 🔹 Dialog per Aggiungi al Carrello */}
+<AddToCartDialog
+  isOpen={showAddToCartDialog}
+  onClose={() => setShowAddToCartDialog(false)}
+  product={{
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    price: priceForCart, // prezzo già normalizzato
+    image: getProductImage(),
+    variants: getProductVariants(product),
+  }}
+  onAddToCart={handleAddToCartFromDialog}
+/>
+
+
       </div>
     </div>
   );
