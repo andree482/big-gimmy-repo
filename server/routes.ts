@@ -28,17 +28,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       tableName: 'session',
       createTableIfMissing: true,
     }),
-   secret: process.env.SESSION_SECRET || "supersecret",
+    secret: process.env.SESSION_SECRET || 'big-gimmy-secret-key-2025',
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production", // true se usi HTTPS
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+      secure: false,
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: 'lax'
     },
     rolling: true,
     name: 'biggimmy-session'
   }));
+
+
   
   console.log('✅ Middleware di sessione PostgreSQL configurato');
 
@@ -1223,10 +1226,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: "Errore durante il logout",
           });
         }
-
-        // Rimuove il cookie di sessione
-        res.clearCookie("connect.sid");
-
         console.log("✅ Logout effettuato con successo");
         return res.json({
           success: true,

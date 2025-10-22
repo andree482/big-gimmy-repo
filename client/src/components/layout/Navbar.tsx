@@ -25,21 +25,27 @@ const Navbar = () => {
   const { scrollY, scrollDirection } = useScrollAnimation();
   const [isNavigating, setIsNavigating] = useState(false);
 
-
   // 🔹 Aggiornato con isLoading
   const { user, isAuthenticated, isLoading, logout, isLogoutLoading } = useAuthQuery();
 
   const { toast } = useToast();
   const { totalItems } = useCartContext();
 
-  
-  // Close mobile menu when location changes
+  // 🔹 Auto-apertura modale autenticazione
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      setAuthModalTab("login");
+      setAuthModalOpen(true);
+    }
+  }, [isLoading, isAuthenticated]);
+
+  // Chiudi il menu mobile quando cambia la pagina
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location]);
 
-  // Memoizza i valori computati con isteresi per evitare oscillazioni
-  const isScrolled = useMemo(() => {
+  // Memoizza i valori computati per prestazioni ottimali
+    const isScrolled = useMemo(() => {
     // Isteresi: attiva a 130px, disattiva a 110px per evitare flicker
     const currentIsScrolled = scrollY > 120 && !mobileMenuOpen;
     const prevIsScrolled = scrollY > 110 && !mobileMenuOpen;
@@ -56,17 +62,18 @@ const Navbar = () => {
     perspective: '1000px',
     contain: 'layout style paint'
   }), [shouldHide, mobileMenuOpen]);
-  
-  const containerStyles = useMemo(() => ({
-    paddingTop: isScrolled ? '0.5rem' : '1rem',
-    paddingBottom: isScrolled ? '0.5rem' : '1rem',
-    transition: mobileMenuOpen ? 'none' : 'padding 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-    contain: 'layout style'
-  }), [isScrolled, mobileMenuOpen]);
-  
-  const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
-  };
+
+
+  const containerStyles = useMemo(
+    () => ({
+      paddingTop: isScrolled ? "0.5rem" : "1rem",
+      paddingBottom: isScrolled ? "0.5rem" : "1rem",
+      transition: mobileMenuOpen ? "none" : "all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)",
+    }),
+    [isScrolled, mobileMenuOpen]
+  );
+
+  const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
 
   const handleNavClick = () => {
     setIsNavigating(true);
