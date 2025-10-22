@@ -25,53 +25,48 @@ const Navbar = () => {
   const { scrollY, scrollDirection } = useScrollAnimation();
   const [isNavigating, setIsNavigating] = useState(false);
 
+
   // 🔹 Aggiornato con isLoading
   const { user, isAuthenticated, isLoading, logout, isLogoutLoading } = useAuthQuery();
 
   const { toast } = useToast();
   const { totalItems } = useCartContext();
 
-  // 🔹 Auto-apertura modale autenticazione
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      setAuthModalTab("login");
-      setAuthModalOpen(true);
-    }
-  }, [isLoading, isAuthenticated]);
-
-  // Chiudi il menu mobile quando cambia la pagina
+  
+  // Close mobile menu when location changes
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location]);
 
-  // Memoizza i valori computati per prestazioni ottimali
-  const isScrolled = useMemo(() => scrollY > 80 && !mobileMenuOpen, [scrollY, mobileMenuOpen]);
-  const shouldHide = useMemo(
-    () => scrollDirection === "down" && scrollY > 300 && !isNavigating && !mobileMenuOpen,
-    [scrollDirection, scrollY, isNavigating, mobileMenuOpen]
-  );
-
-  const headerStyles = useMemo(
-    () => ({
-      transform: shouldHide ? "translate3d(0, -100%, 0)" : "translate3d(0, 0, 0)",
-      transition: mobileMenuOpen ? "none" : "all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)",
-      backfaceVisibility: "hidden" as const,
-      perspective: 1000,
-      willChange: "transform, background-color, backdrop-filter",
-    }),
-    [shouldHide, mobileMenuOpen]
-  );
-
-  const containerStyles = useMemo(
-    () => ({
-      paddingTop: isScrolled ? "0.5rem" : "1rem",
-      paddingBottom: isScrolled ? "0.5rem" : "1rem",
-      transition: mobileMenuOpen ? "none" : "all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)",
-    }),
-    [isScrolled, mobileMenuOpen]
-  );
-
-  const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
+  // Memoizza i valori computati con isteresi per evitare oscillazioni
+  const isScrolled = useMemo(() => {
+    // Isteresi: attiva a 130px, disattiva a 110px per evitare flicker
+    const currentIsScrolled = scrollY > 120 && !mobileMenuOpen;
+    const prevIsScrolled = scrollY > 110 && !mobileMenuOpen;
+    return scrollY > 130 ? true : scrollY < 110 ? false : currentIsScrolled;
+  }, [scrollY, mobileMenuOpen]);
+  
+  const shouldHide = useMemo(() => scrollDirection === 'down' && scrollY > 400 && !isNavigating && !mobileMenuOpen, [scrollDirection, scrollY, isNavigating, mobileMenuOpen]);
+  
+  // Memoizza gli stili per evitare re-calcoli - ottimizzazione GPU per eliminar lag
+  const headerStyles = useMemo(() => ({
+    transform: shouldHide ? 'translate3d(0, -100%, 0)' : 'translate3d(0, 0, 0)',
+    transition: mobileMenuOpen ? 'none' : 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+    backfaceVisibility: 'hidden' as const,
+    perspective: '1000px',
+    contain: 'layout style paint'
+  }), [shouldHide, mobileMenuOpen]);
+  
+  const containerStyles = useMemo(() => ({
+    paddingTop: isScrolled ? '0.5rem' : '1rem',
+    paddingBottom: isScrolled ? '0.5rem' : '1rem',
+    transition: mobileMenuOpen ? 'none' : 'padding 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+    contain: 'layout style'
+  }), [isScrolled, mobileMenuOpen]);
+  
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
 
   const handleNavClick = () => {
     setIsNavigating(true);

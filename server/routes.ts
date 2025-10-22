@@ -28,14 +28,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       tableName: 'session',
       createTableIfMissing: true,
     }),
-    secret: process.env.SESSION_SECRET || 'big-gimmy-secret-key-2025',
+   secret: process.env.SESSION_SECRET || "supersecret",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-      secure: false,
+      secure: process.env.NODE_ENV === "production", // true se usi HTTPS
       httpOnly: true,
-      sameSite: 'lax'
+      sameSite: "lax",
     },
     rolling: true,
     name: 'biggimmy-session'
@@ -1212,6 +1211,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
+
+  app.post("/api/auth/logout", (req: Request, res: Response) => {
+  try {
+    if (req.session) {
+      req.session.destroy((err) => {
+        if (err) {
+          console.error("❌ Errore durante la distruzione della sessione:", err);
+          return res.status(500).json({
+            success: false,
+            message: "Errore durante il logout",
+          });
+        }
+
+        // Rimuove il cookie di sessione
+        res.clearCookie("connect.sid");
+
+        console.log("✅ Logout effettuato con successo");
+        return res.json({
+          success: true,
+          message: "Logout effettuato con successo",
+        });
+      });
+    } else {
+      // Nessuna sessione trovata
+      return res.status(200).json({
+        success: true,
+        message: "Nessuna sessione attiva",
+      });
+    }
+  } catch (error) {
+    console.error("Errore durante il logout:", error);
+    res.status(500).json({
+      success: false,
+      message: "Errore interno del server",
+    });
+  }
+});
+
 
   // NEW: Registrazione cliente (session-only, no DB)
   app.post("/api/auth/register", async (req: Request, res: Response) => {
