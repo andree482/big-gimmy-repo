@@ -1027,7 +1027,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `'${sheetName}'!A:F`,
+        range: `'${sheetName}'!A:G`,
       });
 
       const rows = response.data.values;
