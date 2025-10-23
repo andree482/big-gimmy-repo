@@ -18,9 +18,7 @@
     "remove-no-images": "tsx server/removeProductsWithoutImages.ts",
     "update-prices": "tsx server/updatePricesFromExcel.ts",
     "prices-sheets": "tsx server/updatePricesFromGoogleSheets.ts",
-    "watch-prices": "tsx server/startPriceWatcher.ts",
-    "test": "vitest",
-    "postinstall": "npm run build"
+    "watch-prices": "tsx server/startPriceWatcher.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
