@@ -3131,41 +3131,50 @@ export default function ProductDetail() {
             )}
 
             {/* Disponibilità dettagliata */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                <span className="font-semibold text-green-800">Disponibile nei nostri negozi</span>
-              </div>
+            {(() => {
+              const currentVariant = selectedVariant || (variantsList.length > 0 ? variantsList[0] : null);
+              const isUnavailable = currentVariant ? currentVariant.inStock === false : false;
 
-              {product.availability && product.availability.length > 0 && (
-                <div className="space-y-2">
-                  {product.availability.map((avail) => (
-                    <div key={avail.storeId} className="flex justify-between items-center">
-                      <span className="text-gray-700">
-                        {avail.storeId === 1 ? "📍 Sede Torino" : "📍 Sede Aosta"}
-                      </span>
-                      <span className={'font-medium ' + (avail.isAvailable ? 'text-green-600' : 'text-red-600')}>
-                        {avail.isAvailable 
-                          ? (avail.stockQuantity || 0) + ' disponibili'
-                          : 'Non disponibile'
-                        }
-                      </span>
-                    </div>
-                  ))}
-                  <div className="border-t pt-2 mt-2">
-                    <div className="flex justify-between items-center font-semibold">
-                      <span>Totale disponibile:</span>
-                      <span className="text-green-600">
-                        {product.availability.reduce((total, avail) => 
-                          total + (avail.isAvailable ? (avail.stockQuantity || 0) : 0), 0
-                        )} pezzi
-                      </span>
-                    </div>
+              return (
+                <div className={`${!isUnavailable ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'} rounded-lg p-4 mb-4`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`w-3 h-3 rounded-full ${!isUnavailable ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                    <span className={`font-semibold ${!isUnavailable ? 'text-green-800' : 'text-red-800'}`}>
+                      {!isUnavailable ? 'Disponibile nei nostri negozi' : 'Non disponibile attualmente'}
+                    </span>
                   </div>
+
+                  {product.availability && product.availability.length > 0 && (
+                    <div className="space-y-2">
+                      {product.availability.map((avail) => (
+                        <div key={avail.storeId} className="flex justify-between items-center">
+                          <span className="text-gray-700">
+                            {avail.storeId === 1 ? "📍 Sede Torino" : "📍 Sede Aosta"}
+                          </span>
+                          <span className={'font-medium ' + (avail.isAvailable ? 'text-green-600' : 'text-red-600')}>
+                            {avail.isAvailable 
+                              ? (avail.stockQuantity || 0) + ' disponibili'
+                              : 'Non disponibile'
+                            }
+                          </span>
+                        </div>
+                      ))}
+                      <div className="border-t pt-2 mt-2">
+                        <div className="flex justify-between items-center font-semibold">
+                          <span>Totale disponibile:</span>
+                          <span className={!isUnavailable ? 'text-green-600' : 'text-red-600'}>
+                            {product.availability.reduce((total, avail) => 
+                              total + (avail.isAvailable ? (avail.stockQuantity || 0) : 0), 0
+                            )} pezzi
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              );
+            })()}
             </div>
-          </div>
 
             {/* Selettore Varianti */}
             {variantsList.length > 0 && (
@@ -3213,11 +3222,18 @@ export default function ProductDetail() {
                 const productPrice = currentVariant?.price 
                   ? (currentVariant.price > 100 ? currentVariant.price / 100 : currentVariant.price)
                   : ((product.sizes?.[0]?.price || 1990) / 100);
+
+                const isUnavailable = currentVariant ? currentVariant.inStock === false : false;
                 
                 return (
                   <button
-                    className="flex-1 bg-[#FFD100] hover:bg-[#FFD100]/90 text-black font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+                    className={`flex-1 font-semibold py-3 px-6 rounded-lg transition-colors duration-200 ${
+                      isUnavailable
+                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed opacity-50'
+                        : 'bg-[#FFD100] hover:bg-[#FFD100]/90 text-black'
+                    }`}
                     onClick={() => setAddToCartDialogOpen(true)}
+                    disabled={isUnavailable}
                   >
                     Compra ora - {formatEuropeanPrice(productPrice)}
                   </button>
