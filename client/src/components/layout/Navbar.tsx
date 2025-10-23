@@ -41,6 +41,7 @@ const Navbar = () => {
     transition: mobileMenuOpen ? 'none' : 'padding 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
     contain: 'layout style'
   }), [isScrolled, mobileMenuOpen]);
+
   
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);

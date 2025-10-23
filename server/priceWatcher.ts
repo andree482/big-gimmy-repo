@@ -14,12 +14,23 @@ interface PriceChange {
   newPrice: number;
 }
 
+interface AvailabilityChange {
+  productId: number;
+  productName: string;
+  size: string;
+  unit: string;
+  oldAvailability: boolean;
+  newAvailability: boolean;
+}
+
+
 class PriceWatcher {
   private spreadsheetId: string;
   private sheetName: string;
   private intervalId: NodeJS.Timeout | null = null;
   private lastCheckTime: number = 0;
   private isRunning: boolean = false;
+  private lastAvailabilityChanges: number = 0;
 
   constructor(spreadsheetId: string, sheetName: string = 'Prezzi Prodotti') {
     this.spreadsheetId = spreadsheetId;
@@ -41,7 +52,7 @@ class PriceWatcher {
   }
 
   async checkForPriceChanges(): Promise<PriceChange[]> {
-    console.log(`🔍 Controllo modifiche prezzi... (${new Date().toLocaleTimeString()})`);
+        console.log(`🔍 Controllo modifiche prezzi e disponibilità... (${new Date().toLocaleTimeString()})`);
 
     try {
       const auth = await this.authenticate();
@@ -49,7 +60,7 @@ class PriceWatcher {
 
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: this.spreadsheetId,
-        range: `'${this.sheetName}'!A:F`,
+        range: `'${this.sheetName}'!A:G`,
       });
 
       const rows = response.data.values;
@@ -61,6 +72,9 @@ class PriceWatcher {
       console.log(`📋 Trovate ${rows.length - 1} righe di dati`);
 
       const changes: PriceChange[] = [];
+
+      const availabilityChanges: AvailabilityChange[] = [];
+      this.lastAvailabilityChanges = 0;
 
       // Controlla le prime 3 righe per debu
 
@@ -77,25 +91,26 @@ class PriceWatcher {
 
 
           // Controlla se il prezzo è cambiato
-          if (!isNaN(currentPrice) && Math.abs(newPrice - currentPrice) >= 0.01) {
-            console.log(`🔄 Rilevata modifica prezzo riga ${i + 1}: ${currentPrice} → ${newPrice}`);
+ const availabilityValue = row[6]?.toString()?.trim()?.toUpperCase();
 
-            const priceInCents = Math.round(newPrice * 100);
+          // Cerca nel database  
+          const existingOptions = await db
+            .select()
+            .from(productOptions)
+            .where(eq(productOptions.productId, productId));
 
-            // Cerca nel database  
-            const existingOptions = await db
-              .select()
-              .from(productOptions)
-              .where(eq(productOptions.productId, productId));
+          const targetOption = existingOptions.find(o => 
+            o.flavor === size && o.size === unit
+          );
 
-            const targetOption = existingOptions.find(o => 
-              o.flavor === size && o.size === unit
-            );
-
-            if (targetOption) {
+          if (targetOption) {
+            // Controlla se il prezzo è cambiato
+            if (!isNaN(currentPrice) && Math.abs(newPrice - currentPrice) >= 0.01) {
+              console.log(`🔄 Rilevata modifica prezzo riga ${i + 1}: ${currentPrice} → ${newPrice}`);
               console.log(`📊 Trovato nel DB: Prezzo attuale DB = €${targetOption.priceCents / 100}, Nuovo prezzo = €${newPrice}`);
 
-              console.log(`✅ Aggiunta modifica: ${productName} - ${size}${unit}`);
+
+              console.log(`✅ Aggiunta modifica prezzo: ${productName} - ${size}${unit}`);
               changes.push({
                 productId,
                 productName,
@@ -104,16 +119,41 @@ class PriceWatcher {
                 oldPrice: targetOption.priceCents / 100,
                 newPrice
               });
-            } else {
-              console.log(`❌ Non trovato nel DB: Product ID ${productId}, Size: ${size}, Unit: ${unit}`);
+             }
+
+            // Controlla se la disponibilità è cambiata
+            if (availabilityValue && (availabilityValue === 'SI' || availabilityValue === 'NO')) {
+              const newAvailability = availabilityValue === 'SI';
+              const oldAvailability = targetOption.inStock;
+
+              if (newAvailability !== oldAvailability) {
+                console.log(`🔄 Rilevata modifica disponibilità riga ${i + 1}: ${oldAvailability ? 'SI' : 'NO'} → ${newAvailability ? 'SI' : 'NO'}`);
+                console.log(`✅ Aggiunta modifica disponibilità: ${productName} - ${size}${unit}`);
+                availabilityChanges.push({
+                  productId,
+                  productName,
+                  size,
+                  unit,
+                  oldAvailability,
+                  newAvailability
+                });
+              }
+
             }
           } else {
-            if (i <= 3) console.log(`⏭️ Riga ${i + 1}: Prezzi uguali (${currentPrice} = ${newPrice})`);
+            console.log(`❌ Non trovato nel DB: Product ID ${productId}, Size: ${size}, Unit: ${unit}`);
           }
         } catch (error) {
           console.error(`❌ Errore elaborando riga ${i + 1}:`, error);
         }
       }
+
+            // Applica i cambiamenti di disponibilità
+      if (availabilityChanges.length > 0) {
+        this.lastAvailabilityChanges = availabilityChanges.length;
+        await this.applyAvailabilityChanges(availabilityChanges);
+      }
+
 
       console.log(`📋 Totale modifiche rilevate: ${changes.length}`);
       return changes;
@@ -122,6 +162,43 @@ class PriceWatcher {
       return [];
     }
   }
+
+  async applyAvailabilityChanges(changes: AvailabilityChange[]): Promise<void> {
+    if (changes.length === 0) return;
+
+    console.log(`🔄 Applicazione di ${changes.length} modifiche di disponibilità...`);
+
+    for (const change of changes) {
+      try {
+        // Trova l'opzione prodotto nel database
+        const existingOptions = await db
+          .select()
+          .from(productOptions)
+          .where(eq(productOptions.productId, change.productId));
+
+        const targetOption = existingOptions.find(o => 
+          o.flavor === change.size && o.size === change.unit
+        );
+
+        if (targetOption) {
+          // Aggiorna la disponibilità nel database
+          await db
+            .update(productOptions)
+            .set({ inStock: change.newAvailability })
+            .where(eq(productOptions.id, targetOption.id));
+
+          console.log(`✅ Disponibilità aggiornata: ${change.productName} - ${change.size}${change.unit}: ${change.oldAvailability ? 'SI' : 'NO'} → ${change.newAvailability ? 'SI' : 'NO'}`);
+        } else {
+          console.log(`❌ Opzione prodotto non trovata per l'aggiornamento: ${change.productName} - ${change.size}${change.unit}`);
+        }
+      } catch (error) {
+        console.error(`❌ Errore aggiornando disponibilità per ${change.productName}:`, error);
+      }
+    }
+
+    console.log(`✅ Completate ${changes.length} modifiche di disponibilità`);
+  }
+
 
   async applyPriceChanges(changes: PriceChange[]): Promise<void> {
     let updatedCount = 0;
@@ -173,36 +250,39 @@ class PriceWatcher {
           flavor: productOptions.flavor,
           size: productOptions.size,
           priceCents: productOptions.priceCents,
+          inStock: productOptions.inStock,
         })
         .from(productOptions)
         .innerJoin(products, eq(productOptions.productId, products.id))
         .orderBy(productOptions.productId);
 
       // Prepara i dati per Google Sheets
-      const header = ['ID Prodotto', 'Nome', 'Gusto', 'Unità', 'Prezzo Attuale', 'Nuovo Prezzo'];
+      const header = ['ID Prodotto', 'Nome', 'Gusto', 'Unità', 'Prezzo Attuale', 'Nuovo Prezzo', 'Disponibile'];
       const rows = [header];
 
       for (const option of allOptions) {
         const currentPrice = (option.priceCents / 100).toFixed(2);
+        const availabilityStatus = option.inStock ? 'SI' : 'NO';
         rows.push([
           option.productId.toString(),
           option.productName,
           option.flavor || '',
           option.size || '',
           currentPrice,
-          currentPrice
+          currentPrice,
+          availabilityStatus
         ]);
       }
 
       // Sovrascrivi completamente il Google Sheets
       await sheets.spreadsheets.values.clear({
         spreadsheetId: this.spreadsheetId,
-        range: `'${this.sheetName}'!A:F`,
+        range: `'${this.sheetName}'!A:G`,
       });
 
       await sheets.spreadsheets.values.update({
         spreadsheetId: this.spreadsheetId,
-        range: `'${this.sheetName}'!A1:F${rows.length}`,
+        range: `'${this.sheetName}'!A1:G${rows.length}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: rows,
@@ -242,20 +322,33 @@ class PriceWatcher {
 
         if (!productId || !size || !unit || isNaN(newPrice)) continue;
 
+                // Ottieni lo stato di disponibilità attuale dal database
+        const existingOptions = await db
+          .select()
+          .from(productOptions)
+          .where(eq(productOptions.productId, productId));
+
+        const targetOption = existingOptions.find(o => 
+          o.flavor === size && o.size === unit
+        );
+
+        const currentAvailability = targetOption ? (targetOption.inStock ? 'SI' : 'NO') : 'SI';
+
         updates.push([
           row[0], // Product ID
           row[1], // Product Name
           row[2], // Size
           row[3], // Unit
           newPrice.toFixed(2), // Current Price (aggiornato)
-          newPrice.toFixed(2)  // New Price
+          newPrice.toFixed(2), // New Price
+          currentAvailability  // Disponibile
         ]);
       }
 
       if (updates.length > 0) {
         await sheets.spreadsheets.values.update({
           spreadsheetId: this.spreadsheetId,
-          range: `'${this.sheetName}'!A2:F${updates.length + 1}`,
+          range: `'${this.sheetName}'!A2:G${updates.length + 1}`,
           valueInputOption: 'RAW',
           requestBody: {
             values: updates,
@@ -304,6 +397,10 @@ class PriceWatcher {
       if (changes.length > 0) {
         console.log(`🔄 Rilevate ${changes.length} modifiche di prezzo`);
         await this.applyPriceChanges(changes);
+              }
+
+      if (changes.length > 0 || this.lastAvailabilityChanges > 0) {
+
         await this.updateGoogleSheetsCurrentPrices();
       } else {
         console.log(`✓ Nessuna modifica rilevata (${new Date().toLocaleTimeString()})`);

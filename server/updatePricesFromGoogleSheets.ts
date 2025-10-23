@@ -17,6 +17,15 @@ interface PriceUpdate {
   newPrice: number;
 }
 
+interface AvailabilityUpdate {
+  productId: number;
+  size: string;
+  unit: string;
+  currentAvailability: boolean;
+  newAvailability: boolean;
+}
+
+
 // Autentica con Google Sheets API
 async function authenticate() {
   try {
@@ -81,21 +90,24 @@ async function exportPricesToGoogleSheets(spreadsheetId: string, sheetName: stri
         productName: products.name,
         flavor: productOptions.flavor,
         size: productOptions.size,
-        currentPrice: productOptions.priceCents
+        currentPrice: productOptions.priceCents,
+        inStock: productOptions.inStock
+
       })
       .from(productOptions)
       .innerJoin(products, eq(productOptions.productId, products.id))
       .orderBy(productOptions.productId);
 
     // Prepara i dati per Google Sheets
-    const headers = ['Product ID', 'Nome', 'Flavor', 'Unit', 'Current Price', 'New Price'];
+    const headers = ['Product ID', 'Nome', 'Flavor', 'Unit', 'Current Price', 'New Price', 'Disponibile'];
     const rows = allSizes.map(option => [
       option.productId,
       option.productName,
       option.flavor || '',
       option.size || '',
       (option.currentPrice / 100).toFixed(2),
-      (option.currentPrice / 100).toFixed(2) // Copia il prezzo attuale per facilitare le modifiche
+      (option.currentPrice / 100).toFixed(2), // Copia il prezzo attuale per facilitare le modifiche
+      option.inStock ? 'SI' : 'NO' // Mostra SI/NO invece di TRUE/FALSE
     ]);
 
     const values = [headers, ...rows];
@@ -142,7 +154,7 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
     // Legge i dati dal foglio
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `'${sheetName}'!A:F`,
+      range: `'${sheetName}'!A:G`,
     });
 
     const rows = response.data.values;
@@ -154,6 +166,7 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
     console.log(`📋 Trovate ${rows.length - 1} righe nel Google Sheets`);
 
     let updatedCount = 0;
+    let availabilityUpdatedCount = 0;
     let errorCount = 0;
 
     // Salta la riga di intestazione
@@ -168,8 +181,9 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
         const unit = row[3]?.toString();
         const currentPrice = parseFloat(row[4]); // Current Price
         const newPrice = parseFloat(row[5]); // Colonna "New Price" (ora in posizione 5)
+                const availability = row[6]?.toString()?.trim()?.toUpperCase(); // Colonna "Disponibile"
 
-        console.log(`📊 Dati estratti - ID: ${productId}, Nome: ${productName}, Size: ${size}, Unit: ${unit}, Current: ${currentPrice}, New: ${newPrice}`);
+        console.log(`📊 Dati estratti - ID: ${productId}, Nome: ${productName}, Size: ${size}, Unit: ${unit}, Current: ${currentPrice}, New: ${newPrice}, Disponibile: ${availability}`);
 
         // Validazione dati (unit può essere vuoto se incluso in size)
         if (!productId || !size || isNaN(newPrice) || newPrice <= 0) {
@@ -180,6 +194,10 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
 
         // Converti il prezzo in centesimi per il confronto
         const priceInCents = Math.round(newPrice * 100);
+                
+        // Converti la disponibilità in boolean
+        const newAvailability = availability === 'SI';
+
 
         // Cerca la riga nel database
         const existingOptions = await db
@@ -197,17 +215,36 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
           continue;
         }
 
+        let hasUpdates = false;
+        const updates: any = {};
+
+
         // Confronta il prezzo del DATABASE con il nuovo prezzo dal Google Sheets
         if (targetOption.priceCents !== priceInCents) {
+           updates.priceCents = priceInCents;
+          hasUpdates = true;
+          console.log(`💰 Prezzo cambiato: ${productName} (ID: ${productId}), ${size}${unit}: €${(targetOption.priceCents/100).toFixed(2)} → €${newPrice.toFixed(2)}`);
+          updatedCount++;
+        }
+
+        // Confronta la disponibilità del DATABASE con la nuova disponibilità dal Google Sheets
+        if (targetOption.inStock !== newAvailability) {
+          updates.inStock = newAvailability;
+          hasUpdates = true;
+          console.log(`📦 Disponibilità cambiata: ${productName} (ID: ${productId}), ${size}${unit}: ${targetOption.inStock ? 'SI' : 'NO'} → ${newAvailability ? 'SI' : 'NO'}`);
+          availabilityUpdatedCount++;
+        }
+
+        // Applica gli aggiornamenti se necessario
+        if (hasUpdates) {
           await db
             .update(productOptions)
-            .set({ priceCents: priceInCents })
+            .set(updates)
             .where(eq(productOptions.id, targetOption.id));
 
-          console.log(`✅ Riga ${i + 1}: ${productName} (ID: ${productId}), ${size}${unit}: €${(targetOption.priceCents/100).toFixed(2)} → €${newPrice.toFixed(2)}`);
-          updatedCount++;
+         
         } else {
-          console.log(`⏭️ Riga ${i + 1}: ${productName} (ID: ${productId}), ${size}${unit}: Prezzo DB già corretto (€${newPrice.toFixed(2)})`);
+                    console.log(`⏭️ Riga ${i + 1}: ${productName} (ID: ${productId}), ${size}${unit}: Nessun cambiamento necessario`);
         }
 
       } catch (error) {
@@ -218,6 +255,7 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
 
     console.log(`\n📊 Riepilogo aggiornamento:`);
     console.log(`✅ Prezzi aggiornati: ${updatedCount}`);
+        console.log(`📦 Disponibilità aggiornate: ${availabilityUpdatedCount}`);
     console.log(`❌ Errori: ${errorCount}`);
     console.log(`📋 Totale righe elaborate: ${rows.length - 1}`);
 

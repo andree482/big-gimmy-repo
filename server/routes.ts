@@ -436,7 +436,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new product endpoint
   app.post("/api/products", async (req: Request, res: Response) => {
     try {
-      const product = await storage.createProduct(req.body);
+      // Validate and transform the features field
+      const productData = { ...req.body };
+      
+      // Ensure features is an array of strings
+      if (productData.features) {
+        if (Array.isArray(productData.features)) {
+          // Convert array-like object to proper array if needed
+          productData.features = Array.from(productData.features).filter(
+            (item): item is string => typeof item === 'string'
+          );
+        } else if (typeof productData.features === 'string') {
+          // If it's a string, try to parse it as JSON or split by comma
+          try {
+            productData.features = JSON.parse(productData.features);
+          } catch {
+            productData.features = productData.features.split(',').map(s => s.trim());
+          }
+        } else {
+          // If it's not an array or string, set to empty array
+          productData.features = [];
+        }
+      }
+
+      const product = await storage.createProduct(productData);
       res.status(201).json(product);
     } catch (error) {
       console.error("Error creating product:", error);
@@ -858,7 +881,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `'${sheetName}'!A:F`,
+        range: `'${sheetName}'!A:G`,
       });
 
       const rows = response.data.values;
