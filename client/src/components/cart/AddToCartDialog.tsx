@@ -17,6 +17,9 @@ interface AddToCartDialogProps {
     slug?: string;
     sizes?: any[];
     variants?: any[]; // Aggiunto per gestire varianti esplicite
+    maxAvailable?: number; // Disponibilità totale nota
+    isAvailable?: boolean; // Stato disponibilità generale
+    initialQuantity?: number; // Quantità iniziale
   };
   onAddToCart: (product: any) => void;
 }
@@ -24,7 +27,7 @@ interface AddToCartDialogProps {
 export function AddToCartDialog({ isOpen, onClose, product, onAddToCart }: AddToCartDialogProps) {
   const initialVariants = product.variants ?? (product.slug ? getProductVariants(product) : (product.sizes || []));
   const [variantsState, setVariantsState] = useState<any[]>(initialVariants);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(product.initialQuantity ?? 1);
   const [selectedVariant, setSelectedVariant] = useState<string>('');
   const [selectedPrice, setSelectedPrice] = useState<number>(product.price);
 
@@ -44,7 +47,7 @@ export function AddToCartDialog({ isOpen, onClose, product, onAddToCart }: AddTo
   useEffect(() => {
     if (!isOpen) return;
 
-    setQuantity(1);
+    setQuantity(product.initialQuantity ?? 1);
 
     // Se non ho varianti pronte e ho lo slug, provo a prendere le opzioni dal server (prezzi già in euro)
     if (!hasVariants && product.slug) {
@@ -98,8 +101,11 @@ export function AddToCartDialog({ isOpen, onClose, product, onAddToCart }: AddTo
   };
 
 
-  // Genera opzioni da 1 a 30
-  const quantityOptions = Array.from({ length: 30 }, (_, i) => i + 1);
+  // Genera opzioni limitate dalla disponibilità
+  const maxSelectable = typeof product.maxAvailable === 'number' && product.maxAvailable > 0 
+    ? Math.min(product.maxAvailable, 30) 
+    : 30;
+  const quantityOptions = Array.from({ length: maxSelectable }, (_, i) => i + 1);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -154,16 +160,30 @@ export function AddToCartDialog({ isOpen, onClose, product, onAddToCart }: AddTo
             </span>
           </div>
 
+          {/* Messaggi disponibilità */}
+          {product.isAvailable === false && (
+            <div className="text-sm text-red-700">Prodotto non disponibile.</div>
+          )}
+          {typeof product.maxAvailable === 'number' && quantity > (product.maxAvailable || 0) && (
+            <div className="text-sm text-red-700">Quantità richiesta superiore alla disponibilità (max {product.maxAvailable}).</div>
+          )}
+
           {/* Bottoni */}
           <div className="flex gap-3">
 <Button variant="outline" onClick={onClose}>Annulla</Button>
 
             <Button
-              className="flex-1 bg-[#FFD100] hover:bg-[#E6BC00] text-black font-semibold"
+              className={`flex-1 font-semibold ${
+                (product.isAvailable !== false && (typeof product.maxAvailable !== 'number' || quantity <= (product.maxAvailable || 0)))
+                  ? 'bg-[#FFD100] text-black hover:bg-[#FFD100]/90'
+                  : 'bg-[#FFD100] text-black opacity-50 cursor-not-allowed'
+              }`}
+              disabled={!(product.isAvailable !== false && (typeof product.maxAvailable !== 'number' || quantity <= (product.maxAvailable || 0)))}
               onClick={handleAddToCart}
             >
               Aggiungi al Carrello
             </Button>
+
           </div>
         </div>
       </DialogContent>

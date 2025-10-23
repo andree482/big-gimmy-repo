@@ -153,29 +153,32 @@ export default function ProductVariantSelector({
             Gusto
           </label>
           <div className="flex flex-wrap gap-2">
-            {availableFlavors.map((flavor) => (
-              <Button
-                key={flavor}
-                variant={selectedFlavor === flavor ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedFlavor(flavor)}
-                className={`relative transition-all duration-200 ${
-                  selectedFlavor === flavor 
-                    ? 'bg-[#FFD100] text-black border-[#FFD100] shadow-md scale-105' 
-                    : 'hover:border-[#FFD100] hover:text-[#FFD100]'
-                }`}
-                style={{
-                  borderLeftColor: selectedFlavor === flavor ? getFlavorColor(flavor) : undefined,
-                  borderLeftWidth: selectedFlavor === flavor ? '4px' : undefined
-                }}
-              >
-                <div 
-                  className="w-3 h-3 rounded-full mr-2 border border-gray-300"
-                  style={{ backgroundColor: getFlavorColor(flavor) }}
-                />
-                {flavor}
-              </Button>
-            ))}
+            {availableFlavors.map((flavor) => {
+              const flavorOutOfStock = variants.filter(v => v.flavor === flavor).every(v => !v.inStock);
+              return (
+                <Button
+                  key={flavor}
+                  variant={selectedFlavor === flavor ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedFlavor(flavor)}
+                  className={`relative transition-all duration-200 ${
+                    selectedFlavor === flavor 
+                      ? 'bg-[#FFD100] text-black border-[#FFD100] shadow-md scale-105' 
+                      : 'hover:border-[#FFD100] hover:text-[#FFD100]'
+                  } ${flavorOutOfStock ? 'opacity-50' : ''}`}
+                  style={{
+                    borderLeftColor: selectedFlavor === flavor ? getFlavorColor(flavor) : undefined,
+                    borderLeftWidth: selectedFlavor === flavor ? '4px' : undefined
+                  }}
+                >
+                  <div 
+                    className="w-3 h-3 rounded-full mr-2 border border-gray-300"
+                    style={{ backgroundColor: getFlavorColor(flavor) }}
+                  />
+                  {flavor}
+                </Button>
+              );
+            })}
           </div>
         </div>
       )}

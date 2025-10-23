@@ -45,13 +45,13 @@ const Navbar = () => {
   }, [location]);
 
   // Memoizza i valori computati per prestazioni ottimali
-    const isScrolled = useMemo(() => {
+  const isScrolled = useMemo(() => {
     // Isteresi: attiva a 130px, disattiva a 110px per evitare flicker
     const currentIsScrolled = scrollY > 120 && !mobileMenuOpen;
     const prevIsScrolled = scrollY > 110 && !mobileMenuOpen;
     return scrollY > 130 ? true : scrollY < 110 ? false : currentIsScrolled;
   }, [scrollY, mobileMenuOpen]);
-  
+
   const shouldHide = useMemo(() => scrollDirection === 'down' && scrollY > 400 && !isNavigating && !mobileMenuOpen, [scrollDirection, scrollY, isNavigating, mobileMenuOpen]);
   
   // Memoizza gli stili per evitare re-calcoli - ottimizzazione GPU per eliminar lag
@@ -64,14 +64,13 @@ const Navbar = () => {
   }), [shouldHide, mobileMenuOpen]);
 
 
-  const containerStyles = useMemo(
-    () => ({
-      paddingTop: isScrolled ? "0.5rem" : "1rem",
-      paddingBottom: isScrolled ? "0.5rem" : "1rem",
-      transition: mobileMenuOpen ? "none" : "all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)",
-    }),
-    [isScrolled, mobileMenuOpen]
-  );
+  const containerStyles = useMemo(() => ({
+    paddingTop: isScrolled ? '0.5rem' : '1rem',
+    paddingBottom: isScrolled ? '0.5rem' : '1rem',
+    transition: mobileMenuOpen ? 'none' : 'padding 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+    contain: 'layout style'
+  }), [isScrolled, mobileMenuOpen]);
+
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
 
