@@ -1,6 +1,7 @@
 // server/routes/products.ts
 import { Router } from "express";
 import { supabase } from "../index.js"; // importa il supabase inizializzato
+import { cache } from "../utils/cache.ts";
 
 const router = Router();
 
@@ -17,17 +18,26 @@ router.get("/products/:id/variants", async (req, res) => {
   }
 
   try {
-    // Esempio usando Supabase (JS client)
-    const { data, error } = await supabase
-      .from("product_options")
-      .select("id, flavor, size, price_cents, original_price_cents, image")
-      .eq("product", productId)
-      .order("id", { ascending: true });
+    // Imposta header per caching lato client (riduce richieste ripetute)
+    const timestamp5m = Math.floor(Date.now() / (5 * 60 * 1000));
+    res.set({
+      'Cache-Control': 'public, max-age=300, stale-while-revalidate=1800',
+      'ETag': `variants-${productId}-${timestamp5m}`
+    });
 
-    if (error) {
-      console.error("Supabase error fetching variants:", error);
-      return res.status(500).json({ success: false, error: error.message || error });
-    }
+    // Cache lato server per ridurre egress da Supabase
+    const cacheKey = `variants:${productId}:${timestamp5m}`;
+    const data = await cache.wrap(cacheKey, async () => {
+      const { data, error } = await supabase
+        .from("product_options")
+        .select("id, flavor, size, price_cents, original_price_cents, image, in_stock")
+        .eq("product", productId)
+        .eq("in_stock", true)
+        .order("id", { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    }, 5 * 60 * 1000);
 
     const variants = (data || []).map((v: any) => ({
       id: String(v.id),

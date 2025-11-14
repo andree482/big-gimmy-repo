@@ -314,10 +314,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { search, brand, priceRange, sortBy } = req.query;
 
-      // Set cache headers for real-time price updates
+      // Cache lato client per ridurre richieste ripetute (aggiornamento ogni 5 min)
       const timestamp = Math.floor(Date.now() / (5 * 60 * 1000)); // Cambia ogni 5 minuti
       res.set({
-        'Cache-Control': 'no-cache, must-revalidate', // Nessun cache - aggiornamenti istantanei
+        'Cache-Control': 'public, max-age=300, stale-while-revalidate=1800',
         'ETag': `products-${timestamp}-${search || 'no-search'}-${brand || 'no-brand'}-${priceRange || 'no-range'}-${sortBy || 'default'}`
       });
 

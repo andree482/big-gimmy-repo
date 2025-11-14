@@ -6,8 +6,11 @@ import { setupVite, serveStatic, log } from "./vite.ts";
 import { createServer } from "http";
 import { createClient } from '@supabase/supabase-js';
 import { PriceWatcher } from "./priceWatcher";
+import compression from "compression";
 
 const app = express();
+// Abilita compressione gzip/brotli per risposte dinamiche (JSON/HTML/CSS/JS)
+app.use(compression());
 app.use('/sw.js', (req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
   res.sendFile(path.resolve(process.cwd(), 'client/dist', 'sw.js'));
