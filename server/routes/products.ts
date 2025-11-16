@@ -1,6 +1,7 @@
 // server/routes/products.ts
 import { Router } from "express";
 import { supabase } from "../index";
+import { cache } from "../utils/cache.ts";
 
 const router = Router();
 
@@ -32,6 +33,26 @@ router.get("/products/:id/variants", async (req, res) => {
       message: error.message,
     });
   }
+  const timestamp5m = Math.floor(Date.now() / (5 * 60 * 1000));
+    res.set({
+      'Cache-Control': 'public, max-age=300, stale-while-revalidate=1800',
+      'ETag': `variants-${productId}-${timestamp5m}`
+    });
+
+    // Cache lato server per ridurre egress da Supabase
+    const cacheKey = `variants:${productId}:${timestamp5m}`;
+    const data = await cache.wrap(cacheKey, async () => {
+      const { data, error } = await supabase
+        .from("product_options")
+        .select("id, flavor, size, price_cents, original_price_cents, image, in_stock")
+        .eq("product", productId)
+        .eq("in_stock", true)
+        .order("id", { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    }, 5 * 60 * 1000);
+
 });
 
 export default router;
