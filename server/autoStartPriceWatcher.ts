@@ -3,7 +3,7 @@ import { PriceWatcher } from './priceWatcher';
 
 // Configurazione automatica Price Watcher
 const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID || '1oH-CXTbWUKkvhdIrwa-8bqw5bzHmCON6Eygx38x7XPc';
-const CHECK_INTERVAL_MINUTES = 0.25; // Fisso a 15 secondi
+const CHECK_INTERVAL_MINUTES = 5; // Fisso a 15 secondi
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 export async function startAutomaticPriceWatcher(): Promise<void> {

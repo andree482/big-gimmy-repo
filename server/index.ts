@@ -154,16 +154,7 @@ app.use((req, res, next) => {
   // Price Watcher setup (opzionale)
   let priceWatcher: PriceWatcher | null = null;
   const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
-  
-  if (GOOGLE_SHEETS_ID && process.env.NODE_ENV === 'production') {
-    try {
-      priceWatcher = new PriceWatcher(GOOGLE_SHEETS_ID);
-      priceWatcher.start(0.25); // Controlla ogni 15 secondi
-      console.log('✅ Price Watcher avviato');
-    } catch (error) {
-      console.log('⚠️ Errore avvio Price Watcher:', error);
-    }
-  }
+
 
   // API 404 fallback - catch unmatched API routes before Vite's catch-all
  app.use("/api", (req, res, next) => {
