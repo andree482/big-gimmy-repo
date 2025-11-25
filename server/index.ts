@@ -5,7 +5,6 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite.ts";
 import { createServer } from "http";
 import { createClient } from '@supabase/supabase-js';
-import { PriceWatcher } from "./priceWatcher";
 import compression from "compression";
 
 const app = express();
@@ -144,19 +143,6 @@ app.use((req, res, next) => {
   // Serve static files (including images) in both development and production
   app.use('/images', express.static('public/images'));
 
-  // Price Watcher setup (opzionale)
-  let priceWatcher: PriceWatcher | null = null;
-  const GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID;
-  
-  if (GOOGLE_SHEETS_ID && process.env.NODE_ENV === 'production') {
-    try {
-      priceWatcher = new PriceWatcher(GOOGLE_SHEETS_ID);
-      priceWatcher.start(0.25); // Controlla ogni 15 secondi
-      console.log('✅ Price Watcher avviato');
-    } catch (error) {
-      console.log('⚠️ Errore avvio Price Watcher:', error);
-    }
-  }
 
   // Endpoint per verificare l'autenticazione con credenziali specifiche
 app.get("/api/auth/check", (req, res) => {
@@ -233,11 +219,6 @@ if (app.get("env") === "development") {
     console.log('=================================');
 
     // Avvia automaticamente Price Watcher se configurato
-    try {
-      const { startAutomaticPriceWatcher } = await import('./autoStartPriceWatcher');
-      await startAutomaticPriceWatcher();
-    } catch (error: any) {
-      console.log('ℹ️ Price Watcher non avviato automaticamente:', error?.message || error);
-    }
+
   });
 })();
