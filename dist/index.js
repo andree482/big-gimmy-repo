@@ -8,6 +8,22 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
+// server/priceWatcher.ts
+var priceWatcher_exports = {};
+var init_priceWatcher = __esm({
+  "server/priceWatcher.ts"() {
+    "use strict";
+  }
+});
+
+// server/index.ts
+import "dotenv/config";
+import express2 from "express";
+import path3 from "path";
+
+// server/routes.ts
+import { createServer } from "http";
+
 // shared/schema.ts
 var schema_exports = {};
 __export(schema_exports, {
@@ -48,640 +64,320 @@ __export(schema_exports, {
 import { pgTable, text, serial, integer, boolean, timestamp, varchar, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
-var users, insertUserSchema, contacts, insertContactSchema, stores, insertStoreSchema, brands, insertBrandSchema, productCategories, insertProductCategorySchema, productGroups, products, insertProductGroupSchema, insertProductSchema, productImages, insertProductImageSchema, productSizes, insertProductSizeSchema, productAvailability, insertProductAvailabilitySchema, userFavorites, insertUserFavoriteSchema, productGroupsRelations, productsRelations, productImagesRelations, productSizesRelations, productAvailabilityRelations, userFavoritesRelations, productOptions, insertProductOptionSchema, productOptionsRelations, productSlugRedirects, insertProductSlugRedirectSchema;
-var init_schema = __esm({
-  "shared/schema.ts"() {
-    "use strict";
-    users = pgTable("users", {
-      id: serial("id").primaryKey(),
-      username: text("username").notNull().unique(),
-      password: text("password").notNull()
-    });
-    insertUserSchema = createInsertSchema(users).pick({
-      username: true,
-      password: true
-    });
-    contacts = pgTable("contacts", {
-      id: serial("id").primaryKey(),
-      name: text("name").notNull(),
-      email: text("email").notNull(),
-      phone: text("phone"),
-      message: text("message").notNull(),
-      createdAt: timestamp("created_at").defaultNow().notNull()
-    });
-    insertContactSchema = createInsertSchema(contacts).pick({
-      name: true,
-      email: true,
-      phone: true,
-      message: true
-    });
-    stores = pgTable("stores", {
-      id: serial("id").primaryKey(),
-      name: varchar("name", { length: 100 }).notNull(),
-      address: text("address").notNull(),
-      phone: varchar("phone", { length: 20 }).notNull(),
-      email: varchar("email", { length: 100 }),
-      hours: text("hours").notNull(),
-      mapLink: text("map_link"),
-      isNew: boolean("is_new").default(false)
-    });
-    insertStoreSchema = createInsertSchema(stores).pick({
-      name: true,
-      address: true,
-      phone: true,
-      email: true,
-      hours: true,
-      mapLink: true,
-      isNew: true
-    });
-    brands = pgTable("brands", {
-      id: serial("id").primaryKey(),
-      name: varchar("name", { length: 100 }).notNull().unique(),
-      slug: varchar("slug", { length: 100 }).notNull().unique(),
-      description: text("description"),
-      website: text("website"),
-      logo: text("logo")
-    });
-    insertBrandSchema = createInsertSchema(brands).pick({
-      name: true,
-      slug: true,
-      description: true,
-      website: true,
-      logo: true
-    });
-    productCategories = pgTable("product_categories", {
-      id: serial("id").primaryKey(),
-      name: varchar("name", { length: 100 }).notNull().unique(),
-      slug: varchar("slug", { length: 100 }).notNull().unique(),
-      description: text("description"),
-      image: text("image")
-    });
-    insertProductCategorySchema = createInsertSchema(productCategories).pick({
-      name: true,
-      slug: true,
-      description: true,
-      image: true
-    });
-    productGroups = pgTable("product_groups", {
-      id: serial("id").primaryKey(),
-      slug: varchar("slug", { length: 200 }).notNull().unique(),
-      name: varchar("name", { length: 200 }).notNull(),
-      brandId: integer("brand_id").notNull().references(() => brands.id),
-      categoryId: integer("category_id").notNull().references(() => productCategories.id),
-      description: text("description").notNull(),
-      longDescription: text("long_description"),
-      features: json("features").$type(),
-      howToUse: text("how_to_use"),
-      warnings: text("warnings"),
-      specialOfferText: text("special_offer_text"),
-      isNew: boolean("is_new").default(false),
-      isBestSeller: boolean("is_best_seller").default(false),
-      hasSpecialOffer: boolean("has_special_offer").default(false),
-      createdAt: timestamp("created_at").defaultNow().notNull()
-    });
-    products = pgTable("products", {
-      id: serial("id").primaryKey(),
-      slug: varchar("slug", { length: 200 }).notNull().unique(),
-      name: varchar("name", { length: 200 }).notNull(),
-      groupId: integer("group_id").references(() => productGroups.id),
-      brandId: integer("brand_id").notNull().references(() => brands.id),
-      categoryId: integer("category_id").notNull().references(() => productCategories.id),
-      description: text("description").notNull(),
-      longDescription: text("long_description"),
-      features: json("features").$type(),
-      howToUse: text("how_to_use"),
-      warnings: text("warnings"),
-      specialOfferText: text("special_offer_text"),
-      flavor: varchar("flavor", { length: 100 }),
-      size: varchar("size", { length: 50 }),
-      quantity: varchar("quantity", { length: 50 }),
-      isNew: boolean("is_new").default(false),
-      isBestSeller: boolean("is_best_seller").default(false),
-      hasSpecialOffer: boolean("has_special_offer").default(false),
-      createdAt: timestamp("created_at").defaultNow().notNull()
-    });
-    insertProductGroupSchema = createInsertSchema(productGroups).pick({
-      slug: true,
-      name: true,
-      brandId: true,
-      categoryId: true,
-      description: true,
-      longDescription: true,
-      features: true,
-      howToUse: true,
-      warnings: true,
-      specialOfferText: true,
-      isNew: true,
-      isBestSeller: true,
-      hasSpecialOffer: true
-    });
-    insertProductSchema = createInsertSchema(products).pick({
-      slug: true,
-      name: true,
-      groupId: true,
-      brandId: true,
-      categoryId: true,
-      description: true,
-      longDescription: true,
-      features: true,
-      howToUse: true,
-      warnings: true,
-      specialOfferText: true,
-      flavor: true,
-      size: true,
-      quantity: true,
-      isNew: true,
-      isBestSeller: true,
-      hasSpecialOffer: true
-    });
-    productImages = pgTable("product_images", {
-      id: serial("id").primaryKey(),
-      productId: integer("product_id").notNull().references(() => products.id),
-      src: text("src").notNull(),
-      alt: text("alt").notNull(),
-      isPrimary: boolean("is_primary").default(false)
-    });
-    insertProductImageSchema = createInsertSchema(productImages).pick({
-      productId: true,
-      src: true,
-      alt: true,
-      isPrimary: true
-    });
-    productSizes = pgTable("product_sizes", {
-      id: serial("id").primaryKey(),
-      productId: integer("product_id").notNull().references(() => products.id),
-      value: varchar("value", { length: 50 }).notNull(),
-      unit: varchar("unit", { length: 20 }).notNull(),
-      price: integer("price").notNull()
-      // Prezzo in centesimi
-    });
-    insertProductSizeSchema = createInsertSchema(productSizes).pick({
-      productId: true,
-      value: true,
-      unit: true,
-      price: true
-    });
-    productAvailability = pgTable("product_availability", {
-      id: serial("id").primaryKey(),
-      productId: integer("product_id").notNull().references(() => products.id),
-      storeId: integer("store_id").notNull().references(() => stores.id),
-      isAvailable: boolean("is_available").default(true),
-      stockQuantity: integer("stock_quantity"),
-      updatedAt: timestamp("updated_at").defaultNow().notNull()
-    });
-    insertProductAvailabilitySchema = createInsertSchema(productAvailability).pick({
-      productId: true,
-      storeId: true,
-      isAvailable: true,
-      stockQuantity: true
-    });
-    userFavorites = pgTable("user_favorites", {
-      id: serial("id").primaryKey(),
-      userId: integer("user_id").notNull().references(() => users.id),
-      productId: integer("product_id").notNull().references(() => products.id),
-      createdAt: timestamp("created_at").defaultNow().notNull()
-    });
-    insertUserFavoriteSchema = createInsertSchema(userFavorites).pick({
-      userId: true,
-      productId: true
-    });
-    productGroupsRelations = relations(productGroups, ({ one, many }) => ({
-      brand: one(brands, {
-        fields: [productGroups.brandId],
-        references: [brands.id]
-      }),
-      category: one(productCategories, {
-        fields: [productGroups.categoryId],
-        references: [productCategories.id]
-      }),
-      variants: many(products)
-    }));
-    productsRelations = relations(products, ({ one, many }) => ({
-      group: one(productGroups, {
-        fields: [products.groupId],
-        references: [productGroups.id]
-      }),
-      brand: one(brands, {
-        fields: [products.brandId],
-        references: [brands.id]
-      }),
-      category: one(productCategories, {
-        fields: [products.categoryId],
-        references: [productCategories.id]
-      }),
-      images: many(productImages),
-      sizes: many(productSizes),
-      availability: many(productAvailability),
-      options: many(productOptions)
-    }));
-    productImagesRelations = relations(productImages, ({ one }) => ({
-      product: one(products, {
-        fields: [productImages.productId],
-        references: [products.id]
-      })
-    }));
-    productSizesRelations = relations(productSizes, ({ one }) => ({
-      product: one(products, {
-        fields: [productSizes.productId],
-        references: [products.id]
-      })
-    }));
-    productAvailabilityRelations = relations(productAvailability, ({ one }) => ({
-      product: one(products, {
-        fields: [productAvailability.productId],
-        references: [products.id]
-      }),
-      store: one(stores, {
-        fields: [productAvailability.storeId],
-        references: [stores.id]
-      })
-    }));
-    userFavoritesRelations = relations(userFavorites, ({ one }) => ({
-      user: one(users, {
-        fields: [userFavorites.userId],
-        references: [users.id]
-      }),
-      product: one(products, {
-        fields: [userFavorites.productId],
-        references: [products.id]
-      })
-    }));
-    productOptions = pgTable("product_options", {
-      id: serial("id").primaryKey(),
-      productId: integer("product_id").notNull().references(() => products.id),
-      flavor: text("flavor"),
-      size: text("size"),
-      priceCents: integer("price_cents").notNull(),
-      // Prezzo in centesimi
-      originalPriceCents: integer("original_price_cents"),
-      image: text("image"),
-      inStock: boolean("in_stock").default(true)
-    });
-    insertProductOptionSchema = createInsertSchema(productOptions).omit({
-      id: true
-    });
-    productOptionsRelations = relations(productOptions, ({ one }) => ({
-      product: one(products, {
-        fields: [productOptions.productId],
-        references: [products.id]
-      })
-    }));
-    productSlugRedirects = pgTable("product_slug_redirects", {
-      id: serial("id").primaryKey(),
-      oldSlug: varchar("old_slug", { length: 200 }).notNull(),
-      newSlug: varchar("new_slug", { length: 200 }).notNull(),
-      productId: integer("product_id").notNull().references(() => products.id),
-      createdAt: timestamp("created_at").defaultNow().notNull()
-    });
-    insertProductSlugRedirectSchema = createInsertSchema(productSlugRedirects).omit({
-      id: true,
-      createdAt: true
-    });
-  }
+var users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull()
+});
+var insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true
+});
+var contacts = pgTable("contacts", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone"),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+var insertContactSchema = createInsertSchema(contacts).pick({
+  name: true,
+  email: true,
+  phone: true,
+  message: true
+});
+var stores = pgTable("stores", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  address: text("address").notNull(),
+  phone: varchar("phone", { length: 20 }).notNull(),
+  email: varchar("email", { length: 100 }),
+  hours: text("hours").notNull(),
+  mapLink: text("map_link"),
+  isNew: boolean("is_new").default(false)
+});
+var insertStoreSchema = createInsertSchema(stores).pick({
+  name: true,
+  address: true,
+  phone: true,
+  email: true,
+  hours: true,
+  mapLink: true,
+  isNew: true
+});
+var brands = pgTable("brands", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  website: text("website"),
+  logo: text("logo")
+});
+var insertBrandSchema = createInsertSchema(brands).pick({
+  name: true,
+  slug: true,
+  description: true,
+  website: true,
+  logo: true
+});
+var productCategories = pgTable("product_categories", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  image: text("image")
+});
+var insertProductCategorySchema = createInsertSchema(productCategories).pick({
+  name: true,
+  slug: true,
+  description: true,
+  image: true
+});
+var productGroups = pgTable("product_groups", {
+  id: serial("id").primaryKey(),
+  slug: varchar("slug", { length: 200 }).notNull().unique(),
+  name: varchar("name", { length: 200 }).notNull(),
+  brandId: integer("brand_id").notNull().references(() => brands.id),
+  categoryId: integer("category_id").notNull().references(() => productCategories.id),
+  description: text("description").notNull(),
+  longDescription: text("long_description"),
+  features: json("features").$type(),
+  howToUse: text("how_to_use"),
+  warnings: text("warnings"),
+  specialOfferText: text("special_offer_text"),
+  isNew: boolean("is_new").default(false),
+  isBestSeller: boolean("is_best_seller").default(false),
+  hasSpecialOffer: boolean("has_special_offer").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+var products = pgTable("products", {
+  id: serial("id").primaryKey(),
+  slug: varchar("slug", { length: 200 }).notNull().unique(),
+  name: varchar("name", { length: 200 }).notNull(),
+  groupId: integer("group_id").references(() => productGroups.id),
+  brandId: integer("brand_id").notNull().references(() => brands.id),
+  categoryId: integer("category_id").notNull().references(() => productCategories.id),
+  description: text("description").notNull(),
+  longDescription: text("long_description"),
+  features: json("features").$type(),
+  howToUse: text("how_to_use"),
+  warnings: text("warnings"),
+  specialOfferText: text("special_offer_text"),
+  flavor: varchar("flavor", { length: 100 }),
+  size: varchar("size", { length: 50 }),
+  quantity: varchar("quantity", { length: 50 }),
+  isNew: boolean("is_new").default(false),
+  isBestSeller: boolean("is_best_seller").default(false),
+  hasSpecialOffer: boolean("has_special_offer").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+var insertProductGroupSchema = createInsertSchema(productGroups).pick({
+  slug: true,
+  name: true,
+  brandId: true,
+  categoryId: true,
+  description: true,
+  longDescription: true,
+  features: true,
+  howToUse: true,
+  warnings: true,
+  specialOfferText: true,
+  isNew: true,
+  isBestSeller: true,
+  hasSpecialOffer: true
+});
+var insertProductSchema = createInsertSchema(products).pick({
+  slug: true,
+  name: true,
+  groupId: true,
+  brandId: true,
+  categoryId: true,
+  description: true,
+  longDescription: true,
+  features: true,
+  howToUse: true,
+  warnings: true,
+  specialOfferText: true,
+  flavor: true,
+  size: true,
+  quantity: true,
+  isNew: true,
+  isBestSeller: true,
+  hasSpecialOffer: true
+});
+var productImages = pgTable("product_images", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull().references(() => products.id),
+  src: text("src").notNull(),
+  alt: text("alt").notNull(),
+  isPrimary: boolean("is_primary").default(false)
+});
+var insertProductImageSchema = createInsertSchema(productImages).pick({
+  productId: true,
+  src: true,
+  alt: true,
+  isPrimary: true
+});
+var productSizes = pgTable("product_sizes", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull().references(() => products.id),
+  value: varchar("value", { length: 50 }).notNull(),
+  unit: varchar("unit", { length: 20 }).notNull(),
+  price: integer("price").notNull()
+  // Prezzo in centesimi
+});
+var insertProductSizeSchema = createInsertSchema(productSizes).pick({
+  productId: true,
+  value: true,
+  unit: true,
+  price: true
+});
+var productAvailability = pgTable("product_availability", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull().references(() => products.id),
+  storeId: integer("store_id").notNull().references(() => stores.id),
+  isAvailable: boolean("is_available").default(true),
+  stockQuantity: integer("stock_quantity"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+var insertProductAvailabilitySchema = createInsertSchema(productAvailability).pick({
+  productId: true,
+  storeId: true,
+  isAvailable: true,
+  stockQuantity: true
+});
+var userFavorites = pgTable("user_favorites", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  productId: integer("product_id").notNull().references(() => products.id),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+var insertUserFavoriteSchema = createInsertSchema(userFavorites).pick({
+  userId: true,
+  productId: true
+});
+var productGroupsRelations = relations(productGroups, ({ one, many }) => ({
+  brand: one(brands, {
+    fields: [productGroups.brandId],
+    references: [brands.id]
+  }),
+  category: one(productCategories, {
+    fields: [productGroups.categoryId],
+    references: [productCategories.id]
+  }),
+  variants: many(products)
+}));
+var productsRelations = relations(products, ({ one, many }) => ({
+  group: one(productGroups, {
+    fields: [products.groupId],
+    references: [productGroups.id]
+  }),
+  brand: one(brands, {
+    fields: [products.brandId],
+    references: [brands.id]
+  }),
+  category: one(productCategories, {
+    fields: [products.categoryId],
+    references: [productCategories.id]
+  }),
+  images: many(productImages),
+  sizes: many(productSizes),
+  availability: many(productAvailability),
+  options: many(productOptions)
+}));
+var productImagesRelations = relations(productImages, ({ one }) => ({
+  product: one(products, {
+    fields: [productImages.productId],
+    references: [products.id]
+  })
+}));
+var productSizesRelations = relations(productSizes, ({ one }) => ({
+  product: one(products, {
+    fields: [productSizes.productId],
+    references: [products.id]
+  })
+}));
+var productAvailabilityRelations = relations(productAvailability, ({ one }) => ({
+  product: one(products, {
+    fields: [productAvailability.productId],
+    references: [products.id]
+  }),
+  store: one(stores, {
+    fields: [productAvailability.storeId],
+    references: [stores.id]
+  })
+}));
+var userFavoritesRelations = relations(userFavorites, ({ one }) => ({
+  user: one(users, {
+    fields: [userFavorites.userId],
+    references: [users.id]
+  }),
+  product: one(products, {
+    fields: [userFavorites.productId],
+    references: [products.id]
+  })
+}));
+var productOptions = pgTable("product_options", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull().references(() => products.id),
+  flavor: text("flavor"),
+  size: text("size"),
+  priceCents: integer("price_cents").notNull(),
+  // Prezzo in centesimi
+  originalPriceCents: integer("original_price_cents"),
+  image: text("image"),
+  inStock: boolean("in_stock").default(true)
+});
+var insertProductOptionSchema = createInsertSchema(productOptions).omit({
+  id: true
+});
+var productOptionsRelations = relations(productOptions, ({ one }) => ({
+  product: one(products, {
+    fields: [productOptions.productId],
+    references: [products.id]
+  })
+}));
+var productSlugRedirects = pgTable("product_slug_redirects", {
+  id: serial("id").primaryKey(),
+  oldSlug: varchar("old_slug", { length: 200 }).notNull(),
+  newSlug: varchar("new_slug", { length: 200 }).notNull(),
+  productId: integer("product_id").notNull().references(() => products.id),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+var insertProductSlugRedirectSchema = createInsertSchema(productSlugRedirects).omit({
+  id: true,
+  createdAt: true
 });
 
 // server/db.ts
 import pkg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import dotenv from "dotenv";
-var Pool, connectionString, pool, db;
-var init_db = __esm({
-  "server/db.ts"() {
-    "use strict";
-    init_schema();
-    ({ Pool } = pkg);
-    dotenv.config();
-    connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-      throw new Error("DATABASE_URL is not defined in environment variables");
-    }
-    pool = new Pool({
-      connectionString,
-      ssl: {
-        rejectUnauthorized: false
-      },
-      connectionTimeoutMillis: 5e3,
-      max: 20,
-      idleTimeoutMillis: 3e4
-    });
-    pool.on("error", (err) => {
-      console.error("Unexpected error on idle client", err);
-      process.exit(-1);
-    });
-    db = drizzle(pool, { schema: schema_exports });
-    console.log("\u2705 Database configuration loaded");
-    console.log(`\u{1F4CA} Connected to: ${connectionString.split("@")[1]}`);
-  }
-});
-
-// server/priceWatcher.ts
-var priceWatcher_exports = {};
-__export(priceWatcher_exports, {
-  PriceWatcher: () => PriceWatcher
-});
-import { google } from "googleapis";
-import { eq as eq2 } from "drizzle-orm";
-import * as fs2 from "fs";
-var PriceWatcher;
-var init_priceWatcher = __esm({
-  "server/priceWatcher.ts"() {
-    "use strict";
-    init_db();
-    init_schema();
-    PriceWatcher = class {
-      spreadsheetId;
-      sheetName;
-      intervalId = null;
-      lastCheckTime = 0;
-      isRunning = false;
-      constructor(spreadsheetId, sheetName = "Prezzi Prodotti") {
-        this.spreadsheetId = spreadsheetId;
-        this.sheetName = sheetName;
-      }
-      async authenticate() {
-        try {
-          const credentials = JSON.parse(fs2.readFileSync("google-credentials.json", "utf8"));
-          const auth = new google.auth.GoogleAuth({
-            credentials,
-            scopes: ["https://www.googleapis.com/auth/spreadsheets"]
-          });
-          return auth;
-        } catch (error) {
-          console.error("\u274C Errore nell'autenticazione Google:", error);
-          throw error;
-        }
-      }
-      async checkForPriceChanges() {
-        console.log(`\u{1F50D} Controllo modifiche prezzi... (${(/* @__PURE__ */ new Date()).toLocaleTimeString()})`);
-        try {
-          const auth = await this.authenticate();
-          const sheets = google.sheets({ version: "v4", auth });
-          const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: this.spreadsheetId,
-            range: `'${this.sheetName}'!A:F`
-          });
-          const rows = response.data.values;
-          if (!rows || rows.length <= 1) {
-            console.log("\u274C Nessun dato trovato nel Google Sheets");
-            return [];
-          }
-          console.log(`\u{1F4CB} Trovate ${rows.length - 1} righe di dati`);
-          const changes = [];
-          for (let i = 1; i < rows.length; i++) {
-            const row = rows[i];
-            try {
-              const productId = parseInt(row[0]);
-              const productName = row[1]?.toString();
-              const size = row[2]?.toString();
-              const unit = row[3]?.toString();
-              const currentPrice = parseFloat(row[4]);
-              const newPrice = parseFloat(row[5]);
-              if (!isNaN(currentPrice) && Math.abs(newPrice - currentPrice) >= 0.01) {
-                console.log(`\u{1F504} Rilevata modifica prezzo riga ${i + 1}: ${currentPrice} \u2192 ${newPrice}`);
-                const priceInCents = Math.round(newPrice * 100);
-                const existingOptions = await db.select().from(productOptions).where(eq2(productOptions.productId, productId));
-                const targetOption = existingOptions.find(
-                  (o) => o.flavor === size && o.size === unit
-                );
-                if (targetOption) {
-                  console.log(`\u{1F4CA} Trovato nel DB: Prezzo attuale DB = \u20AC${targetOption.priceCents / 100}, Nuovo prezzo = \u20AC${newPrice}`);
-                  console.log(`\u2705 Aggiunta modifica: ${productName} - ${size}${unit}`);
-                  changes.push({
-                    productId,
-                    productName,
-                    size,
-                    unit,
-                    oldPrice: targetOption.priceCents / 100,
-                    newPrice
-                  });
-                } else {
-                  console.log(`\u274C Non trovato nel DB: Product ID ${productId}, Size: ${size}, Unit: ${unit}`);
-                }
-              } else {
-                if (i <= 3) console.log(`\u23ED\uFE0F Riga ${i + 1}: Prezzi uguali (${currentPrice} = ${newPrice})`);
-              }
-            } catch (error) {
-              console.error(`\u274C Errore elaborando riga ${i + 1}:`, error);
-            }
-          }
-          console.log(`\u{1F4CB} Totale modifiche rilevate: ${changes.length}`);
-          return changes;
-        } catch (error) {
-          console.error("\u274C Errore durante il controllo:", error);
-          return [];
-        }
-      }
-      async applyPriceChanges(changes) {
-        let updatedCount = 0;
-        for (const change of changes) {
-          try {
-            const priceInCents = Math.round(change.newPrice * 100);
-            const existingOptions = await db.select().from(productOptions).where(eq2(productOptions.productId, change.productId));
-            const targetOption = existingOptions.find(
-              (o) => o.flavor === change.size && o.size === change.unit
-            );
-            if (targetOption) {
-              await db.update(productOptions).set({ priceCents: priceInCents }).where(eq2(productOptions.id, targetOption.id));
-              console.log(`\u2705 Aggiornato automaticamente: ${change.productName} (ID: ${change.productId}), ${change.size}${change.unit}: \u20AC${change.oldPrice.toFixed(2)} \u2192 \u20AC${change.newPrice.toFixed(2)}`);
-              updatedCount++;
-            }
-          } catch (error) {
-            console.error(`\u274C Errore aggiornando ${change.productName}:`, error);
-          }
-        }
-        if (updatedCount > 0) {
-          console.log(`\u{1F389} Aggiornati automaticamente ${updatedCount} prezzi!`);
-        }
-      }
-      async syncDatabaseToGoogleSheets() {
-        try {
-          console.log("\u{1F504} Sincronizzazione completa database \u2192 Google Sheets...");
-          const auth = await this.authenticate();
-          const sheets = google.sheets({ version: "v4", auth });
-          const allOptions = await db.select({
-            productId: productOptions.productId,
-            productName: products.name,
-            flavor: productOptions.flavor,
-            size: productOptions.size,
-            priceCents: productOptions.priceCents
-          }).from(productOptions).innerJoin(products, eq2(productOptions.productId, products.id)).orderBy(productOptions.productId);
-          const header = ["ID Prodotto", "Nome", "Gusto", "Unit\xE0", "Prezzo Attuale", "Nuovo Prezzo"];
-          const rows = [header];
-          for (const option of allOptions) {
-            const currentPrice = (option.priceCents / 100).toFixed(2);
-            rows.push([
-              option.productId.toString(),
-              option.productName,
-              option.flavor || "",
-              option.size || "",
-              currentPrice,
-              currentPrice
-            ]);
-          }
-          await sheets.spreadsheets.values.clear({
-            spreadsheetId: this.spreadsheetId,
-            range: `'${this.sheetName}'!A:F`
-          });
-          await sheets.spreadsheets.values.update({
-            spreadsheetId: this.spreadsheetId,
-            range: `'${this.sheetName}'!A1:F${rows.length}`,
-            valueInputOption: "RAW",
-            requestBody: {
-              values: rows
-            }
-          });
-          console.log(`\u2705 Google Sheets sincronizzato: ${allOptions.length} righe di prodotti`);
-          console.log(`\u{1F4CA} Prodotti sincronizzati da ID ${allOptions[0]?.productId} a ID ${allOptions[allOptions.length - 1]?.productId}`);
-        } catch (error) {
-          console.error("\u274C Errore sincronizzando Google Sheets:", error);
-          throw error;
-        }
-      }
-      async updateGoogleSheetsCurrentPrices() {
-        try {
-          const auth = await this.authenticate();
-          const sheets = google.sheets({ version: "v4", auth });
-          const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: this.spreadsheetId,
-            range: `'${this.sheetName}'!A:F`
-          });
-          const rows = response.data.values;
-          if (!rows || rows.length <= 1) return;
-          const updates = [];
-          for (let i = 1; i < rows.length; i++) {
-            const row = rows[i];
-            const productId = parseInt(row[0]);
-            const size = row[2]?.toString();
-            const unit = row[3]?.toString();
-            const newPrice = parseFloat(row[5]);
-            if (!productId || !size || !unit || isNaN(newPrice)) continue;
-            updates.push([
-              row[0],
-              // Product ID
-              row[1],
-              // Product Name
-              row[2],
-              // Size
-              row[3],
-              // Unit
-              newPrice.toFixed(2),
-              // Current Price (aggiornato)
-              newPrice.toFixed(2)
-              // New Price
-            ]);
-          }
-          if (updates.length > 0) {
-            await sheets.spreadsheets.values.update({
-              spreadsheetId: this.spreadsheetId,
-              range: `'${this.sheetName}'!A2:F${updates.length + 1}`,
-              valueInputOption: "RAW",
-              requestBody: {
-                values: updates
-              }
-            });
-          }
-        } catch (error) {
-          console.error("\u274C Errore aggiornando Google Sheets:", error);
-        }
-      }
-      start(intervalMinutes = 2) {
-        if (this.isRunning) {
-          console.log("\u26A0\uFE0F Price Watcher \xE8 gi\xE0 in esecuzione");
-          return;
-        }
-        const intervalText = intervalMinutes < 1 ? `${intervalMinutes * 60} secondi` : `${intervalMinutes} minuti`;
-        console.log(`\u{1F680} Avvio Price Watcher: controllo ogni ${intervalText}`);
-        console.log(`\u{1F4CA} Monitoraggio Google Sheets ID: ${this.spreadsheetId}`);
-        this.isRunning = true;
-        this.performCheck();
-        this.intervalId = setInterval(() => {
-          this.performCheck();
-        }, intervalMinutes * 60 * 1e3);
-      }
-      stop() {
-        if (this.intervalId) {
-          clearInterval(this.intervalId);
-          this.intervalId = null;
-        }
-        this.isRunning = false;
-        console.log("\u{1F6D1} Price Watcher fermato");
-      }
-      async performCheck() {
-        try {
-          const changes = await this.checkForPriceChanges();
-          if (changes.length > 0) {
-            console.log(`\u{1F504} Rilevate ${changes.length} modifiche di prezzo`);
-            await this.applyPriceChanges(changes);
-            await this.updateGoogleSheetsCurrentPrices();
-          } else {
-            console.log(`\u2713 Nessuna modifica rilevata (${(/* @__PURE__ */ new Date()).toLocaleTimeString()})`);
-          }
-        } catch (error) {
-          console.error("\u274C Errore durante il controllo automatico:", error);
-        }
-      }
-      isActive() {
-        return this.isRunning;
-      }
-    };
-  }
-});
-
-// server/autoStartPriceWatcher.ts
-var autoStartPriceWatcher_exports = {};
-__export(autoStartPriceWatcher_exports, {
-  startAutomaticPriceWatcher: () => startAutomaticPriceWatcher
-});
-async function startAutomaticPriceWatcher() {
-  if (GOOGLE_SHEETS_ID) {
-    try {
-      console.log("\u{1F680} Avvio automatico Price Watcher...");
-      const watcher = new PriceWatcher(GOOGLE_SHEETS_ID);
-      watcher.start(CHECK_INTERVAL_MINUTES);
-      global.priceWatcher = watcher;
-      const intervalText = CHECK_INTERVAL_MINUTES < 1 ? `${CHECK_INTERVAL_MINUTES * 60} secondi` : `${CHECK_INTERVAL_MINUTES} minuti`;
-      console.log(`\u2705 Price Watcher attivo: controlla ogni ${intervalText}`);
-      console.log(`\u{1F4CA} Monitoraggio Google Sheets: ${GOOGLE_SHEETS_ID}`);
-      process.on("SIGINT", () => {
-        console.log("\n\u{1F6D1} Arresto Price Watcher...");
-        watcher.stop();
-        process.exit(0);
-      });
-      process.on("SIGTERM", () => {
-        console.log("\n\u{1F6D1} Arresto Price Watcher...");
-        watcher.stop();
-        process.exit(0);
-      });
-    } catch (error) {
-      console.error("\u274C Errore avvio automatico Price Watcher:", error);
-    }
-  } else {
-    console.log("\u26A0\uFE0F GOOGLE_SHEETS_ID non configurato. Price Watcher non avviato automaticamente.");
-    console.log("\u{1F4A1} Configura GOOGLE_SHEETS_ID nelle secrets per l'avvio automatico");
-  }
+var { Pool } = pkg;
+dotenv.config();
+var connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not defined in environment variables");
 }
-var GOOGLE_SHEETS_ID, CHECK_INTERVAL_MINUTES, NODE_ENV;
-var init_autoStartPriceWatcher = __esm({
-  "server/autoStartPriceWatcher.ts"() {
-    "use strict";
-    init_priceWatcher();
-    GOOGLE_SHEETS_ID = process.env.GOOGLE_SHEETS_ID || "1oH-CXTbWUKkvhdIrwa-8bqw5bzHmCON6Eygx38x7XPc";
-    CHECK_INTERVAL_MINUTES = 0.25;
-    NODE_ENV = process.env.NODE_ENV || "development";
-  }
+var pool = new Pool({
+  connectionString,
+  ssl: {
+    rejectUnauthorized: false
+  },
+  connectionTimeoutMillis: 5e3,
+  max: 20,
+  idleTimeoutMillis: 3e4
 });
-
-// server/index.ts
-import "dotenv/config";
-import express2 from "express";
-import path3 from "path";
-
-// server/routes.ts
-import { createServer } from "http";
+pool.on("error", (err) => {
+  console.error("Unexpected error on idle client", err);
+  process.exit(-1);
+});
+var db = drizzle(pool, { schema: schema_exports });
+console.log("\u2705 Database configuration loaded");
+console.log(`\u{1F4CA} Connected to: ${connectionString.split("@")[1]}`);
 
 // server/storage.ts
-init_schema();
-init_db();
 import { eq, and, sql } from "drizzle-orm";
 var DatabaseStorage = class {
   async getUser(id) {
@@ -1049,15 +745,30 @@ var DatabaseStorage = class {
     `);
     const product = result.rows[0];
     if (!product) return void 0;
+    const availabilityResult = await db.execute(`
+      SELECT pa.is_available, pa.stock_quantity, s.name as store_name, s.id as store_id
+      FROM product_availability pa
+      JOIN stores s ON pa.store_id = s.id
+      WHERE pa.product_id = ${product.id}
+    `);
+    const availability = availabilityResult.rows.map((row) => ({
+      storeId: row.store_id,
+      storeName: row.store_name,
+      isAvailable: row.is_available,
+      stockQuantity: row.stock_quantity
+    }));
     console.log(`\u{1F50D} DEBUG: product.primaryimage = "${product.primaryimage}"`);
     const imageUrl = product.primaryimage ? product.primaryimage.startsWith("/images/") || product.primaryimage.startsWith("/attached_assets/") ? product.primaryimage : `/images/products/${product.primaryimage}` : void 0;
     const finalProduct = {
       ...product,
       primaryImage: imageUrl,
-      image_url: imageUrl
+      image_url: imageUrl,
       // Frontend cerca questo campo
+      availability
+      // Aggiungo i dati di availability dal database
     };
     console.log(`\u{1F50D} DEBUG: finalProduct.primaryImage = "${finalProduct.primaryImage}"`);
+    console.log(`\u{1F50D} DEBUG: finalProduct.availability =`, availability);
     return finalProduct;
   }
   async getProductBySlugWithDetails(slug) {
@@ -1417,11 +1128,9 @@ async function syncAllImages() {
 }
 
 // server/routes.ts
-init_db();
-init_schema();
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
-import { eq as eq3, and as and2 } from "drizzle-orm";
+import { eq as eq2, and as and2 } from "drizzle-orm";
 async function registerRoutes(app2) {
   console.log("\u{1F527} Configurazione middleware di sessione con PostgreSQL...");
   const pgSession = connectPgSimple(session);
@@ -1681,8 +1390,7 @@ async function registerRoutes(app2) {
       const { search, brand, priceRange, sortBy } = req.query;
       const timestamp2 = Math.floor(Date.now() / (5 * 60 * 1e3));
       res.set({
-        "Cache-Control": "no-cache, must-revalidate",
-        // Nessun cache - aggiornamenti istantanei
+        "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
         "ETag": `products-${timestamp2}-${search || "no-search"}-${brand || "no-brand"}-${priceRange || "no-range"}-${sortBy || "default"}`
       });
       let products2;
@@ -2159,11 +1867,11 @@ async function registerRoutes(app2) {
           message: "spreadsheetId is required"
         });
       }
-      const { PriceWatcher: PriceWatcher2 } = await Promise.resolve().then(() => (init_priceWatcher(), priceWatcher_exports));
+      const { PriceWatcher } = await Promise.resolve().then(() => (init_priceWatcher(), priceWatcher_exports));
       if (global.priceWatcher) {
         global.priceWatcher.stop();
       }
-      global.priceWatcher = new PriceWatcher2(spreadsheetId);
+      global.priceWatcher = new PriceWatcher(spreadsheetId);
       global.priceWatcher.start(intervalMinutes);
       res.json({
         success: true,
@@ -2227,14 +1935,14 @@ async function registerRoutes(app2) {
           message: "spreadsheetId is required"
         });
       }
-      const { PriceWatcher: PriceWatcher2 } = await Promise.resolve().then(() => (init_priceWatcher(), priceWatcher_exports));
-      const watcher = new PriceWatcher2(spreadsheetId, sheetName);
+      const { PriceWatcher } = await Promise.resolve().then(() => (init_priceWatcher(), priceWatcher_exports));
+      const watcher = new PriceWatcher(spreadsheetId, sheetName);
       const auth = await watcher.authenticate();
-      const { google: google2 } = await import("googleapis");
-      const sheets = google2.sheets({ version: "v4", auth });
+      const { google } = await import("googleapis");
+      const sheets = google.sheets({ version: "v4", auth });
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `'${sheetName}'!A:F`
+        range: `'${sheetName}'!A:G`
       });
       const rows = response.data.values;
       res.json({
@@ -2264,8 +1972,8 @@ async function registerRoutes(app2) {
           message: "spreadsheetId is required"
         });
       }
-      const { PriceWatcher: PriceWatcher2 } = await Promise.resolve().then(() => (init_priceWatcher(), priceWatcher_exports));
-      const watcher = new PriceWatcher2(spreadsheetId, sheetName);
+      const { PriceWatcher } = await Promise.resolve().then(() => (init_priceWatcher(), priceWatcher_exports));
+      const watcher = new PriceWatcher(spreadsheetId, sheetName);
       await watcher.syncDatabaseToGoogleSheets();
       res.json({
         success: true,
@@ -2388,6 +2096,37 @@ async function registerRoutes(app2) {
       res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
+  app2.post("/api/auth/logout", (req, res) => {
+    try {
+      if (req.session) {
+        req.session.destroy((err) => {
+          if (err) {
+            console.error("\u274C Errore durante la distruzione della sessione:", err);
+            return res.status(500).json({
+              success: false,
+              message: "Errore durante il logout"
+            });
+          }
+          console.log("\u2705 Logout effettuato con successo");
+          return res.json({
+            success: true,
+            message: "Logout effettuato con successo"
+          });
+        });
+      } else {
+        return res.status(200).json({
+          success: true,
+          message: "Nessuna sessione attiva"
+        });
+      }
+    } catch (error) {
+      console.error("Errore durante il logout:", error);
+      res.status(500).json({
+        success: false,
+        message: "Errore interno del server"
+      });
+    }
+  });
   app2.post("/api/auth/register", async (req, res) => {
     try {
       const { email, password, firstName, lastName, phone, address, city, postalCode, province, country } = req.body || {};
@@ -2445,11 +2184,11 @@ async function registerRoutes(app2) {
     }
   });
   async function buildCartItem(productId, variant, quantity, price) {
-    const [product] = await db.select().from(products).where(eq3(products.id, productId)).limit(1);
+    const [product] = await db.select().from(products).where(eq2(products.id, productId)).limit(1);
     if (!product) {
       throw new Error("Product not found");
     }
-    const [primaryImg] = await db.select().from(productImages).where(and2(eq3(productImages.productId, product.id), eq3(productImages.isPrimary, true))).limit(1);
+    const [primaryImg] = await db.select().from(productImages).where(and2(eq2(productImages.productId, product.id), eq2(productImages.isPrimary, true))).limit(1);
     const imageUrl = primaryImg?.src ? primaryImg.src.startsWith("/images/") || primaryImg.src.startsWith("/attached_assets/") ? primaryImg.src : `/images/products/${primaryImg.src}` : void 0;
     return {
       id: productId.toString(),
@@ -2582,9 +2321,10 @@ async function setupVite(app2, server) {
 }
 
 // server/index.ts
-init_priceWatcher();
 import { createClient } from "@supabase/supabase-js";
+import compression from "compression";
 var app = express2();
+app.use(compression());
 app.use("/sw.js", (req, res) => {
   res.setHeader("Content-Type", "application/javascript");
   res.sendFile(path3.resolve(process.cwd(), "client/dist", "sw.js"));
@@ -2681,17 +2421,6 @@ app.use((req, res, next) => {
     });
   });
   app.use("/images", express2.static("public/images"));
-  let priceWatcher = null;
-  const GOOGLE_SHEETS_ID2 = process.env.GOOGLE_SHEETS_ID;
-  if (GOOGLE_SHEETS_ID2 && process.env.NODE_ENV === "production") {
-    try {
-      priceWatcher = new PriceWatcher(GOOGLE_SHEETS_ID2);
-      priceWatcher.start(0.25);
-      console.log("\u2705 Price Watcher avviato");
-    } catch (error) {
-      console.log("\u26A0\uFE0F Errore avvio Price Watcher:", error);
-    }
-  }
   app.get("/api/auth/check", (req, res) => {
     const session2 = req.session;
     const user = session2?.user;
@@ -2747,12 +2476,6 @@ app.use((req, res, next) => {
     console.log(`   GET  /images/* - Static images`);
     console.log(`   GET  /attached_assets/* - Static assets`);
     console.log("=================================");
-    try {
-      const { startAutomaticPriceWatcher: startAutomaticPriceWatcher2 } = await Promise.resolve().then(() => (init_autoStartPriceWatcher(), autoStartPriceWatcher_exports));
-      await startAutomaticPriceWatcher2();
-    } catch (error) {
-      console.log("\u2139\uFE0F Price Watcher non avviato automaticamente:", error?.message || error);
-    }
   });
 })();
 export {
