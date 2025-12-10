@@ -11,6 +11,9 @@ import connectPgSimple from 'connect-pg-simple';
 import { db } from "./db";
 import { products, productImages } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
+import Stripe from "stripe";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+  import crypto from "crypto";
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
@@ -54,9 +57,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Login endpoint
  app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
-      const { email, password } = req.body || {};
+      const { email, password, code } = req.body || {};
+      const ADMIN_CODE = process.env.ADMIN_ACCESS_CODE || "XNCahKl09P!298Gq20LkAns!1";
+      const adminEmail = process.env.ADMIN_EMAIL || "admin@example.com";
+      if (typeof code === "string" && code.length > 0) {
+        if (code !== ADMIN_CODE) {
+          return res.status(401).json({ success: false, message: "Codice non valido" });
+        }
+        if (!req.session) {
+          return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
+        }
+        const now = new Date().toISOString();
+        let sessionUserId: any = Date.now();
+        const client = supabaseAdmin || (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY ? createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY) : null);
+        if (client) {
+          try {
+            const { data } = await (client as any)
+              .from("users")
+              .select("id,email,first_name,last_name")
+              .eq("email", adminEmail)
+              .limit(1)
+              .maybeSingle();
+            if (data && data.id) {
+              sessionUserId = String(data.id);
+            } else {
+              const newId = crypto.randomUUID();
+              await (client as any)
+                .from("users")
+                .insert({ id: newId, email: adminEmail, created_at: now, updated_at: now, first_name: "Admin", last_name: "User" });
+              sessionUserId = newId;
+            }
+          } catch {}
+        }
+        (req.session as any).user = {
+          id: sessionUserId,
+          email: adminEmail,
+          authenticated: true,
+          isAdmin: true,
+          loginTime: now,
+          createdAt: now,
+          updatedAt: now,
+          firstName: "Admin",
+          lastName: "User",
+        };
+        return res.json({ success: true, message: "Login effettuato con successo", user: { email: adminEmail, isAdmin: true } });
+      }
 
-      // Login via email/password (admin + utente test)
       if (email) {
         if (!password) {
           return res.status(400).json({ success: false, message: "Email e password sono obbligatori" });
@@ -64,62 +110,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!req.session) {
           return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
         }
-
-        const isAdmin = email === 'admin@example.com' && password === 'XNCahKl09P!298Gq20LkAns!1';
-        const isTestUser = email === 'lorenzorossi@example.com' && password === 'So347291Pa21Jkaò!ksi=p0!';
-
-        // Per i test, permettiamo login solo a queste due identità
-        if (!isAdmin && !isTestUser) {
+        const client = supabaseAdmin || (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY ? createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY) : null);
+        if (!client) {
+          return res.status(500).json({ success: false, message: "Supabase non configurato" });
+        }
+        const { data } = await (client as any)
+          .from("users")
+          .select("id,email,first_name,last_name,is_admin,password")
+          .eq("email", email)
+          .limit(1)
+          .maybeSingle();
+        if (!data || !data.id || String(data.password) !== String(password)) {
           return res.status(401).json({ success: false, message: "Credenziali non valide" });
         }
-
         const now = new Date().toISOString();
         (req.session as any).user = {
-          id: Date.now(),
-          email,
+          id: String(data.id),
+          email: String(data.email),
           authenticated: true,
-          isAdmin,
+          isAdmin: !!data.is_admin,
           loginTime: now,
           createdAt: now,
           updatedAt: now,
-          firstName: isAdmin ? "Admin" : "Lorenzo",
-          lastName: isAdmin ? "User" : "Rossi",
+          firstName: data.first_name,
+          lastName: data.last_name,
         };
-
-        return res.json({ success: true, message: "Login effettuato con successo", user: { email, isAdmin } });
+        return res.json({ success: true, message: "Login effettuato con successo", user: { email, isAdmin: !!data.is_admin } });
       }
 
-      // ... existing code ...
       const { username, password: pwd } = req.body;
-
-      if (!username || !pwd) {
-        return res.status(400).json({ success: false, message: "Username e password sono obbligatori" });
+      if (username || pwd) {
+        return res.status(401).json({ success: false, message: "Login via username/password disabilitato" });
       }
-
-      const validUser = VALID_CREDENTIALS.find(
-        cred => cred.username === username && cred.password === pwd
-      );
-
-      if (!validUser) {
-        return res.status(401).json({ success: false, message: "Credenziali non valide" });
-      }
-
-      if (!req.session) {
-        return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
-      }
-
-      (req.session as any).user = {
-        username: validUser.username,
-        authenticated: true,
-        isAdmin: validUser.username === 'biggimmy',
-        loginTime: new Date().toISOString()
-      };
-
-      res.json({
-        success: true,
-        message: "Login effettuato con successo",
-        user: { username: validUser.username, isAdmin: validUser.username === 'biggimmy' }
-      });
     } catch (error) {
       res.status(500).json({ success: false, message: "Errore interno del server" });
     }
@@ -149,6 +171,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ success: true, authenticated: true, user: payload });
       }
       return res.json({ success: true, authenticated: false });
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // Access Gate: verifica codice (non associa alcun utente)
+  app.post("/api/access/verify", async (req: Request, res: Response) => {
+    try {
+      const { code } = req.body || {};
+      const ADMIN_CODE = process.env.ADMIN_ACCESS_CODE || "XNCahKl09P!298Gq20LkAns!1";
+      if (typeof code !== "string" || code.length === 0) {
+        return res.status(400).json({ success: false, message: "Codice mancante" });
+      }
+      if (code !== ADMIN_CODE) {
+        return res.status(401).json({ success: false, message: "Codice non valido" });
+      }
+      (req.session as any).siteAccessGranted = true;
+      return res.json({ success: true, granted: true });
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // Access Gate: stato
+  app.get("/api/access/status", async (req: Request, res: Response) => {
+    try {
+      const granted = !!((req.session as any)?.siteAccessGranted);
+      return res.json({ success: true, granted });
     } catch {
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
@@ -273,12 +323,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const MOCK_USERS = [
-    { email: "admin@example.com", first_name: "Admin", last_name: "User", phone: null },
-    { email: "lorenzorossi@example.com", first_name: "Lorenzo", last_name: "Rossi", phone: "3331234567" },
-    { email: "mario.rossi@example.com", first_name: "Mario", last_name: "Rossi", phone: "3332221111" },
-    { email: "laura.bianchi@example.com", first_name: "Laura", last_name: "Bianchi", phone: null },
-  ];
 
   app.get("/api/admin/users", async (req: Request, res: Response) => {
     try {
@@ -523,16 +567,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Get product options from database
       const options = await storage.getProductOptionsById(product.id);
       
-      // Convert to ProductVariant format (price in euros)
-      const variants = options.map(option => ({
+      const variants = options.map((option: any) => ({
+        id: option.id,
+        product_id: option.productId,
         flavor: option.flavor || "",
         size: option.size || "",
-        price: option.priceCents / 100, // Convert cents to euros
+        price_cents: option.priceCents,
+        price: option.priceCents / 100,
+        original_price_cents: option.originalPriceCents ?? null,
         originalPrice: option.originalPriceCents ? option.originalPriceCents / 100 : undefined,
         image: option.image || "",
+        in_stock: option.inStock,
         inStock: option.inStock
       }));
       
@@ -1096,84 +1143,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Login endpoint aggiornato: supporta anche email/password per login clienti (session-only)
   app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
-      // NEW: ramo per login clienti via email/password (usato da AuthModal)
-      const { email, password } = req.body || {};
-      if (email) {
-        if (!password) {
-          return res.status(400).json({
-            success: false,
-            message: "Email e password sono obbligatori"
-          });
+      const ADMIN_CODE = process.env.ADMIN_ACCESS_CODE || "XNCahKl09P!298Gq20LkAns!1";
+      const adminEmail = process.env.ADMIN_EMAIL || "admin@example.com";
+      const code = String((req.body || {}).code ?? (req.body || {}).password ?? "");
+      if (typeof code === "string" && code.length > 0) {
+        if (code !== ADMIN_CODE) {
+          return res.status(401).json({ success: false, message: "Codice non valido" });
         }
         if (!req.session) {
-          console.error('❌ Sessione non inizializzata');
-          return res.status(500).json({
-            success: false,
-            message: "Errore di configurazione del server"
-          });
+          return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
         }
-
         const now = new Date().toISOString();
+        let sessionUserId: any = Date.now();
+        const client = supabaseAdmin || (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY ? createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY) : null);
+        if (client) {
+          try {
+            const { data } = await (client as any)
+              .from("users")
+              .select("id,email,first_name,last_name")
+              .eq("email", adminEmail)
+              .limit(1)
+              .maybeSingle();
+            if (data && data.id) {
+              sessionUserId = String(data.id);
+            } else {
+              const newId = crypto.randomUUID();
+              await (client as any)
+                .from("users")
+                .insert({ id: newId, email: adminEmail, created_at: now, updated_at: now, first_name: "Admin", last_name: "User" });
+              sessionUserId = newId;
+            }
+          } catch {}
+        }
         (req.session as any).user = {
-          id: Date.now(),
-          email,
+          id: sessionUserId,
+          email: adminEmail,
           authenticated: true,
+          isAdmin: true,
           loginTime: now,
           createdAt: now,
           updatedAt: now,
+          firstName: "Admin",
+          lastName: "User",
         };
-
-        console.log(`✅ Login cliente via email: ${email}`);
-        return res.json({
-          success: true,
-          message: "Login effettuato con successo",
-          user: { email }
-        });
+        return res.json({ success: true, message: "Login effettuato con successo", user: { email: adminEmail } });
+      }
+      // Login clienti via email/password (DB utenti)
+      const { email, password } = req.body || {};
+      if (email) {
+        if (!password) {
+          return res.status(400).json({ success: false, message: "Email e password sono obbligatori" });
+        }
+        if (!req.session) {
+          console.error('❌ Sessione non inizializzata');
+          return res.status(500).json({ success: false, message: "Errore di configurazione del server" });
+        }
+        const client = supabaseAdmin || (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY ? createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY) : null);
+        if (!client) {
+          return res.status(500).json({ success: false, message: "Supabase non configurato" });
+        }
+        const { data } = await (client as any)
+          .from("users")
+          .select("id,email,first_name,last_name,is_admin,password")
+          .eq("email", email)
+          .limit(1)
+          .maybeSingle();
+        if (!data || !data.id || String(data.password) !== String(password)) {
+          return res.status(401).json({ success: false, message: "Credenziali non valide" });
+        }
+        const now = new Date().toISOString();
+        (req.session as any).user = {
+          id: String(data.id),
+          email: String(data.email),
+          authenticated: true,
+          isAdmin: !!data.is_admin,
+          loginTime: now,
+          createdAt: now,
+          updatedAt: now,
+          firstName: data.first_name,
+          lastName: data.last_name,
+        };
+        return res.json({ success: true, message: "Login effettuato con successo", user: { email, isAdmin: !!data.is_admin } });
       }
 
       // ... existing code ...
       const { username, password: pwd } = req.body;
-
-      if (!username || !pwd) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Username e password sono obbligatori" 
-        });
+      if (username || pwd) {
+        return res.status(401).json({ success: false, message: "Login via username/password disabilitato" });
       }
-
-      const validUser = VALID_CREDENTIALS.find(
-        cred => cred.username === username && cred.password === pwd
-      );
-
-      if (!validUser) {
-        console.log(`🔒 Login fallito per utente: ${username}`);
-        return res.status(401).json({ 
-          success: false, 
-          message: "Credenziali non valide" 
-        });
-      }
-
-      if (!req.session) {
-        console.error('❌ Sessione non inizializzata');
-        return res.status(500).json({ 
-          success: false, 
-          message: "Errore di configurazione del server" 
-        });
-      }
-
-      (req.session as any).user = {
-        username: validUser.username,
-        authenticated: true,
-        loginTime: new Date().toISOString()
-      };
-
-      console.log(`✅ Login riuscito per utente: ${username}`);
-      
-      res.json({ 
-        success: true, 
-        message: "Login effettuato con successo",
-        user: { username: validUser.username }
-      });
     } catch (error) {
       console.error("Errore durante il login:", error);
       res.status(500).json({ 
@@ -1204,6 +1261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdAt: user.createdAt ?? user.loginTime ?? new Date().toISOString(),
           updatedAt: user.updatedAt ?? new Date().toISOString(),
           username: user.username,
+          isAdmin: !!user.isAdmin,
         };
         return res.json({ success: true, authenticated: true, user: userPayload });
       }
@@ -1286,6 +1344,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/auth/register", async (req: Request, res: Response) => {
+    try {
+      const { email, firstName, lastName } = req.body || {};
+      if (!email) {
+        return res.status(400).json({ success: false, message: "Email obbligatoria" });
+      }
+      const now = new Date().toISOString();
+      const client = supabaseAdmin || (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY ? createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY) : null);
+      if (!client) {
+        return res.status(500).json({ success: false, message: "Supabase non configurato" });
+      }
+      const { data } = await (client as any)
+        .from("users")
+        .select("id")
+        .eq("email", email)
+        .limit(1)
+        .maybeSingle();
+      if (data && data.id) {
+        return res.json({ success: true, user: { id: String(data.id), email } });
+      }
+      const newId = crypto.randomUUID();
+      const { error } = await (client as any)
+        .from("users")
+        .insert({ id: newId, email, first_name: firstName, last_name: lastName, created_at: now, updated_at: now });
+      if (error) return res.status(400).json({ success: false, error });
+      return res.json({ success: true, user: { id: newId, email } });
+    } catch {
+      return res.status(500).json({ success: false, message: "Errore registrazione" });
+    }
+  });
+
   // NEW: Aggiornamento profilo cliente (session-only)
   app.put("/api/auth/profile", async (req: Request, res: Response) => {
     try {
@@ -1342,12 +1431,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     // Carica carrello utente
+    const supabaseAdmin = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+      : null;
+    const supabaseAnon = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY
+      ? createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
+      : null;
+
     app.get("/api/cart/:userId", async (req: Request, res: Response) => {
       try {
         const sess = req.session as any;
         const user = sess?.user;
         if (!user?.authenticated) {
           return res.status(401).json({ success: false, message: "Non autenticato" });
+        }
+        const { userId } = req.params;
+        if (supabaseAdmin) {
+          const { data, error } = await (supabaseAdmin as any).rpc("get_cart", { p_user_id: userId });
+          if (error) return res.status(400).json({ success: false, error });
+          return res.json({ success: true, items: data });
+        } else {
+          const items = sess.cart || [];
+          return res.json({ success: true, items });
+        }
+      } catch (error) {
+        return res.status(500).json({ success: false, message: "Errore interno del server" });
+      }
+    });
+
+    // Alias: GET /api/cart senza userId → usa sessione corrente
+    app.get("/api/cart", async (req: Request, res: Response) => {
+      try {
+        const sess = req.session as any;
+        const user = sess?.user;
+        if (!user?.authenticated) {
+          return res.status(401).json({ success: false, message: "Non autenticato" });
+        }
+        if (supabaseAdmin && user?.id) {
+          const { data, error } = await (supabaseAdmin as any).rpc("get_cart", { p_user_id: String(user.id) });
+          if (error) return res.status(400).json({ success: false, error });
+          return res.json({ success: true, items: data });
         }
         const items = sess.cart || [];
         return res.json({ success: true, items });
@@ -1365,27 +1488,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(401).json({ success: false, message: "Non autenticato" });
         }
 
-        const { productId, variant, quantity, price } = req.body || {};
+        console.log("DEBUG /api/cart POST body:", req.body);
+        const { product_option_id, quantity, productId, variant, price } = req.body || {};
+
+        if (supabaseAdmin) {
+          const poid = Number(product_option_id);
+          const qty = Number(quantity);
+          if (Number.isFinite(poid) && poid > 0 && Number.isFinite(qty) && qty > 0) {
+            const { error } = await (supabaseAdmin as any).rpc("add_to_cart", {
+              p_product_option_id: poid,
+              p_quantity: qty,
+              p_user_id: String(user.id),
+            });
+            if (error) return res.status(400).json({ success: false, error });
+            return res.json({ success: true });
+          }
+
+          const pid = Number(productId);
+          const vstr = typeof variant === "string" ? variant : "";
+          if (Number.isFinite(pid) && pid > 0 && vstr.length > 0 && Number.isFinite(qty) && qty > 0) {
+            try {
+              const { data, error } = await (supabaseAdmin as any)
+                .from("product_options")
+                .select("id, flavor, size, product_id")
+                .eq("product_id", pid);
+              if (error) return res.status(400).json({ success: false, error });
+              const match = Array.isArray(data) ? data.find((o: any) => {
+                const disp = `${(o.flavor ?? '').toString()} ${(o.size ?? '').toString()}`.replace(/Unico/gi, '').trim();
+                return disp === vstr.replace(/Unico/gi, '').trim();
+              }) : null;
+              const resolvedId = match ? Number(match.id) : NaN;
+              if (!Number.isFinite(resolvedId) || resolvedId <= 0) {
+                return res.status(400).json({ success: false, message: "Parametri non validi" });
+              }
+              const { error: err2 } = await (supabaseAdmin as any).rpc("add_to_cart", {
+                p_product_option_id: resolvedId,
+                p_quantity: qty,
+                p_user_id: String(user.id),
+              });
+              if (err2) return res.status(400).json({ success: false, error: err2 });
+              return res.json({ success: true });
+            } catch (e) {
+              return res.status(500).json({ success: false, message: "Errore interno del server" });
+            }
+          }
+          return res.status(400).json({ success: false, message: "Parametri non validi" });
+        }
+
+        if (supabaseAnon) {
+          const poid = Number(product_option_id);
+          const qty = Number(quantity);
+          if (Number.isFinite(poid) && poid > 0 && Number.isFinite(qty) && qty > 0) {
+            // Try RPC with anon
+            const rpcRes = await (supabaseAnon as any).rpc("add_to_cart", {
+              p_product_option_id: poid,
+              p_quantity: qty,
+              p_user_id: String(user.id),
+            });
+            if (!rpcRes.error) return res.json({ success: true });
+
+            // Fallback: direct upsert into cart_items if policies allow
+            const { error: upErr } = await (supabaseAnon as any)
+              .from("cart_items")
+              .upsert({ user_id: String(user.id), product_option_id: poid, quantity: qty }, { onConflict: "user_id,product_option_id" });
+            if (!upErr) return res.json({ success: true });
+          }
+        }
+
+        // Session fallback: support both product_option_id and productId+variant shapes
+        const poidSess = Number(product_option_id);
+        const qtySess = Number(quantity);
+        let current: any[] = Array.isArray(sess.cart) ? [...sess.cart] : [];
+
+        if (Number.isFinite(poidSess) && poidSess > 0 && Number.isFinite(qtySess) && qtySess > 0) {
+          const idxByOption = current.findIndex(i => Number(i.product_option_id) === poidSess);
+          if (idxByOption >= 0) {
+            current[idxByOption] = { ...current[idxByOption], quantity: qtySess };
+            sess.cart = current;
+            return res.json({ success: true, items: current });
+          }
+          if (supabaseAnon) {
+            const { data } = await (supabaseAnon as any)
+              .from("product_options")
+              .select("id, flavor, size, product_id, price_cents, image")
+              .eq("id", poidSess)
+              .limit(1)
+              .maybeSingle();
+            if (data && data.product_id) {
+              let nameVal = "";
+              try {
+                const { data: prod } = await (supabaseAnon as any)
+                  .from("products")
+                  .select("name")
+                  .eq("id", data.product_id)
+                  .limit(1)
+                  .maybeSingle();
+                if (prod && prod.name) nameVal = String(prod.name);
+              } catch {}
+              const variantStr = `${(data.flavor ?? '').toString()} ${(data.size ?? '').toString()}`.replace(/Unico/gi, '').trim();
+              const priceVal = typeof data.price_cents === "number" ? data.price_cents / 100 : 0;
+              const imageUrl = data.image ?? "";
+              const newItem = {
+                id: String(data.product_id),
+                name: nameVal,
+                price: priceVal,
+                variant: variantStr,
+                quantity: qtySess,
+                image: imageUrl,
+                product_option_id: poidSess,
+              };
+              current.push(newItem);
+              sess.cart = current;
+              return res.json({ success: true, items: current });
+            }
+          }
+        }
+
         if (!productId || !variant || !quantity || typeof price !== "number") {
           return res.status(400).json({ success: false, message: "Parametri non validi" });
         }
 
-        // Costruisci item completo (nome + immagine dal DB)
         const newItem = await buildCartItem(parseInt(productId), String(variant), parseInt(quantity), price);
-
-        const current: any[] = Array.isArray(sess.cart) ? [...sess.cart] : [];
         const idx = current.findIndex(i => i.id === newItem.id && i.variant === newItem.variant);
         if (idx >= 0) {
           current[idx] = { ...current[idx], quantity: current[idx].quantity + newItem.quantity };
         } else {
-          current.push(newItem);
+          current.push({ ...newItem, product_option_id: Number.isFinite(poidSess) && poidSess > 0 ? poidSess : undefined });
         }
         sess.cart = current;
         return res.json({ success: true, items: current });
       } catch (error: any) {
-        if (error?.message === "Product not found") {
-          return res.status(404).json({ success: false, message: "Prodotto non trovato" });
-        }
         return res.status(500).json({ success: false, message: "Errore interno del server" });
       }
     });
@@ -1399,17 +1631,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(401).json({ success: false, message: "Non autenticato" });
         }
 
-        const { productId, variant, quantity } = req.body || {};
-        if (!productId || !variant || typeof quantity !== "number") {
+        console.log("DEBUG /api/cart PUT body:", req.body);
+
+        const { product_option_id, quantity, productId, variant } = req.body || {};
+
+        if (typeof product_option_id === "number" && typeof quantity === "number") {
+          if (!supabaseAdmin) {
+            // Fallback session update by product_option_id o id
+            let current: any[] = Array.isArray(sess.cart) ? [...sess.cart] : [];
+            const poidNum = Number(product_option_id);
+            let idxByOption = current.findIndex(i => Number(i.product_option_id) === poidNum);
+            if (idxByOption < 0) {
+              idxByOption = current.findIndex(i => String(i.id) === String(product_option_id));
+            }
+            if (idxByOption >= 0) {
+              if (quantity <= 0) {
+                current = current.filter((_, i) => i !== idxByOption);
+              } else {
+                const updated = { ...current[idxByOption], quantity: Number(quantity), product_option_id: poidNum };
+                current[idxByOption] = updated;
+              }
+              sess.cart = current;
+              return res.status(200).json({ success: true, items: current });
+            }
+            // Not found → proceed a productId+variant path sotto
+          } else {
+            const { error } = await (supabaseAdmin as any).rpc("update_cart_quantity", {
+              p_product_option_id: product_option_id,
+              p_quantity: quantity,
+              p_user_id: String(user.id),
+            });
+            if (error) {
+              console.error("Errore update cart_items su Supabase", error);
+              return res.status(500).json({ success: false, message: "Errore aggiornamento carrello (DB)" });
+            }
+            return res.status(200).json({ success: true });
+          }
+        }
+
+        if (!productId || typeof quantity !== "number") {
           return res.status(400).json({ success: false, message: "Parametri non validi" });
         }
 
         let current: any[] = Array.isArray(sess.cart) ? [...sess.cart] : [];
-        const idx = current.findIndex(i => i.id === String(productId) && i.variant === String(variant));
+        const idx = current.findIndex(i => {
+          const idMatch = i.id === String(productId);
+          if (typeof variant === "string" && variant.length > 0) {
+            return idMatch && i.variant === String(variant);
+          }
+          return idMatch;
+        });
         if (idx < 0) {
           return res.status(404).json({ success: false, message: "Item non trovato" });
         }
-
         if (quantity <= 0) {
           current = current.filter((_, i) => i !== idx);
         } else {
@@ -1417,7 +1691,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         sess.cart = current;
         return res.json({ success: true, items: current });
-      } catch {
+      } catch (error) {
+        console.error("Errore PUT /api/cart:", error);
         return res.status(500).json({ success: false, message: "Errore interno del server" });
       }
     });
@@ -1431,13 +1706,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(401).json({ success: false, message: "Non autenticato" });
         }
 
-        const { productId, variant } = req.body || {};
-        if (!productId || !variant) {
+        const { product_option_id, productId, variant } = req.body || {};
+
+        // Supabase path: rimozione per product_option_id
+        if (supabaseAdmin && typeof product_option_id === "number" && product_option_id > 0) {
+          const { error } = await (supabaseAdmin as any).rpc("remove_from_cart", {
+            p_product_option_id: product_option_id,
+            p_user_id: String(user.id),
+          });
+          if (error) {
+            console.error("Errore remove cart_items su Supabase", error);
+            return res.status(500).json({ success: false, message: "Errore rimozione carrello (DB)" });
+          }
+          return res.json({ success: true });
+        }
+
+        if (!supabaseAdmin && supabaseAnon && typeof product_option_id === "number" && product_option_id > 0) {
+          const { error } = await (supabaseAnon as any)
+            .from("cart_items")
+            .delete()
+            .eq("user_id", String(user.id))
+            .eq("product_option_id", Number(product_option_id));
+          if (!error) return res.json({ success: true });
+        }
+
+        // Session fallback: support product_option_id or productId + variant
+        let current: any[] = Array.isArray(sess.cart) ? [...sess.cart] : [];
+
+        if (typeof product_option_id === "number" && product_option_id > 0) {
+          const next = current.filter(i => Number(i.product_option_id) !== Number(product_option_id));
+          sess.cart = next;
+          return res.json({ success: true, items: next });
+        }
+
+        if (!productId) {
           return res.status(400).json({ success: false, message: "Parametri non validi" });
         }
 
-        const current: any[] = Array.isArray(sess.cart) ? [...sess.cart] : [];
-        const next = current.filter(i => !(i.id === String(productId) && i.variant === String(variant)));
+        const next = current.filter(i => {
+          const idMatch = i.id === String(productId);
+          if (typeof variant === "string" && variant.length > 0) {
+            return !(idMatch && i.variant === String(variant));
+          }
+          return !idMatch;
+        });
         sess.cart = next;
         return res.json({ success: true, items: next });
       } catch {
@@ -1453,10 +1765,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!user?.authenticated) {
           return res.status(401).json({ success: false, message: "Non autenticato" });
         }
+        const { userId } = req.params;
+        if (supabaseAdmin) {
+          const { error } = await (supabaseAdmin as any).rpc("clear_cart", { p_user_id: userId });
+          if (error) return res.status(400).json({ success: false, error });
+          return res.json({ success: true });
+        }
         sess.cart = [];
         return res.json({ success: true, items: [] });
       } catch {
         return res.status(500).json({ success: false, message: "Errore interno del server" });
+      }
+    });
+
+    
+
+    app.get("/api/cart-db/:userId", async (req: Request, res: Response) => {
+      try {
+        if (!supabaseAdmin) {
+          return res.status(500).json({ success: false, message: "Supabase non configurato" });
+        }
+        const { userId } = req.params;
+        const { data, error } = await (supabaseAdmin as any).rpc("get_cart", { p_user_id: userId });
+        if (error) return res.status(400).json({ success: false, error });
+        return res.json({ success: true, items: data });
+      } catch (error) {
+        return res.status(500).json({ success: false, message: "Errore caricamento carrello" });
+      }
+    });
+
+    app.post("/api/cart-db", async (req: Request, res: Response) => {
+      try {
+        if (!supabaseAdmin) {
+          return res.status(500).json({ success: false, message: "Supabase non configurato" });
+        }
+        const { product_option_id, quantity } = req.body || {};
+        if (!product_option_id || !quantity) {
+          return res.status(400).json({ success: false, message: "Parametri non validi" });
+        }
+        const sess = req.session as any;
+        const userId = sess?.user?.id;
+        const { error } = await (supabaseAdmin as any).rpc("add_to_cart", {
+          p_product_option_id: product_option_id,
+          p_quantity: quantity,
+          ...(userId ? { p_user_id: userId } : {}),
+        });
+        if (error) return res.status(400).json({ success: false, error });
+        return res.json({ success: true });
+      } catch (error) {
+        return res.status(500).json({ success: false, message: "Errore aggiunta carrello" });
+      }
+    });
+
+    app.put("/api/cart-db", async (req: Request, res: Response) => {
+      try {
+        if (!supabaseAdmin) {
+          return res.status(500).json({ success: false, message: "Supabase non configurato" });
+        }
+        const { product_option_id, quantity } = req.body || {};
+        if (!product_option_id || typeof quantity !== "number") {
+          return res.status(400).json({ success: false, message: "Parametri non validi" });
+        }
+        const sess = req.session as any;
+        const userId = sess?.user?.id;
+        const { error } = await (supabaseAdmin as any).rpc("update_cart_quantity", {
+          p_product_option_id: product_option_id,
+          p_quantity: quantity,
+          ...(userId ? { p_user_id: userId } : {}),
+        });
+        if (error) return res.status(400).json({ success: false, error });
+        return res.json({ success: true });
+      } catch (error) {
+        return res.status(500).json({ success: false, message: "Errore aggiornamento carrello" });
+      }
+    });
+
+    app.delete("/api/cart-db", async (req: Request, res: Response) => {
+      try {
+        if (!supabaseAdmin) {
+          return res.status(500).json({ success: false, message: "Supabase non configurato" });
+        }
+        const { product_option_id } = req.body || {};
+        if (!product_option_id) {
+          return res.status(400).json({ success: false, message: "Parametri non validi" });
+        }
+        const sess = req.session as any;
+        const userId = sess?.user?.id;
+        const { error } = await (supabaseAdmin as any).rpc("remove_from_cart", {
+          p_product_option_id: product_option_id,
+          ...(userId ? { p_user_id: userId } : {}),
+        });
+        if (error) return res.status(400).json({ success: false, error });
+        return res.json({ success: true });
+      } catch (error) {
+        return res.status(500).json({ success: false, message: "Errore rimozione carrello" });
+      }
+    });
+
+    app.delete("/api/cart-db/:userId", async (req: Request, res: Response) => {
+      try {
+        if (!supabaseAdmin) {
+          return res.status(500).json({ success: false, message: "Supabase non configurato" });
+        }
+        const { userId } = req.params;
+        const { error } = await (supabaseAdmin as any).rpc("clear_cart", { p_user_id: userId });
+        if (error) return res.status(400).json({ success: false, error });
+        return res.json({ success: true });
+      } catch (error) {
+        return res.status(500).json({ success: false, message: "Errore svuotamento carrello" });
+      }
+    });
+
+    app.post("/api/checkout", async (req: Request, res: Response) => {
+      try {
+        const sess = req.session as any;
+        const user = sess?.user;
+        if (!user?.authenticated) {
+          return res.status(401).json({ success: false, message: "Non autenticato" });
+        }
+
+        let items: any[] = [];
+        if (supabaseAdmin && user?.id) {
+          const { data, error } = await (supabaseAdmin as any).rpc("get_cart", { p_user_id: String(user.id) });
+          if (error) return res.status(400).json({ success: false, error });
+          items = Array.isArray(data) ? data : [];
+        } else {
+          items = Array.isArray(sess.cart) ? sess.cart : [];
+        }
+        if (!items.length) {
+          return res.status(400).json({ success: false, message: "Carrello vuoto" });
+        }
+
+        const secret = process.env.STRIPE_SECRET_KEY;
+        const successUrl = process.env.CHECKOUT_SUCCESS_URL || "http://localhost:5000/success";
+        const cancelUrl = process.env.CHECKOUT_CANCEL_URL || "http://localhost:5000/cancel";
+        if (!secret) {
+          console.error("Checkout error: STRIPE_SECRET_KEY mancante");
+          return res.status(500).json({ success: false, message: "Stripe non configurato" });
+        }
+
+        console.log("Checkout env check:", { hasSecret: !!secret, successUrl, cancelUrl });
+
+        const stripe = new Stripe(secret as string);
+
+        const line_items = items.map((i) => {
+          const priceCents = typeof i.price_cents === "number" ? i.price_cents : Math.round(Number(i.price) * 100);
+          return {
+            price_data: {
+              currency: "eur",
+              product_data: {
+                name: `${String(i.name ?? '')} — ${String(i.variant ?? '')}`.trim(),
+                images: i.image ? [i.image] : [],
+              },
+              unit_amount: priceCents,
+            },
+            quantity: Number(i.quantity),
+          };
+        });
+
+        const sessionStripe = await stripe.checkout.sessions.create({
+          mode: "payment",
+          payment_method_types: ["card"],
+          line_items,
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+        });
+
+        return res.json({ success: true, url: sessionStripe.url });
+      } catch (error) {
+        return res.status(500).json({ success: false, message: "Errore creazione checkout" });
       }
     });
 

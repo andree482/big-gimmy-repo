@@ -4,18 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Lock, User } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { Lock, Mail } from "lucide-react";
+import { useAuthQuery } from "@/hooks/useAuth";
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const [credentials, setCredentials] = useState({
-    username: "",
-    password: "",
-  });
+  const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, isAuthenticated, isLoading, error } = useAuth();
+  const { login, isAuthenticated, isLoading, error } = useAuthQuery();
 
   // Redirect diretto se già autenticato
   useEffect(() => {
@@ -36,19 +35,17 @@ export default function Login() {
 
     setIsSubmitting(true);
     setLocalError("");
-    console.log("🚀 Iniziando login per:", credentials.username);
+    console.log("🚀 Iniziando login con codice");
 
     try {
-      const result = await login(credentials.username, credentials.password);
-
-      if (result.success) {
-        console.log("✅ Login completato con successo, reindirizzamento...");
-        // Redirect forzato anche qui per sicurezza
-        setLocation("/");
+      if (code && code.length > 0) {
+        await login({ code });
       } else {
-        setLocalError(result.message || "Credenziali non valide");
-        setIsSubmitting(false);
+        await login({ email, password });
       }
+
+      console.log("✅ Login completato con successo, reindirizzamento...");
+      setLocation("/");
     } catch (error) {
       console.error("❌ Errore durante login:", error);
       setLocalError("Errore di connessione");
@@ -56,16 +53,19 @@ export default function Login() {
     }
   };
 
-  const handleInputChange =
-    (field: keyof typeof credentials) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setCredentials((prev) => ({
-        ...prev,
-        [field]: e.target.value,
-      }));
-      // Rimuovi errore quando l'utente inizia a digitare
-      if (localError) setLocalError("");
-    };
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCode(e.target.value);
+    if (localError) setLocalError("");
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    if (localError) setLocalError("");
+  };
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    if (localError) setLocalError("");
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -74,57 +74,63 @@ export default function Login() {
           <h1 className="text-2xl font-bold text-gray-900 font-montserrat">
             Accesso Privato
           </h1>
-          <p className="text-gray-600 mt-2 font-open-sans">
-            Inserisci le tue credenziali per accedere
-          </p>
+          <p className="text-gray-600 mt-2 font-open-sans">Inserisci il codice o le tue credenziali</p>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Campo Username */}
+            {/* Campo Codice */}
             <div className="space-y-2">
               <label
-                htmlFor="username"
+                htmlFor="code"
                 className="text-sm font-medium text-gray-700 font-open-sans"
               >
-                Username
+                Codice
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <Input
-                  id="username"
-                  type="text"
-                  value={credentials.username}
-                  onChange={handleInputChange("username")}
+                  id="code"
+                  type="password"
+                  value={code}
+                  onChange={handleInputChange}
                   className="pl-10 h-12 border-gray-300 focus:border-primary focus:ring-primary font-open-sans"
-                  placeholder="Inserisci username"
+                  placeholder="Inserisci codice"
                   required
                   disabled={isLoading}
-                  data-testid="input-username"
+                  data-testid="input-code"
                 />
               </div>
             </div>
 
-            {/* Campo Password */}
+            {/* Oppure Email + Password */}
             <div className="space-y-2">
-              <label
-                htmlFor="password"
-                className="text-sm font-medium text-gray-700 font-open-sans"
-              >
-                Password
-              </label>
+              <label htmlFor="email" className="text-sm font-medium text-gray-700 font-open-sans">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={handleEmailChange}
+                  className="pl-10 h-12 border-gray-300 focus:border-primary focus:ring-primary font-open-sans"
+                  placeholder="mario@example.com"
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium text-gray-700 font-open-sans">Password</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <Input
                   id="password"
                   type="password"
-                  value={credentials.password}
-                  onChange={handleInputChange("password")}
+                  value={password}
+                  onChange={handlePasswordChange}
                   className="pl-10 h-12 border-gray-300 focus:border-primary focus:ring-primary font-open-sans"
                   placeholder="Inserisci password"
-                  required
                   disabled={isLoading}
-                  data-testid="input-password"
                 />
               </div>
             </div>
@@ -142,12 +148,7 @@ export default function Login() {
             <Button
               type="submit"
               className="w-full h-12 bg-primary hover:bg-primary/90 text-black font-semibold font-montserrat text-lg"
-              disabled={
-                isLoading ||
-                isSubmitting ||
-                !credentials.username ||
-                !credentials.password
-              }
+              disabled={isLoading || isSubmitting || (!code && (!email || !password))}
               data-testid="button-login"
             >
               {isLoading || isSubmitting ? "Accesso in corso..." : "Accedi"}

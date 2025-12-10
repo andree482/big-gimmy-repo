@@ -2212,6 +2212,19 @@ async function registerRoutes(app2) {
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
+  app2.get("/api/cart", async (req, res) => {
+    try {
+      const sess = req.session;
+      const user = sess?.user;
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const items = sess.cart || [];
+      return res.json({ success: true, items });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
   app2.post("/api/cart", async (req, res) => {
     try {
       const sess = req.session;

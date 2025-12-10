@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatEuropeanPrice, getProductVariants } from "@/lib/productVariants";
+import { resolveOptionId, normalizeDisplay } from "@/utils/variantResolver";
 
 interface AddToCartDialogProps {
   isOpen: boolean;
@@ -25,7 +26,7 @@ interface AddToCartDialogProps {
 }
 
 export function AddToCartDialog({ isOpen, onClose, product, onAddToCart }: AddToCartDialogProps) {
-  const initialVariants = product.variants ?? (product.slug ? getProductVariants(product) : (product.sizes || []));
+  const initialVariants = product.variants ?? [];
   const [variantsState, setVariantsState] = useState<any[]>(initialVariants);
   const [quantity, setQuantity] = useState(product.initialQuantity ?? 1);
   const [selectedVariant, setSelectedVariant] = useState<string>('');
@@ -33,70 +34,114 @@ export function AddToCartDialog({ isOpen, onClose, product, onAddToCart }: AddTo
 
   const hasVariants = variantsState.length > 0;
 
-  const availableVariants = hasVariants
-    ? variantsState.map(variant => ({
-        id: `${variant.flavor}-${variant.size}`,
-        display: `${variant.flavor} ${variant.size}`,
-        flavor: variant.flavor,
-        size: variant.size,
-        price: variant.price,
-        inStock: variant.inStock
-      }))
-    : [];
+const availableVariants = variantsState.map((v: any) => {
+  const rawId = (v.id ?? v.product_option_id);
+  const numericId = typeof rawId === 'string' ? Number(rawId) : Number(rawId);
+  const id = Number.isFinite(numericId)
+    ? String(numericId)
+    : String(`${(v.flavor ?? '').toString()} ${(v.size ?? '').toString()}`.replace(/Unico/gi, '').trim());
+  const product_id = v.product_id ?? v.productId ?? null;
+  const price = typeof v.price_cents === 'number'
+    ? v.price_cents / 100
+    : typeof v.price === 'number'
+      ? v.price
+      : 0;
+  const inStock = (v.in_stock ?? v.inStock) !== false;
+  const image = v.image;
+  const display = `${(v.flavor ?? '').toString()} ${(v.size ?? '').toString()}`.replace(/Unico/gi, '').trim();
+  return { id, numericId, product_id, display, price, inStock, image };
+});
+
+
 
   useEffect(() => {
     if (!isOpen) return;
 
     setQuantity(product.initialQuantity ?? 1);
 
-    // Se non ho varianti pronte e ho lo slug, provo a prendere le opzioni dal server (prezzi già in euro)
-    if (!hasVariants && product.slug) {
-      (async () => {
+    const initialHasIds = variantsState.some((v: any) => {
+      const raw = v.id ?? v.product_option_id;
+      const n = typeof raw === 'string' ? Number(raw) : Number(raw);
+      return Number.isFinite(n) && n > 0;
+    });
+    const shouldFetchOptions = !!product.slug && (!hasVariants || !initialHasIds);
+
+    (async () => {
+      if (shouldFetchOptions) {
         try {
           const res = await fetch(`/api/product/${product.slug}/options`);
           const data = res.ok ? await res.json() : null;
           if (Array.isArray(data) && data.length > 0) {
             setVariantsState(data);
             const first = data[0];
-            setSelectedVariant(`${first.flavor}-${first.size}`);
-            setSelectedPrice(first.price);
+            const firstId = String((first.id ?? first.product_option_id) ?? `${first.flavor}-${first.size}`);
+            const firstPrice = typeof first.price_cents === 'number' ? first.price_cents / 100 : first.price;
+            setSelectedVariant(firstId);
+            setSelectedPrice(firstPrice);
             return;
           }
         } catch (_) {}
-        // Fallback: nessuna variante disponibile
+      }
+
+      if (availableVariants.length > 0) {
+        const firstVariant = availableVariants[0];
+        setSelectedVariant(firstVariant.id);
+        setSelectedPrice(firstVariant.price);
+      } else {
         setSelectedVariant(product.variant || '');
         setSelectedPrice(product.price);
-      })();
-    } else if (hasVariants && availableVariants.length > 0) {
-      const firstVariant = availableVariants[0];
-      setSelectedVariant(firstVariant.id);
-      setSelectedPrice(firstVariant.price);
-    } else {
-      setSelectedVariant(product.variant || '');
-      setSelectedPrice(product.price);
-    }
-  }, [isOpen, product.id]);
+      }
+    })();
+  }, [isOpen, product.id, hasVariants]);
 
   const handleVariantChange = (variantId: string) => {
     setSelectedVariant(variantId);
     const matchingVariant = availableVariants.find(v => v.id === variantId);
     if (matchingVariant) {
-      // Prezzo già in euro (sia endpoint server sia database statico)
       setSelectedPrice(matchingVariant.price);
     }
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     const selectedVariantData = availableVariants.find(v => v.id === selectedVariant);
+    if (!selectedVariantData) {
+      return onClose();
+    }
+
+    const tryParse = (val: any) => {
+      const n = Number(val);
+      return Number.isFinite(n) ? n : NaN;
+    };
+
+    let optionId = Number.isFinite(selectedVariantData.numericId)
+      ? selectedVariantData.numericId
+      : tryParse(selectedVariantData.id);
+    if (!Number.isFinite(optionId) || optionId <= 0) {
+      if (product.slug) {
+        try {
+          const resp = await fetch(`/api/product/${product.slug}/options`);
+          if (resp.ok) {
+            const opts = await resp.json();
+            const resolved = resolveOptionId(opts, selectedVariantData.display);
+            if (typeof resolved === 'number' && resolved > 0) optionId = resolved;
+          }
+        } catch (_) {}
+      }
+    }
+
+    const fallbackProductId = Number(selectedVariantData.product_id ?? product.id);
 
     onAddToCart({
-      id: product.id,
+      product_option_id: Number.isFinite(optionId) && optionId > 0 ? optionId : 0,
+      product_id: Number.isFinite(fallbackProductId) ? fallbackProductId : 0,
+      slug: product.slug,
       name: product.name,
-      price: selectedPrice,
-      variant: selectedVariantData ? selectedVariantData.display : (selectedVariant || 'Standard'),
-      quantity: quantity,
-      image: product.image
+      price: selectedVariantData.price,
+      variant: normalizeDisplay(selectedVariantData.display?.split(' ')[0], selectedVariantData.display?.split(' ').slice(1).join(' ')),
+      quantity,
+      image: selectedVariantData.image
     });
+
     onClose();
   };
 

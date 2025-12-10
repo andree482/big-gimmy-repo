@@ -24,20 +24,14 @@ const Navbar = () => {
   const [location] = useLocation();
   const { scrollY, scrollDirection } = useScrollAnimation();
   const [isNavigating, setIsNavigating] = useState(false);
-
-  // 🔹 Aggiornato con isLoading
   const { user, isAuthenticated, isLoading, logout, isLogoutLoading } = useAuthQuery();
+  // 🔹 Aggiornato con isLoading
 
   const { toast } = useToast();
   const { totalItems } = useCartContext();
 
   // 🔹 Auto-apertura modale autenticazione
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      setAuthModalTab("login");
-      setAuthModalOpen(true);
-    }
-  }, [isLoading, isAuthenticated]);
+  
 
   // Chiudi il menu mobile quando cambia la pagina
   useEffect(() => {
@@ -83,7 +77,6 @@ const Navbar = () => {
     setAuthModalTab("login");
     setAuthModalOpen(true);
   };
-
   const handleRegisterClick = () => {
     setAuthModalTab("register");
     setAuthModalOpen(true);
@@ -114,6 +107,7 @@ const Navbar = () => {
   ];
 
   return (
+    <>
     <header
       className={`sticky top-0 z-50 ${mobileMenuOpen ? "" : "navbar-transition"} ${
         isScrolled ? "bg-[#212121]/95 backdrop-blur-md shadow-lg" : "bg-[#212121]"
@@ -392,20 +386,19 @@ const Navbar = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* 🔹 Authentication Modal aggiornato */}
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => {
-          if (!isAuthenticated) {
-            setAuthModalOpen(true);
-            return;
-          }
-          setAuthModalOpen(false);
-        }}
-        defaultTab={authModalTab}
-      />
     </header>
+    <AuthModal
+      isOpen={authModalOpen}
+      onClose={() => {
+        if (!isAuthenticated) {
+          setAuthModalOpen(true);
+          return;
+        }
+        setAuthModalOpen(false);
+      }}
+      defaultTab={authModalTab}
+    />
+    </>
   );
 };
 

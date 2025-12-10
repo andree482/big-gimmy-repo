@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { ShoppingCart, ArrowLeft, Plus, Minus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCartContext } from "@/components/cart/CartProvider";
@@ -15,33 +15,27 @@ export default function Cart() {
     total,
     totalItems,
   } = useCartContext();
+
   const { toast } = useToast();
 
   const handleUpdateQuantity = (
-    itemId: string,
-    variant: string,
+    product_option_id: number,
     newQuantity: number,
+    product_id?: number,
+    variant?: string
   ) => {
     if (newQuantity <= 0) {
-      handleRemoveItem(itemId, variant);
+      handleRemoveItem(product_option_id, product_id, variant);
       return;
     }
-    updateQuantity(itemId, variant, newQuantity);
+    updateQuantity(product_option_id, newQuantity, product_id, variant);
   };
 
-  const handleRemoveItem = (itemId: string, variant: string) => {
-    removeFromCart(itemId, variant);
+  const handleRemoveItem = (product_option_id: number, product_id?: number, variant?: string) => {
+    removeFromCart(product_option_id, product_id, variant);
     toast({
       title: "Prodotto rimosso",
       description: "Il prodotto è stato rimosso dal carrello.",
-    });
-  };
-
-  const proceedToCheckout = () => {
-    toast({
-      title: "Checkout",
-      description:
-        "Funzionalità di checkout in arrivo! Contattaci per completare l'ordine.",
     });
   };
 
@@ -71,16 +65,12 @@ export default function Cart() {
           </div>
 
           {cartItems.length === 0 ? (
-            // Carrello vuoto
             <Card className="text-center py-12">
               <CardContent>
                 <ShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h2 className="text-xl font-montserrat font-semibold mb-2">
+                <h2 className="text-xl font-semibold mb-2">
                   Il tuo carrello è vuoto
                 </h2>
-                <p className="text-gray-600 mb-6">
-                  Aggiungi alcuni prodotti per iniziare lo shopping!
-                </p>
                 <Link href="/prodotti">
                   <Button className="bg-[#FFD100] hover:bg-[#E6BC00] text-black">
                     Esplora i Prodotti
@@ -89,15 +79,14 @@ export default function Cart() {
               </CardContent>
             </Card>
           ) : (
-            // Carrello con prodotti
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Lista prodotti */}
               <div className="lg:col-span-2 space-y-6">
                 {cartItems.map((item) => (
-                  <Card key={item.id} className="p-6 shadow-md">
+                  <Card key={`${item.product_option_id}-${item.variant || ''}`} className="p-6 shadow-md">
                     <div className="flex items-start gap-6">
-                      {/* Immagine prodotto */}
-                      <div className="w-28 h-28 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+
+                      <div className="w-28 h-28 bg-gray-100 rounded-lg overflow-hidden">
                         {item.image ? (
                           <img
                             src={item.image}
@@ -105,50 +94,47 @@ export default function Cart() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <ShoppingCart className="w-12 h-12 text-gray-400" />
+                          <ShoppingCart className="w-12 h-12 text-gray-400 mx-auto mt-8" />
                         )}
                       </div>
 
-                      {/* Dettagli prodotto */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2 leading-tight">
+                      <div className="flex-1">
+                        <h3 className="text-xl font-semibold mb-2">
                           {item.name}
                         </h3>
+
                         {item.variant && item.variant.trim() && (
-                          <div className="mb-3">
-                            <span className="text-sm font-medium text-gray-600">Gusto:</span>
-                            <span className="ml-2 text-sm text-gray-800 bg-gray-100 px-2 py-1 rounded">
+                          <p className="text-sm text-gray-700">
+                            Gusto:{" "}
+                            <span className="bg-gray-200 px-2 py-1 rounded">
                               {item.variant}
                             </span>
-                          </div>
+                          </p>
                         )}
-                        <div className="mb-3">
-                          <span className="text-sm font-medium text-gray-600">Prezzo unitario:</span>
-                          <span className="ml-2 text-sm text-gray-800 font-medium">
-                            {formatEuropeanPrice(item.price)}
-                          </span>
-                        </div>
+
+                        <p className="text-sm mt-2 text-gray-700">
+                          Prezzo unitario:{" "}
+                          <strong>{formatEuropeanPrice(item.price)}</strong>
+                        </p>
                       </div>
 
-                      {/* Controlli quantità e prezzo */}
-                      <div className="flex flex-col items-end gap-4 flex-shrink-0">
-                        {/* Controlli quantità */}
-                        <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-2">
+                      <div className="flex flex-col items-end gap-4">
+                        <div className="flex items-center bg-gray-200 rounded-lg p-2">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() =>
                               handleUpdateQuantity(
-                                item.id,
-                                item.variant,
+                                item.product_option_id,
                                 item.quantity - 1,
+                                item.product_id,
+                                item.variant
                               )
                             }
-                            className="w-8 h-8 p-0"
                           >
-                            <Minus className="w-4 h-4" />
+                          <Minus className="w-4 h-4" />
                           </Button>
-                          <span className="w-8 text-center font-semibold text-lg">
+                          <span className="px-4 font-semibold">
                             {item.quantity}
                           </span>
                           <Button
@@ -156,32 +142,28 @@ export default function Cart() {
                             size="sm"
                             onClick={() =>
                               handleUpdateQuantity(
-                                item.id,
-                                item.variant,
+                                item.product_option_id,
                                 item.quantity + 1,
+                                item.product_id,
+                                item.variant
                               )
                             }
-                            className="w-8 h-8 p-0"
                           >
-                            <Plus className="w-4 h-4" />
+                          <Plus className="w-4 h-4" />
                           </Button>
                         </div>
 
-                        {/* Prezzo totale per item */}
-                        <div className="text-right">
-                          <p className="text-xl font-bold text">
-                            {formatEuropeanPrice(item.price * item.quantity)}
-                          </p>
-                        </div>
+                        <p className="text-xl font-bold">
+                          {formatEuropeanPrice(item.price * item.quantity)}
+                        </p>
 
-                        {/* Pulsante rimuovi */}
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            handleRemoveItem(item.id, item.variant)
+                            handleRemoveItem(item.product_option_id, item.product_id, item.variant)
                           }
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 w-8 h-8 p-0"
+                          className="text-red-600 hover:bg-red-100"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -191,18 +173,9 @@ export default function Cart() {
                 ))}
               </div>
 
-              {/* Checkout Summary */}
               <div className="lg:col-span-1">
                 <div className="sticky top-20">
                   <CheckoutSummary cartTotal={total} itemCount={totalItems} />
-                  
-                  <div className="mt-4 text-center">
-                    <Link href="/prodotti">
-                      <Button variant="link" className="text-[#FFD100] text-base">
-                        Continua lo shopping
-                      </Button>
-                    </Link>
-                  </div>
                 </div>
               </div>
             </div>

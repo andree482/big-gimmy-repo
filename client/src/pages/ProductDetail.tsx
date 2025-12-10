@@ -4906,13 +4906,31 @@ export default function ProductDetail() {
   const { addToCart } = useCartContext();
   const { toast } = useToast();
 
-   const handleAddToCartFromDialog = (productData: any) => {
+  const handleAddToCartFromDialog = (productData: any) => {
     console.log('handleAddToCartFromDialog chiamato con:', productData);
     addToCart(productData);
     setAddToCartDialogOpen(false);
     
     // Vai alla pagina carrello
     setLocation('/carrello');
+  };
+
+  const handleAdd = async () => {
+    if (!product) return;
+    const currentVariant = selectedVariant || (variantsList.length > 0 ? variantsList[0] : null);
+    const isUnavailable = currentVariant ? currentVariant.inStock === false : false;
+    if (isUnavailable) return;
+    const productPrice = currentVariant?.price 
+      ? (currentVariant.price > 100 ? currentVariant.price / 100 : currentVariant.price)
+      : ((product.sizes?.[0]?.price || 1990) / 100);
+    await addToCart({
+      id: product.id,
+      name: product.name,
+      price: productPrice,
+      variant: currentVariant ? `${currentVariant.flavor || ''} ${currentVariant.size || ''}`.trim() : '',
+      quantity: 1,
+      image: getProductImage()
+    });
   };
 
 
@@ -5366,7 +5384,7 @@ export default function ProductDetail() {
               </Card>
             )}
 
-             <div className="flex gap-3">
+            <div className="flex gap-3">
               {(() => {
                 const currentVariant = selectedVariant || (variantsList.length > 0 ? variantsList[0] : null);
                 const productPrice = currentVariant?.price 
@@ -5592,6 +5610,7 @@ export default function ProductDetail() {
         product={{
           id: product.id,
           name: product.name,
+          slug: product.slug,
           price: selectedVariant?.price 
             ? (selectedVariant.price > 100 ? selectedVariant.price / 100 : selectedVariant.price)
             : ((product.sizes?.[0]?.price || 1990) / 100),

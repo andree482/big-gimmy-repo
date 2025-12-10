@@ -3,6 +3,8 @@ import { Progress } from "@/components/ui/progress";
 import { ShoppingCart, Percent, Target } from "lucide-react";
 import { useAuthQuery } from "@/hooks/useAuth";
 import { CheckoutAuthModal } from "./CheckoutAuthModal";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface CheckoutSummaryProps {
   cartTotal: number;
@@ -16,6 +18,8 @@ const FREE_SHIPPING_THRESHOLD = 160;
 export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummaryProps) {
   const { isAuthenticated } = useAuthQuery();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [loadingCheckout, setLoadingCheckout] = useState(false);
+  const { toast } = useToast();
   
   const calculations = useMemo(() => {
     const discountAmount = cartTotal * (DISCOUNT_PERCENTAGE / 100);
@@ -184,25 +188,33 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
 
         {/* Pulsante checkout */}
         <button
-          disabled={!calculations.canCheckout}
-          onClick={() => {
+          disabled={!calculations.canCheckout || loadingCheckout}
+          onClick={async () => {
             if (!calculations.canCheckout) return;
-            
             if (!isAuthenticated) {
               setShowAuthModal(true);
               return;
             }
-            
-            // Procedi al checkout per utenti autenticati
-            console.log('Proceeding to checkout...');
+            try {
+              setLoadingCheckout(true);
+              const resp = await apiRequest("POST", "/api/checkout");
+              const url = resp?.url;
+              if (typeof url === "string" && url.length > 0) {
+                window.location.href = url;
+              } else {
+                toast({ title: "Checkout non disponibile", description: "Configurare Stripe lato server" });
+              }
+            } finally {
+              setLoadingCheckout(false);
+            }
           }}
           className={`w-full py-4 px-6 rounded-lg font-semibold text-lg transition-all duration-200 ${
-            calculations.canCheckout
+            calculations.canCheckout && !loadingCheckout
               ? 'bg-[#FFD100] hover:bg-yellow-500 text-black shadow-md hover:shadow-lg'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
         >
-          {calculations.canCheckout 
+          {calculations.canCheckout && !loadingCheckout
             ? `Procedi al Pagamento - €${calculations.finalTotal.toFixed(2)}` 
             : `Ordine minimo €${MINIMUM_ORDER}`
           }
