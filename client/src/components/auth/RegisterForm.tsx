@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useAuthQuery } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 const registerSchema = z.object({
@@ -16,11 +16,26 @@ const registerSchema = z.object({
   confirmPassword: z.string().min(6, 'Conferma password richiesta'),
   firstName: z.string().min(2, 'Nome deve essere almeno 2 caratteri'),
   lastName: z.string().min(2, 'Cognome deve essere almeno 2 caratteri'),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  postalCode: z.string().optional(),
-  province: z.string().optional(),
+  phone: z
+    .string()
+    .regex(/^(\+?\d{1,3}\s?)?(\d[\s-]?){6,}$/, 'Numero di telefono non valido')
+    .optional(),
+  address: z
+    .string()
+    .min(2, 'Indirizzo deve essere almeno 2 caratteri')
+    .optional(),
+  city: z
+    .string()
+    .min(2, 'Città deve essere almeno 2 caratteri')
+    .optional(),
+  postalCode: z
+    .string()
+    .regex(/^\d{5}$/, 'CAP deve contenere 5 cifre')
+    .optional(),
+  province: z
+    .string()
+    .regex(/^[A-Z]{2}$/, 'Provincia deve essere composta da 2 lettere maiuscole')
+    .optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Le password non corrispondono',
   path: ['confirmPassword'],
@@ -36,8 +51,10 @@ interface RegisterFormProps {
 export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [registered, setRegistered] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
-  const { register, isRegisterLoading } = useAuthQuery();
+  const { register } = useAuth();
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -56,6 +73,8 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
   });
 
   const onSubmit = async (data: RegisterFormData) => {
+    setSubmitting(true);
+    const safety = setTimeout(() => setSubmitting(false), 8000);
     try {
       const { confirmPassword, ...registerData } = data;
       await register(registerData);
@@ -63,13 +82,19 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
         title: 'Registrazione completata',
         description: 'Benvenuto in BigGimmy! Il tuo account è stato creato con successo.',
       });
-      onSuccess?.();
+      setRegistered(true);
+      setTimeout(() => {
+        onSuccess?.();
+      }, 1200);
     } catch (error: any) {
       toast({
         title: 'Errore registrazione',
-        description: error.message || 'Si è verificato un errore durante la registrazione',
+        description: error?.message || 'Si è verificato un errore durante la registrazione',
         variant: 'destructive',
       });
+    } finally {
+      clearTimeout(safety);
+      setSubmitting(false);
     }
   };
 
@@ -174,7 +199,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">Telefono</Label>
+            <Label htmlFor="phone">Numero di Telefono</Label>
             <Input
               id="phone"
               placeholder="+39 123 456 7890"
@@ -183,7 +208,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address">Indirizzo</Label>
+            <Label htmlFor="address">Via/Piazzale</Label>
             <Input
               id="address"
               placeholder="Via Roma 123"
@@ -222,9 +247,9 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
           <Button
             type="submit"
             className="w-full bg-[#FFD100] hover:bg-[#E6BC00] text-black"
-            disabled={isRegisterLoading}
+            disabled={submitting}
           >
-            {isRegisterLoading ? (
+            {submitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Registrazione in corso...
@@ -233,6 +258,12 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
               'Registrati'
             )}
           </Button>
+
+          {registered && (
+            <div className="text-center text-green-600 text-sm">
+              Utente registrato!
+            </div>
+          )}
 
           {onSwitchToLogin && (
             <div className="text-center text-sm">

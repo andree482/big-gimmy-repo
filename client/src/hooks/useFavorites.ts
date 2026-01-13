@@ -2,15 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-interface Favorite {
-  id: number;
-  userId: number;
-  productId: number;
-  createdAt: string;
-}
-
 interface FavoritesResponse {
-  favorites: Favorite[];
+  favorites: any[];
 }
 
 interface FavoriteStatusResponse {
@@ -19,7 +12,7 @@ interface FavoriteStatusResponse {
 }
 
 interface UseFavoritesProps {
-  userId?: number;
+  userId?: string | number;
 }
 
 export function useFavorites({ userId }: UseFavoritesProps = {}) {

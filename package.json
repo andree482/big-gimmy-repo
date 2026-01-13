@@ -18,9 +18,21 @@
     "remove-no-images": "tsx server/removeProductsWithoutImages.ts",
     "update-prices": "tsx server/updatePricesFromExcel.ts",
     "prices-sheets": "tsx server/updatePricesFromGoogleSheets.ts",
-    "watch-prices": "tsx server/startPriceWatcher.ts"
+    "watch-prices": "tsx server/startPriceWatcher.ts",
+    "test:authme:orders": "tsx scripts/testAuthMeOrders.ts",
+    "test:cart:update": "tsx scripts/testCartUpdateFlow.ts",
+    "test:profile:update": "tsx scripts/testUpdateProfile.ts",
+    "test:session:persistence": "tsx scripts/testSessionPersistence.ts",
+    "test:registration:fields": "tsx scripts/testRegistrationFields.ts",
+    "test:rls:metadata": "tsx scripts/testRLSAuthMetadata.ts",
+    "test:multiple:logins": "tsx scripts/testMultipleLogins.ts",
+    "test:navigation:cookie": "tsx scripts/testNavigationWithCookie.ts",
+    "test:browser:restart": "tsx scripts/testBrowserRestart.ts",
+    "test:multi:tabs": "tsx scripts/testMultiTabsWindows.ts",
+    "test:session:expiry": "cross-env PORT=8099 SESSION_MAX_AGE_MS=1500 tsx scripts/testSessionExpiryShort.ts"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",

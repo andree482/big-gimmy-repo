@@ -7,4 +7,4 @@ app.use(express.json());
 // Attiva routes del carrello:
 app.use("/api/cart", cartRoutes);
 
-app.listen(5000, () => console.log("Server attivo su http://localhost:5000"));
+app.listen(5000, () => console.log("Server attivo su http://localhost:8080"));

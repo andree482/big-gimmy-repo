@@ -6,8 +6,10 @@ import { setupVite, serveStatic, log } from "./vite.ts";
 import { createServer } from "http";
 import { createClient } from '@supabase/supabase-js';
 import compression from "compression";
+import cors from "cors";
 
 const app = express();
+app.set('trust proxy', 1);
 // Abilita compressione gzip/brotli per risposte dinamiche (JSON/HTML/CSS/JS)
 app.use(compression());
 app.use('/sw.js', (req, res) => {
@@ -18,7 +20,25 @@ app.use(express.json());
 
 app.use(express.urlencoded({ extended: false }));
 
-
+const PORT = parseInt(process.env.PORT || '8080', 10);
+const allowedHosts = [
+  process.env.ORIGIN || "",
+  process.env.APP_URL || "",
+  `http://localhost:${PORT}`,
+  `http://127.0.0.1:${PORT}`
+].filter(Boolean);
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    try {
+      const ok = allowedHosts.some(h => origin.startsWith(h)) || /^http:\/\/localhost(:\d+)?$/i.test(origin) || /^http:\/\/127\.0\.0\.1(:\d+)?$/i.test(origin);
+      cb(null, ok);
+    } catch {
+      cb(null, false);
+    }
+  },
+  credentials: true
+}));
 
 // Supabase configuration
 const supabaseUrl = process.env.SUPABASE_URL || '';
@@ -121,6 +141,9 @@ app.use((req, res, next) => {
     }
   });
 
+  // (Rimosso) Endpoints di fallback duplicati per /api/auth/me e /api/auth/profile
+  // Le route ufficiali sono definite in server/routes.ts e gestiscono sia Bearer token che cookie
+
   // Global error handler
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -200,7 +223,7 @@ if (app.get("env") === "development") {
 
 
   // Use PORT from environment or default to 5000
-  const PORT = parseInt(process.env.PORT || '5000', 10);
+  
 
   // Setup Express server
   app.listen(PORT, "0.0.0.0", async () => {

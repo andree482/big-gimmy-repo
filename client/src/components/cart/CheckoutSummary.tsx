@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Progress } from "@/components/ui/progress";
 import { ShoppingCart, Percent, Target } from "lucide-react";
-import { useAuthQuery } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { CheckoutAuthModal } from "./CheckoutAuthModal";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -16,7 +16,7 @@ const MINIMUM_ORDER = 50;
 const FREE_SHIPPING_THRESHOLD = 160;
 
 export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummaryProps) {
-  const { isAuthenticated } = useAuthQuery();
+  const { isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const { toast } = useToast();

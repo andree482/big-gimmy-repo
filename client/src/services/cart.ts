@@ -9,14 +9,14 @@ export async function addToCart(productOptionId, qty = 1) {
 
 export async function updateCartQuantity(itemId, qty) {
   return await supabase.rpc('update_cart_quantity', {
-    p_item_id: itemId,
+    p_product_option_id: itemId,
     p_quantity: qty
   });
 }
 
 export async function removeFromCart(itemId) {
   return await supabase.rpc('remove_from_cart', {
-    p_item_id: itemId
+    p_product_option_id: itemId
   });
 }
 

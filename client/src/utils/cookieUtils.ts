@@ -159,9 +159,16 @@ export function cleanExpiredCookies() {
   const preferences = getCookiePreferences();
   
   if (!preferences.analytics) {
-    // Remove analytics cookies
-    document.cookie.split(";").forEach(function(c) { 
-      document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+    // Remove ONLY known analytics cookies, keep necessary/session cookies
+    const analyticsNames = ["_ga", "_gid", "_gat", "_ga_"];
+    const cookies = document.cookie.split(";").map(c => c.trim());
+    cookies.forEach((c) => {
+      const name = c.split("=")[0];
+      const isAnalytics = analyticsNames.some(an => name === an || name.startsWith(an));
+      const isSession = /session|sid|connect.sid|biggimmy-session/i.test(name);
+      if (isAnalytics && !isSession) {
+        document.cookie = `${name}=;expires=${new Date(0).toUTCString()};path=/`;
+      }
     });
   }
 }

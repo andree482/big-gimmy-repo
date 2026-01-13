@@ -8,6 +8,8 @@ import { useFavorites } from "@/hooks/useFavorites";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { useToast } from "@/hooks/use-toast";
 import { getProductImagePath } from "@/lib/imageUtils";
+import { useAuth } from "@/hooks/useAuth";
+import { openAuthModal } from "@/lib/authModalBus";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,8 +24,8 @@ import {
 
 const Favorites = () => {
   const { toast } = useToast();
-  const [isUser] = useState(true); // Mock logged in state - replace with real auth
-  const userId = isUser ? 1 : undefined; // Mock user ID
+  const { user, isLoading } = useAuth();
+  const userId = user?.id as any;
   
   const { 
     favorites, 
@@ -74,8 +76,27 @@ const Favorites = () => {
     }).format(price);
   };
 
+  // Loading state while checking session
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="container mx-auto px-4">
+          <div className="max-w-md mx-auto text-center">
+            <div className="bg-white rounded-lg shadow-md p-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FFD100] mx-auto mb-4"></div>
+              <h1 className="text-lg font-montserrat font-bold mb-2">
+                Caricamento...
+              </h1>
+              <p className="text-gray-600">Attendi un momento</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Login required state
-  if (!isUser) {
+  if (!userId) {
     return (
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="container mx-auto px-4">
@@ -89,15 +110,11 @@ const Favorites = () => {
                 Devi essere loggato per visualizzare i tuoi prodotti preferiti.
               </p>
               <div className="space-y-3">
-                <Button asChild className="w-full">
-                  <Link href="/login">
-                    Accedi al tuo Account
-                  </Link>
+                <Button className="w-full" onClick={() => openAuthModal()}>
+                  Accedi al tuo Account
                 </Button>
-                <Button variant="outline" asChild className="w-full">
-                  <Link href="/register">
-                    Crea un Account
-                  </Link>
+                <Button variant="outline" className="w-full" onClick={() => openAuthModal()}>
+                  Crea un Account
                 </Button>
               </div>
             </div>

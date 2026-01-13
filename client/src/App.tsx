@@ -1,5 +1,6 @@
 import { Switch, Route } from "wouter";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import CookieConsentBanner from "@/components/CookieConsentBanner";
@@ -7,12 +8,6 @@ import AccessibilityMenu from "@/components/AccessibilityMenu";
 import { CartProvider } from "@/components/cart/CartProvider";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
 import InfoBanner from "@/components/layout/InfoBanner";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { Lock, Loader2 } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
 import { AuthModal } from "@/components/auth/AuthModal";
 
 import Home from "@/pages/Home";
@@ -65,13 +60,7 @@ function Router() {
 }
 
 function App() {
-  const { toast } = useToast();
-  const [accessGranted, setAccessGranted] = useState<boolean>(false);
-  const [checkingAccess, setCheckingAccess] = useState<boolean>(true);
-  const [code, setCode] = useState<string>("");
-  const [showCode, setShowCode] = useState<boolean>(false);
-  const [submitting, setSubmitting] = useState<boolean>(false);
-  const [authOpen, setAuthOpen] = useState<boolean>(false);
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   // Registrazione Service Worker per caching ottimizzato
   useEffect(() => {
     if ('serviceWorker' in navigator && import.meta.env.PROD) {
@@ -98,45 +87,7 @@ function App() {
     initSnipcart();
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    const check = async () => {
-      try {
-        const res = await fetch("/api/access/status", { credentials: "include" });
-        if (!res.ok) throw new Error(String(res.status));
-        const data = await res.json();
-        if (!cancelled) {
-          setAccessGranted(!!data.granted);
-          setCheckingAccess(false);
-        }
-      } catch {
-        if (!cancelled) setCheckingAccess(false);
-      }
-    };
-    check();
-    return () => { cancelled = true; };
-  }, []);
-
-  const handleVerifyCode = async () => {
-    if (!code || code.length < 6) {
-      toast({ title: "Codice richiesto", description: "Inserisci il codice di accesso", variant: "destructive" });
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await apiRequest("POST", "/api/access/verify", { code });
-      if (res?.granted) {
-        setAccessGranted(true);
-        toast({ title: "Accesso consentito", description: "Hai sbloccato il sito" });
-      } else {
-        toast({ title: "Codice non valido", description: "Controlla e riprova", variant: "destructive" });
-      }
-    } catch (e: any) {
-      toast({ title: "Errore", description: "Impossibile verificare il codice", variant: "destructive" });
-    } finally {
-      setSubmitting(false);
-    }
-  };
+ 
 
   return (
     <CartProvider>
@@ -149,49 +100,6 @@ function App() {
         <Footer />
         <CookieConsentBanner />
         <AccessibilityMenu />
-        {(!accessGranted && !checkingAccess) && (
-          <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <Card className="w-full max-w-md">
-              <CardHeader>
-                <div className="mx-auto w-14 h-14 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <Lock className="h-7 w-7 text-[#FFD100]" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <Input
-                      type={showCode ? "text" : "password"}
-                      placeholder="Inserisci il codice di accesso"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                    />
-                    <button type="button" className="mt-2 text-xs text-gray-500" onClick={() => setShowCode(!showCode)}>
-                      {showCode ? "Nascondi" : "Mostra"}
-                    </button>
-                  </div>
-                  <Button
-                    className="w-full bg-[#FFD100] hover:bg-[#E6BC00] text-black"
-                    onClick={handleVerifyCode}
-                    disabled={submitting}
-                  >
-                    {submitting ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifica...</>) : ("Sblocca")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full border-[#FFD100] text-[#FFD100]"
-                    onClick={() => setAuthOpen(true)}
-                  >
-                    Accedi o Registrati
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-            {authOpen && (
-              <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} defaultTab={'login'} />
-            )}
-          </div>
-        )}
       </div>
     </CartProvider>
   );

@@ -2,6 +2,7 @@ import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface FavoriteButtonProps {
   productId: number;
@@ -13,12 +14,14 @@ interface FavoriteButtonProps {
 
 export function FavoriteButton({ 
   productId, 
-  userId = 1, // Mock user ID for now - in real app this would come from auth
+  userId,
   variant = "icon",
   size = "md",
   className = ""
 }: FavoriteButtonProps) {
-  const { toggleFavorite, useIsFavorite, isAddingToFavorites, isRemovingFromFavorites } = useFavorites({ userId });
+  const { user } = useAuth();
+  const effectiveUserId = userId ?? (user?.id as any);
+  const { toggleFavorite, useIsFavorite, isAddingToFavorites, isRemovingFromFavorites } = useFavorites({ userId: effectiveUserId as any });
   const [localFavorite, setLocalFavorite] = useState(false);
 
   // Check if product is favorite
@@ -31,7 +34,7 @@ export function FavoriteButton({
     e.preventDefault();
     e.stopPropagation();
     
-    if (!userId) {
+    if (!effectiveUserId) {
       // In real app, this would trigger login modal
       return;
     }

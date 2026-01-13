@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Lock, Mail } from "lucide-react";
-import { useAuthQuery } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -14,7 +14,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, isAuthenticated, isLoading, error } = useAuthQuery();
+  const { login, isAuthenticated, isLoading, error } = useAuth();
 
   // Redirect diretto se già autenticato
   useEffect(() => {
@@ -49,6 +49,8 @@ export default function Login() {
     } catch (error) {
       console.error("❌ Errore durante login:", error);
       setLocalError("Errore di connessione");
+    }
+    finally {
       setIsSubmitting(false);
     }
   };
@@ -95,8 +97,7 @@ export default function Login() {
                   value={code}
                   onChange={handleInputChange}
                   className="pl-10 h-12 border-gray-300 focus:border-primary focus:ring-primary font-open-sans"
-                  placeholder="Inserisci codice"
-                  required
+                  placeholder="Inserisci codice (opzionale)"
                   disabled={isLoading}
                   data-testid="input-code"
                 />

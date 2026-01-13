@@ -1,8 +1,9 @@
 import { Link, useLocation } from "wouter";
 import { Users, BarChart3, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
-// import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const menuItems = [
   {
@@ -19,12 +20,23 @@ const menuItems = [
 
 export default function AdminSidebar() {
   const [location] = useLocation();
-  
-  const handleLogout = () => {
-    // Clear any admin session data
-    localStorage.removeItem('adminToken');
-    sessionStorage.clear();
-    window.location.href = '/';
+  const { logout, logoutMutation } = useAuth();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast({
+        title: "Logout effettuato",
+        description: "Sei stato disconnesso con successo",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Errore logout",
+        description: error.message || "Si è verificato un errore durante il logout",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -61,12 +73,13 @@ export default function AdminSidebar() {
       <div className="absolute bottom-6 left-4 right-4">
         <Button
           onClick={handleLogout}
+          disabled={logoutMutation.isPending}
           variant="outline"
           size="sm"
           className="w-full gap-2 hover:bg-red-50 hover:border-red-200 hover:text-red-600"
         >
           <LogOut className="h-4 w-4" />
-          Logout
+          {logoutMutation.isPending ? "Disconnessione..." : "Logout"}
         </Button>
       </div>
     </div>

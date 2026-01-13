@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,8 @@ import { Trash2, Plus, User, MapPin, Package, Settings, Clock, CheckCircle, Aler
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { useAuthQuery } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
+import { PhoneInput } from "@/components/ui/phone-input";
 
 interface UserProfileProps {
   onClose?: () => void;
@@ -31,6 +32,8 @@ interface ProfileData {
 }
 
 interface AddressData {
+  firstName?: string;
+  lastName?: string;
   street: string;
   city: string;
   postalCode: string;
@@ -61,8 +64,10 @@ interface Order {
 
 export default function UserProfile({ onClose }: UserProfileProps) {
   const [activeTab, setActiveTab] = useState("profile");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [addingAddr, setAddingAddr] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuthQuery();
+  const { user, updateProfile } = useAuth();
 
   // Profile form
   const profileForm = useForm<ProfileData>({
@@ -81,6 +86,8 @@ export default function UserProfile({ onClose }: UserProfileProps) {
   // Address form
   const addressForm = useForm<AddressData>({
     defaultValues: {
+      firstName: "",
+      lastName: "",
       street: "",
       city: "",
       postalCode: "",
@@ -109,38 +116,47 @@ export default function UserProfile({ onClose }: UserProfileProps) {
   // Fetch user addresses
   const { data: addresses = [], refetch: refetchAddresses } = useQuery({
     queryKey: ["/api/addresses"],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/addresses", undefined, { suppressAuthModal: true });
+      // Server restituisce direttamente l'array, non { addresses: [...] }
+      return Array.isArray(res) ? res : [];
+    },
   });
 
   const { data: ordersResponse, refetch: refetchOrders } = useQuery({
     queryKey: ["/api/orders"],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/orders", undefined, { suppressAuthModal: true });
+      return res;
+    },
   });
 
   const orders = ordersResponse?.orders || [];
 
-  // Mutation per aggiornare il profilo
-  const updateProfileMutation = useMutation({
-    mutationFn: async (data: ProfileData) => {
-      return apiRequest("PUT", "/api/auth/profile", data);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Profilo aggiornato",
-        description: "Le tue informazioni sono state salvate con successo",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Errore",
-        description: error.message || "Errore nell'aggiornamento del profilo",
-        variant: "destructive",
-      });
-    },
-  });
+  useEffect(() => {
+    if (user) {
+      refetchAddresses();
+      refetchOrders();
+    }
+  }, [user, refetchAddresses, refetchOrders]);
 
   // Mutation per aggiungere un indirizzo
   const addAddressMutation = useMutation({
     mutationFn: async (data: AddressData) => {
-      return apiRequest("POST", "/api/addresses", data);
+      // Transform data to match API expectations
+      const payload = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        address: data.street, // API expects "address" but saves as "street"
+        city: data.city,
+        postalCode: data.postalCode,
+        province: data.province,
+        country: data.country,
+        isDefault: data.isDefault
+      };
+      return apiRequest("POST", "/api/addresses", payload, { suppressAuthModal: true, timeoutMs: 2000 });
     },
     onSuccess: () => {
       toast({
@@ -162,7 +178,7 @@ export default function UserProfile({ onClose }: UserProfileProps) {
   // Mutation per eliminare un indirizzo
   const deleteAddressMutation = useMutation({
     mutationFn: async (addressId: number) => {
-      return apiRequest("DELETE", `/api/addresses/${addressId}`);
+      return apiRequest("DELETE", `/api/addresses/${addressId}`, undefined, { suppressAuthModal: true, timeoutMs: 2000 });
     },
     onSuccess: () => {
       toast({
@@ -180,12 +196,76 @@ export default function UserProfile({ onClose }: UserProfileProps) {
     },
   });
 
-  const handleProfileSubmit = (data: ProfileData) => {
-    updateProfileMutation.mutate(data);
+  // Mutation per impostare un indirizzo come predefinito
+  const setDefaultAddressMutation = useMutation({
+    mutationFn: async (addressId: number) => {
+      return apiRequest("PUT", `/api/addresses/${addressId}/default`, undefined, { suppressAuthModal: true, timeoutMs: 2000 });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Indirizzo predefinito aggiornato",
+        description: "Le impostazioni dell'indirizzo sono state aggiornate",
+      });
+      refetchAddresses();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Errore nell'aggiornamento dell'indirizzo predefinito",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleProfileSubmit = async (data: ProfileData) => {
+    const payload = { firstName: data.firstName, lastName: data.lastName, phone: data.phone };
+    setSavingProfile(true);
+    const timer = setTimeout(() => setSavingProfile(false), 2200);
+    try {
+      console.log("[PROFILE] Saving profile", payload);
+      const res = await updateProfile(payload);
+      console.log("[PROFILE] Save response", res);
+      toast({
+        title: "Profilo aggiornato",
+        description: "Le tue informazioni sono state salvate",
+      });
+      // Aggiorna i campi con i dati confermati dal backend
+      const refreshed = res?.user ?? null;
+      if (refreshed) {
+        console.log("[PROFILE] Resetting form with refreshed data", refreshed);
+        profileForm.reset({
+          firstName: refreshed.firstName || payload.firstName,
+          lastName: refreshed.lastName || payload.lastName,
+          phone: refreshed.phone || payload.phone || "",
+          address: refreshed.address || "",
+          city: refreshed.city || "",
+          postalCode: refreshed.postalCode || "",
+          province: refreshed.province || "",
+          country: refreshed.country || "Italia",
+        });
+      }
+    } catch (error: any) {
+      console.log("[PROFILE] Save error", error);
+      toast({
+        title: "Errore",
+        description: error?.message || "Impossibile salvare le modifiche",
+        variant: "destructive",
+      });
+    } finally {
+      clearTimeout(timer);
+      setSavingProfile(false);
+    }
   };
 
   const handleAddressSubmit = (data: AddressData) => {
-    addAddressMutation.mutate(data);
+    setAddingAddr(true);
+    const timer = setTimeout(() => setAddingAddr(false), 2200);
+    addAddressMutation.mutate(data, {
+      onSettled: () => {
+        clearTimeout(timer);
+        setAddingAddr(false);
+      }
+    });
   };
 
   const handleDeleteAddress = (addressId: number) => {
@@ -384,19 +464,27 @@ export default function UserProfile({ onClose }: UserProfileProps) {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Telefono (opzionale)</Label>
-                    <Input
-                      id="phone"
-                      {...profileForm.register("phone")}
+                    <Controller
+                      name="phone"
+                      control={profileForm.control}
+                      render={({ field }) => (
+                        <PhoneInput
+                          id="phone"
+                          label="Telefono (opzionale)"
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Inserisci il tuo numero"
+                        />
+                      )}
                     />
                   </div>
                   
                   <Button 
                     type="submit" 
-                    disabled={updateProfileMutation.isPending}
+                    disabled={savingProfile}
                     className="bg-[#FFD100] text-black hover:bg-[#FFD100]/90"
                   >
-                    {updateProfileMutation.isPending ? "Salvando..." : "Salva modifiche"}
+                    {savingProfile ? "Salvando..." : "Salva modifiche"}
                   </Button>
                 </form>
               </CardContent>
@@ -426,25 +514,43 @@ export default function UserProfile({ onClose }: UserProfileProps) {
                       <div key={address.id} className="border rounded-lg p-4 flex justify-between items-start">
                         <div>
                           <div className="flex items-center gap-2 mb-2">
-                            <Badge variant={address.isDefault ? "default" : "secondary"}>
-                              {address.type === 'home' ? 'Casa' : address.type === 'work' ? 'Ufficio' : 'Altro'}
-                            </Badge>
                             {address.isDefault && (
                               <Badge className="bg-[#FFD100] text-black">Predefinito</Badge>
                             )}
                           </div>
-                          <p className="font-medium">{address.firstName} {address.lastName}</p>
+                          {(address.firstName || address.lastName) && (
+                            <p className="font-medium">{address.firstName} {address.lastName}</p>
+                          )}
                           <p className="text-gray-600">{address.address}</p>
-                          <p className="text-gray-600">{address.city}, {address.postalCode} ({address.province})</p>
+                          <p className="text-gray-600">
+                            {address.postalCode ? `${address.city}, ${address.postalCode}` : address.city}
+                            {address.province && ` (${address.province})`}
+                          </p>
+                          {address.country && address.country !== 'Italia' && (
+                            <p className="text-gray-600">{address.country}</p>
+                          )}
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteAddress(address.id)}
-                          disabled={deleteAddressMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          {!address.isDefault && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setDefaultAddressMutation.mutate(address.id)}
+                              disabled={setDefaultAddressMutation.isPending}
+                              className="border-[#FFD100] text-[#FFD100] hover:bg-[#FFD100] hover:text-black"
+                            >
+                              Imposta come predefinito
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteAddress(address.id)}
+                            disabled={deleteAddressMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -477,10 +583,11 @@ export default function UserProfile({ onClose }: UserProfileProps) {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="addressAddress">Indirizzo</Label>
+                    <Label htmlFor="addressStreet">Indirizzo</Label>
                     <Input
-                      id="addressAddress"
-                      {...addressForm.register("address")}
+                      id="addressStreet"
+                      {...addressForm.register("street")}
+                      placeholder="Via, numero civico"
                     />
                   </div>
                   
@@ -510,11 +617,11 @@ export default function UserProfile({ onClose }: UserProfileProps) {
                   
                   <Button 
                     type="submit" 
-                    disabled={addAddressMutation.isPending}
+                    disabled={addingAddr}
                     className="bg-[#FFD100] text-black hover:bg-[#FFD100]/90"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    {addAddressMutation.isPending ? "Aggiungendo..." : "Aggiungi indirizzo"}
+                    {addingAddr ? "Aggiungendo..." : "Aggiungi indirizzo"}
                   </Button>
                 </form>
               </CardContent>

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuthQuery } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
+import { addToCart as addToCartRPC, updateCartQuantity as updateCartQuantityRPC, removeFromCart as removeFromCartRPC, clearCart as clearCartRPC, getCart as getCartRPC } from "@/services/cart";
 
 export interface CartItem {
   product_option_id: number;
@@ -17,7 +18,7 @@ export function useCart() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
   const { toast } = useToast();
-  const { user, isAuthenticated } = useAuthQuery();
+  const { user, isAuthenticated } = useAuth();
 
   // ----------------------------------------
   // 🚀 1. CARICAMENTO INIZIALE
@@ -25,58 +26,42 @@ export function useCart() {
   useEffect(() => {
     const loadCart = async () => {
       if (isAuthenticated && user) {
-        console.log("🛒 Utente loggato → caricamento carrello server…");
+        console.log("🛒 Utente loggato → caricamento carrello Supabase…");
 
-        // Carrello guest → trasferiscilo al backend
+        // Trasferisci carrello guest su Supabase
         const guest = localStorage.getItem("biggimmy-cart");
-
-        try {
-          if (guest && guest !== "[]") {
+        if (guest && guest !== "[]") {
+          try {
             const guestItems = JSON.parse(guest);
             for (const item of guestItems) {
-            await apiRequest("POST", "/api/cart", {
-              product_option_id: Number(item.product_option_id),
-              quantity: Number(item.quantity),
-            });
+              await addToCartRPC(Number(item.product_option_id), Number(item.quantity));
             }
             localStorage.removeItem("biggimmy-cart");
-          }
+          } catch (_) {}
+        }
 
-          const response = await apiRequest("GET", `/api/cart/${user.id}`);
-          const dbItems = Array.isArray(response.items) ? response.items : [];
-          const mapped = dbItems.map((it: any) => {
-            const id = Number(it.product_option_id ?? it.id ?? it.product_option?.id);
-            const productId = Number(it.product_id ?? it.product_option?.product_id);
-            const priceCents = typeof it.price_cents === "number" ? it.price_cents : (typeof it.price === "number" ? it.price : 0);
-            const price = priceCents > 100 ? priceCents / 100 : priceCents;
-            const flavor = it.flavor ?? it.product_option?.flavor ?? "";
-            const size = it.size ?? it.product_option?.size ?? "";
-            const variant = it.variant ?? `${flavor} ${size}`.trim();
-            const image = it.image ?? it.product_option?.image;
-            const quantity = Number(it.quantity ?? 1);
-            const name = it.name ?? it.product_option?.name ?? "";
-            return { product_option_id: id, product_id: productId || 0, name, price, variant, quantity, image } as CartItem;
+        // Carica carrello da Supabase
+        try {
+          const { data: cartData, error } = await getCartRPC();
+          if (error) throw error;
+          const rows = Array.isArray(cartData) ? cartData : [];
+          const mapped = rows.map((row: any) => {
+            const po = row.product_option || {};
+            const id = Number(po.id ?? row.id);
+            const priceCents = Number(po.price_cents ?? 0);
+            const price = priceCents / 100;
+            const flavor = String(po.flavor ?? "");
+            const size = String(po.size ?? "");
+            const variant = `${flavor} ${size}`.trim();
+            const image = po.image;
+            const quantity = Number(row.quantity ?? 1);
+            const name = String(row.name ?? "");
+            const productId = Number(row.product_id ?? 0);
+            return { product_option_id: id, product_id: productId, name, price, variant, quantity, image } as CartItem;
           });
           setItems(mapped);
         } catch (e) {
-          console.warn("/api/cart-db non disponibile, fallback su sessione", e);
-          const response = await apiRequest("GET", `/api/cart/${user.id}`);
-          const sessItems = Array.isArray(response.items) ? response.items : [];
-          const mapped = sessItems.map((it: any) => {
-            const pid = Number(it.id ?? it.product_id ?? 0);
-            const poid = Number(it.product_option_id ?? it.id ?? pid);
-            const price = typeof it.price === "number" ? it.price : parseFloat(String(it.price ?? 0));
-            return {
-              product_option_id: poid,
-              product_id: pid,
-              name: String(it.name ?? ""),
-              price: isNaN(price) ? 0 : price,
-              variant: String(it.variant ?? ""),
-              quantity: Number(it.quantity ?? 1),
-              image: it.image,
-            } as CartItem;
-          });
-          setItems(mapped);
+          console.warn("Supabase cart non disponibile", e);
         }
       } else {
         console.log("🛒 Guest → caricamento da localStorage");
@@ -140,54 +125,29 @@ export function useCart() {
 
     if (isAuthenticated && user) {
       try {
-        if (Number.isFinite(newItem.product_option_id) && newItem.product_option_id > 0) {
-          await apiRequest("POST", "/api/cart", {
-            product_option_id: newItem.product_option_id,
-            quantity: newItem.quantity,
-          });
-          const response = await apiRequest("GET", `/api/cart/${user.id}`);
-          const dbItems = Array.isArray(response.items) ? response.items : [];
-          const mapped = dbItems.map((it: any) => {
-            const id = Number(it.product_option_id ?? it.id ?? it.product_option?.id);
-            const productId = Number(it.product_id ?? it.product_option?.product_id);
-            const priceCents = typeof it.price_cents === "number" ? it.price_cents : (typeof it.price === "number" ? it.price : 0);
-            const price = priceCents > 100 ? priceCents / 100 : priceCents;
-            const flavor = it.flavor ?? it.product_option?.flavor ?? "";
-            const size = it.size ?? it.product_option?.size ?? "";
-            const variant = it.variant ?? `${flavor} ${size}`.trim();
-            const image = it.image ?? it.product_option?.image;
-            const quantity = Number(it.quantity ?? 1);
-            const name = it.name ?? it.product_option?.name ?? "";
-            return { product_option_id: id, product_id: productId || newItem.product_id, name, price, variant, quantity, image } as CartItem;
-          });
-          setItems(mapped);
-        } else {
+        if (!Number.isFinite(newItem.product_option_id) || newItem.product_option_id <= 0) {
           throw new Error("Missing product_option_id");
         }
-      } catch (_) {
-        await apiRequest("POST", "/api/cart", {
-          productId: newItem.product_id,
-          variant: newItem.variant,
-          quantity: newItem.quantity,
-          price: newItem.price,
-        });
-        const response = await apiRequest("GET", `/api/cart/${user.id}`);
-        const sessItems = Array.isArray(response.items) ? response.items : [];
-        const mapped = sessItems.map((it: any) => {
-          const pid = Number(it.id ?? it.product_id ?? 0);
-          const poid = Number(it.product_option_id ?? it.id ?? pid);
-          const price = typeof it.price === "number" ? it.price : parseFloat(String(it.price ?? 0));
-          return {
-            product_option_id: poid,
-            product_id: pid,
-            name: String(it.name ?? ""),
-            price: isNaN(price) ? 0 : price,
-            variant: String(it.variant ?? ""),
-            quantity: Number(it.quantity ?? 1),
-            image: it.image,
-          } as CartItem;
+        await addToCartRPC(newItem.product_option_id, newItem.quantity);
+        const { data: cartData } = await getCartRPC();
+        const rows = Array.isArray(cartData) ? cartData : [];
+        const mapped = rows.map((row: any) => {
+          const po = row.product_option || {};
+          const id = Number(po.id ?? row.id);
+          const priceCents = Number(po.price_cents ?? 0);
+          const price = priceCents / 100;
+          const flavor = String(po.flavor ?? "");
+          const size = String(po.size ?? "");
+          const variant = `${flavor} ${size}`.trim();
+          const image = po.image;
+          const quantity = Number(row.quantity ?? 1);
+          const name = String(row.name ?? "");
+          const productId = Number(row.product_id ?? newItem.product_id ?? 0);
+          return { product_option_id: id, product_id: productId, name, price, variant, quantity, image } as CartItem;
         });
         setItems(mapped);
+      } catch (_) {
+        // Se fallisce, non alterare il carrello
       }
     } else {
       // Guest cart
@@ -218,59 +178,41 @@ export function useCart() {
   // ❌ Remove
   // ----------------------------------------
   const removeFromCart = async (product_option_id: number, product_id?: number, variant?: string) => {
+    // Optimistic update
+    const prev = [...items];
+    setItems((curr) => curr.filter((i) => i.product_option_id !== product_option_id));
     if (isAuthenticated && user) {
       try {
-        if (Number.isFinite(product_option_id) && product_option_id > 0) {
-          await apiRequest("DELETE", "/api/cart", { product_option_id });
-          const response = await apiRequest("GET", `/api/cart/${user.id}`);
-          const dbItems = Array.isArray(response.items) ? response.items : [];
-          const mapped = dbItems.map((it: any) => {
-            const id = Number(it.product_option_id ?? it.id ?? it.product_option?.id);
-            const productId = Number(it.product_id ?? it.product_option?.product_id);
-            const priceCents = typeof it.price_cents === "number" ? it.price_cents : (typeof it.price === "number" ? it.price : 0);
-            const price = priceCents > 100 ? priceCents / 100 : priceCents;
-            const flavor = it.flavor ?? it.product_option?.flavor ?? "";
-            const size = it.size ?? it.product_option?.size ?? "";
-            const variant = it.variant ?? `${flavor} ${size}`.trim();
-            const image = it.image ?? it.product_option?.image;
-            const quantity = Number(it.quantity ?? 1);
-            const name = it.name ?? it.product_option?.name ?? "";
-            return { product_option_id: id, product_id: productId || 0, name, price, variant, quantity, image } as CartItem;
-          });
-          setItems(mapped);
-        } else {
-          throw new Error("Missing product_option_id");
+        if (!Number.isFinite(product_option_id) || product_option_id <= 0) {
+          throw new Error("Prodotto non trovato");
         }
-      } catch (_) {
-        const item = items.find(i => i.product_option_id === product_option_id) ||
-          (product_id ? items.find(i => i.product_id === product_id && (!variant || i.variant === variant)) : undefined);
-        const pid = item?.product_id ?? product_id;
-        const v = item?.variant ?? variant ?? "";
-        if (typeof pid === "number") {
-          await apiRequest("DELETE", "/api/cart", { productId: pid, variant: v });
-          const response = await apiRequest("GET", `/api/cart/${user.id}`);
-          const sessItems = Array.isArray(response.items) ? response.items : [];
-          const mapped = sessItems.map((it: any) => {
-            const pid = Number(it.id ?? it.product_id ?? 0);
-            const poid = Number(it.product_option_id ?? it.id ?? pid);
-            const price = typeof it.price === "number" ? it.price : parseFloat(String(it.price ?? 0));
-            return {
-              product_option_id: poid,
-              product_id: pid,
-              name: String(it.name ?? ""),
-              price: isNaN(price) ? 0 : price,
-              variant: String(it.variant ?? ""),
-              quantity: Number(it.quantity ?? 1),
-              image: it.image,
-            } as CartItem;
-          });
-          setItems(mapped);
-        }
+        const { error } = await removeFromCartRPC(product_option_id);
+        if (error) throw error;
+        const { data: cartData } = await getCartRPC();
+        const rows = Array.isArray(cartData) ? cartData : [];
+        const mapped = rows.map((row: any) => {
+          const po = row.product_option || {};
+          const id = Number(po.id ?? row.id);
+          const priceCents = Number(po.price_cents ?? 0);
+          const price = priceCents / 100;
+          const flavor = String(po.flavor ?? "");
+          const size = String(po.size ?? "");
+          const variantStr = `${flavor} ${size}`.trim();
+          const image = po.image;
+          const quantity = Number(row.quantity ?? 1);
+          const name = String(row.name ?? "");
+          const productId = Number(row.product_id ?? 0);
+          return { product_option_id: id, product_id: productId, name, price, variant: variantStr, quantity, image } as CartItem;
+        });
+        setItems(mapped);
+      } catch (e: any) {
+        setItems(prev); // revert
+        toast({
+          title: "Errore rimozione",
+          description: e?.message || "Impossibile rimuovere il prodotto",
+          variant: "destructive",
+        });
       }
-    } else {
-      setItems((curr) =>
-        curr.filter((i) => i.product_option_id !== product_option_id)
-      );
     }
   };
 
@@ -283,57 +225,45 @@ export function useCart() {
     product_id?: number,
     variant?: string
   ) => {
-    if (quantity <= 0) return removeFromCart(product_option_id);
+    if (quantity <= 0) return removeFromCart(product_option_id, product_id, variant);
 
     if (isAuthenticated && user) {
+      const prev = [...items];
+      setItems((curr) =>
+        curr.map((i) =>
+          i.product_option_id === product_option_id ? { ...i, quantity } : i
+        )
+      );
       try {
-        if (Number.isFinite(product_option_id) && product_option_id > 0) {
-          await apiRequest("PUT", "/api/cart", { product_option_id, quantity });
-          const response = await apiRequest("GET", `/api/cart/${user.id}`);
-          const dbItems = Array.isArray(response.items) ? response.items : [];
-          const mapped = dbItems.map((it: any) => {
-            const id = Number(it.product_option_id ?? it.id ?? it.product_option?.id);
-            const productId = Number(it.product_id ?? it.product_option?.product_id);
-            const priceCents = typeof it.price_cents === "number" ? it.price_cents : (typeof it.price === "number" ? it.price : 0);
-            const price = priceCents > 100 ? priceCents / 100 : priceCents;
-            const flavor = it.flavor ?? it.product_option?.flavor ?? "";
-            const size = it.size ?? it.product_option?.size ?? "";
-            const variant = it.variant ?? `${flavor} ${size}`.trim();
-            const image = it.image ?? it.product_option?.image;
-            const qty = Number(it.quantity ?? 1);
-            const name = it.name ?? it.product_option?.name ?? "";
-            return { product_option_id: id, product_id: productId || 0, name, price, variant, quantity: qty, image } as CartItem;
-          });
-          setItems(mapped);
-        } else {
-          throw new Error("Missing product_option_id");
+        if (!Number.isFinite(product_option_id) || product_option_id <= 0) {
+          throw new Error("Prodotto non trovato");
         }
-      } catch (_) {
-        const item =
-          items.find(i => i.product_option_id === product_option_id) ||
-          (product_id ? items.find(i => i.product_id === product_id && (!variant || i.variant === variant)) : undefined);
-        const pid = item?.product_id ?? product_id;
-        const v = item?.variant ?? variant ?? "";
-        if (typeof pid === "number") {
-          await apiRequest("PUT", "/api/cart", { productId: pid, variant: v, quantity });
-          const response = await apiRequest("GET", `/api/cart/${user.id}`);
-          const sessItems = Array.isArray(response.items) ? response.items : [];
-          const mapped = sessItems.map((it: any) => {
-            const pid2 = Number(it.id ?? it.product_id ?? 0);
-            const poid2 = Number(it.product_option_id ?? it.id ?? pid2);
-            const price = typeof it.price === "number" ? it.price : parseFloat(String(it.price ?? 0));
-            return {
-              product_option_id: poid2,
-              product_id: pid2,
-              name: String(it.name ?? ""),
-              price: isNaN(price) ? 0 : price,
-              variant: String(it.variant ?? ""),
-              quantity: Number(it.quantity ?? 1),
-              image: it.image,
-            } as CartItem;
-          });
-          setItems(mapped);
-        }
+        const { error } = await updateCartQuantityRPC(product_option_id, quantity);
+        if (error) throw error;
+        const { data: cartData } = await getCartRPC();
+        const rows = Array.isArray(cartData) ? cartData : [];
+        const mapped = rows.map((row: any) => {
+          const po = row.product_option || {};
+          const id = Number(po.id ?? row.id);
+          const priceCents = Number(po.price_cents ?? 0);
+          const price = priceCents / 100;
+          const flavor = String(po.flavor ?? "");
+          const size = String(po.size ?? "");
+          const variantStr = `${flavor} ${size}`.trim();
+          const image = po.image;
+          const qty = Number(row.quantity ?? 1);
+          const name = String(row.name ?? "");
+          const productId = Number(row.product_id ?? 0);
+          return { product_option_id: id, product_id: productId, name, price, variant: variantStr, quantity: qty, image } as CartItem;
+        });
+        setItems(mapped);
+      } catch (e: any) {
+        setItems(prev); // revert
+        toast({
+          title: "Errore quantità",
+          description: e?.message || "Impossibile aggiornare la quantità",
+          variant: "destructive",
+        });
       }
     } else {
       setItems((curr) =>
@@ -350,9 +280,9 @@ export function useCart() {
   const clearCart = async () => {
     if (isAuthenticated && user) {
       try {
-        await apiRequest("DELETE", `/api/cart/${user.id}`);
+        await clearCartRPC();
       } catch (_) {
-        await apiRequest("DELETE", `/api/cart/${user.id}`);
+        // ignore
       }
     }
     setItems([]);

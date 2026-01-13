@@ -4,8 +4,9 @@ import { Menu, X, Heart, ShoppingCart, User, LogOut, Settings } from "lucide-rea
 import { motion, AnimatePresence } from "framer-motion";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 import Logo from "../ui/Logo";
-import { useAuthQuery } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { subscribeAuthModal } from "@/lib/authModalBus";
 import { useToast } from "@/hooks/use-toast";
 import { useCartContext } from "@/components/cart/CartProvider";
 import InfoBanner from "@/components/layout/InfoBanner";
@@ -16,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -24,14 +26,22 @@ const Navbar = () => {
   const [location] = useLocation();
   const { scrollY, scrollDirection } = useScrollAnimation();
   const [isNavigating, setIsNavigating] = useState(false);
-  const { user, isAuthenticated, isLoading, logout, isLogoutLoading } = useAuthQuery();
+  const { user, isAuthenticated, isLoading, logout, logoutMutation } = useAuth();
+  const isLogoutLoading = logoutMutation.isPending;
   // 🔹 Aggiornato con isLoading
 
   const { toast } = useToast();
   const { totalItems } = useCartContext();
 
-  // 🔹 Auto-apertura modale autenticazione
-  
+  // Chiudi la modale se diventi autenticato
+  useEffect(() => {
+    if (isAuthenticated) setAuthModalOpen(false);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    const unsub = subscribeAuthModal((v) => setAuthModalOpen(v));
+    return () => { unsub(); };
+  }, []);
 
   // Chiudi il menu mobile quando cambia la pagina
   useEffect(() => {
@@ -148,12 +158,17 @@ const Navbar = () => {
           {/* Auth, Favorites, Cart */}
           <div className="hidden md:flex items-center gap-3 w-44 justify-end">
             {/* Authentication */}
-            {isAuthenticated ? (
+            {isLoading ? (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-full text-white/80">
+                <User className="w-5 h-5 animate-pulse" />
+              </div>
+            ) : isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 px-3 py-2 rounded-full transition-colors duration-200 text-white hover:text-[#FFD100] hover:bg-white/5">
                     <User className="w-5 h-5" />
                     <span className="text-sm font-medium">{user?.firstName || user?.email}</span>
+                    <Badge className="ml-1 bg-[#FFD100] text-black">Autenticato</Badge>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
@@ -203,6 +218,7 @@ const Navbar = () => {
               >
                 <User className="w-5 h-5" />
                 <span className="text-sm font-medium">Accedi</span>
+                <Badge variant="secondary" className="ml-1">Non autenticato</Badge>
               </button>
             )}
 
@@ -287,11 +303,16 @@ const Navbar = () => {
                 ))}
 
                 {/* Authentication Mobile */}
-                {isAuthenticated ? (
+                {isLoading ? (
+                  <div className="flex items-center gap-2 py-2 font-montserrat font-semibold text-white/80">
+                    <User className="w-5 h-5 animate-pulse" />
+                  </div>
+                ) : isAuthenticated ? (
                   <>
                     <div className="flex items-center gap-2 py-2 font-montserrat font-semibold text-[#FFD100]">
                       <User className="w-5 h-5" />
                       {user?.firstName || user?.email}
+                      <Badge className="ml-2 bg-[#FFD100] text-black">Autenticato</Badge>
                     </div>
                     {user?.isAdmin && (
                       <Link
@@ -326,6 +347,7 @@ const Navbar = () => {
                     >
                       <User className="w-5 h-5" />
                       Accedi
+                      <Badge variant="secondary" className="ml-2">Non autenticato</Badge>
                     </button>
                   </>
                 )}
@@ -390,10 +412,6 @@ const Navbar = () => {
     <AuthModal
       isOpen={authModalOpen}
       onClose={() => {
-        if (!isAuthenticated) {
-          setAuthModalOpen(true);
-          return;
-        }
         setAuthModalOpen(false);
       }}
       defaultTab={authModalTab}

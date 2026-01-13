@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useAuthQuery } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 const loginSchemaCredentials = z.object({
@@ -26,8 +27,10 @@ interface LoginFormProps {
 
 export function LoginForm({ onSuccess, onSwitchToRegister, onForgotPassword }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
-  const { login, isLoginLoading } = useAuthQuery();
+  const { login, loginMutation } = useAuth();
+  const isLoginLoading = loginMutation.isPending;
 
   const formCred = useForm<CredentialsData>({
     resolver: zodResolver(loginSchemaCredentials),
@@ -35,21 +38,40 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onForgotPassword }: L
   });
 
   const onSubmitCred = async (data: CredentialsData) => {
+    console.log("[AUTH-FIX] LoginForm submit triggered", data.email);
+    setSubmitting(true);
+    
     try {
-      await login(data);
-      toast({
-        title: 'Login effettuato',
-        description: 'Benvenuto in BigGimmy!',
+      console.log("[AUTH-FIX] Calling login()...");
+      await login({
+        email: data.email,
+        password: data.password,
       });
+
+      console.log("[AUTH-FIX] Login() resolved successfully");
+      // Toast gestito da mutation onSuccess, ma ne mettiamo uno qui per ridondanza visiva se serve
       onSuccess?.();
     } catch (error: any) {
-      const errorMessage = error.message?.includes('Credenziali') ? 'Email o password non corretti' : 'Errore di connessione. Riprova.';
+      console.error("[AUTH-FIX] LoginForm caught error:", error);
+      const msg = String(error?.message || '').toLowerCase();
+      const isTimeout = (error as any)?.code === 'LOGIN_TIMEOUT' || /timeout/i.test(msg);
+      const isInvalidCreds = error?.status === 400 || /invalid/.test(msg) || /credential/.test(msg);
+      const isUnverified = /non verificata|not confirmed|unverified/i.test(msg);
+      const errorMessage = isTimeout
+        ? 'Connessione lenta. Tentativo di fallback in corso...'
+        : isUnverified
+          ? 'Email non verificata. Controlla la posta per confermare.'
+        : isInvalidCreds
+          ? 'Email o password non corrette'
+          : 'Errore di connessione. Riprova.';
       
       toast({
-        title: 'Errore login',
+        title: isTimeout ? 'Attendi...' : 'Errore login',
         description: errorMessage,
-        variant: 'destructive',
+        variant: isTimeout ? 'default' : 'destructive',
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -63,7 +85,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onForgotPassword }: L
       </CardHeader>
       <CardContent>
         {
-          <form onSubmit={formCred.handleSubmit(onSubmitCred)} className="space-y-4">
+          <form onSubmit={formCred.handleSubmit(onSubmitCred, (errors) => console.error("[AUTH-FIX] Validation errors:", errors))} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" placeholder="mario@example.com" {...formCred.register('email')} />
@@ -85,12 +107,23 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onForgotPassword }: L
               )}
             </div>
 
-            <Button type="submit" className="w-full bg-[#FFD100] hover:bg-[#E6BC00] text-black" disabled={isLoginLoading}>
-              {isLoginLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Accesso in corso...</>) : ('Accedi')}
+            <Button type="submit" className="w-full bg-[#FFD100] hover:bg-[#E6BC00] text-black" disabled={submitting}>
+              {submitting ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Accesso in corso...</>) : ('Accedi')}
             </Button>
 
             <div className="text-center">
               <button type="button" onClick={onForgotPassword} className="text-sm text-[#FFD100] hover:text-[#FFD100]/80 font-medium underline">Hai dimenticato la password?</button>
+            </div>
+            
+            <div className="text-center text-sm">
+              <span className="text-gray-600">Non sei registrato? </span>
+              <button
+                type="button"
+                onClick={onSwitchToRegister}
+                className="text-[#FFD100] hover:underline font-medium"
+              >
+                Registrati
+              </button>
             </div>
           </form>
         }

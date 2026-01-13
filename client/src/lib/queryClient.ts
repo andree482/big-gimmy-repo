@@ -1,4 +1,6 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { supabase } from "./supabase";
+import { openAuthModal } from "./authModalBus";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -11,34 +13,96 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  options?: { suppressAuthModal?: boolean; timeoutMs?: number },
 ): Promise<any> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData?.session?.access_token;
+
+  const headers: Record<string, string> = {};
+  if (data) headers["Content-Type"] = "application/json";
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : undefined;
+  const timer = options?.timeoutMs
+    ? setTimeout(() => {
+        try { controller?.abort(); } catch {}
+      }, options.timeoutMs)
+    : undefined;
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
+    signal: controller?.signal,
   });
+  if (timer) clearTimeout(timer);
 
-  await throwIfResNotOk(res);
-  return await res.json();
+  if (!res.ok) {
+    if (res.status === 401) {
+      try {
+        const { data: current } = await supabase.auth.getSession();
+        if (current?.session) {
+          await supabase.auth.refreshSession();
+          const { data: refreshed } = await supabase.auth.getSession();
+          const newToken = refreshed?.session?.access_token;
+          if (newToken) {
+            headers["Authorization"] = `Bearer ${newToken}`;
+            const retryController = typeof AbortController !== "undefined" ? new AbortController() : undefined;
+            const retryTimer = options?.timeoutMs
+              ? setTimeout(() => {
+                  try { retryController?.abort(); } catch {}
+                }, options.timeoutMs)
+              : undefined;
+            const retry = await fetch(url, {
+              method,
+              headers,
+              body: data ? JSON.stringify(data) : undefined,
+              credentials: "include",
+              signal: retryController?.signal,
+            });
+            if (retryTimer) clearTimeout(retryTimer);
+            if (!retry.ok) {
+              if (retry.status === 401 && !options?.suppressAuthModal) {
+                openAuthModal();
+              }
+              await throwIfResNotOk(retry);
+            }
+            const json = await retry.json();
+            return json;
+          }
+        }
+      } catch {
+        // ignore refresh errors; fallthrough to modal/throw
+      }
+      if (!options?.suppressAuthModal) {
+        openAuthModal();
+      }
+      await throwIfResNotOk(res);
+    } else {
+      await throwIfResNotOk(res);
+    }
+  }
+  const json = await res.json();
+  return json;
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
+export const getQueryFn = <T,>(options: {
   on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
+}): QueryFunction<T> =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
-      credentials: "include",
-    });
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+    const url = queryKey[0] as string;
+    try {
+      const data = await apiRequest("GET", url);
+      return data as T;
+    } catch (err: any) {
+      const message = err?.message ?? "";
+      if (options.on401 === "returnNull" && message.startsWith("401:")) {
+        return null as T;
+      }
+      throw err;
     }
-
-    await throwIfResNotOk(res);
-    return await res.json();
   };
 
 export const queryClient = new QueryClient({
@@ -55,8 +119,6 @@ export const queryClient = new QueryClient({
         return true;
       },
       retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
-      suspense: false,
-      useErrorBoundary: false,
     },
     mutations: {
       retry: 1,
