@@ -47,7 +47,7 @@ export function useFavorites({ userId }: UseFavoritesProps = {}) {
       toast({
         title: "Aggiunto ai preferiti ✨",
         description: "Il prodotto è stato aggiunto ai tuoi preferiti",
-        duration: 3000,
+        duration: 2000,
       });
     },
     onError: (error: any) => {
@@ -82,7 +82,7 @@ export function useFavorites({ userId }: UseFavoritesProps = {}) {
       toast({
         title: "Rimosso dai preferiti",
         description: "Il prodotto è stato rimosso dai tuoi preferiti",
-        duration: 3000,
+        duration: 2000,
       });
     },
     onError: (error: any) => {
@@ -134,7 +134,7 @@ export function useFavorites({ userId }: UseFavoritesProps = {}) {
     });
   };
 
-  // Toggle favorite status
+  // Toggle favorite status (optimized - no prefetch)
   const toggleFavorite = async (productId: number) => {
     if (!userId) {
       toast({
@@ -147,11 +147,21 @@ export function useFavorites({ userId }: UseFavoritesProps = {}) {
     }
 
     try {
-      // Check current status
-      const currentStatus = await queryClient.fetchQuery<FavoriteStatusResponse>({
-        queryKey: [`/api/favorites/${userId}/${productId}`],
+      // Get current status from cache (instant, no network call)
+      const currentStatus = queryClient.getQueryData<FavoriteStatusResponse>([
+        `/api/favorites/${userId}/${productId}`
+      ]);
+
+      // Optimistic update: assume opposite of current state
+      const willBeFavorite = !currentStatus?.isFavorite;
+
+      // Immediately update UI
+      queryClient.setQueryData([`/api/favorites/${userId}/${productId}`], {
+        success: true,
+        isFavorite: willBeFavorite,
       });
 
+      // Then make the actual API call
       if (currentStatus?.isFavorite) {
         await removeFromFavoritesMutation.mutateAsync({ productId });
       } else {
@@ -159,6 +169,16 @@ export function useFavorites({ userId }: UseFavoritesProps = {}) {
       }
     } catch (error) {
       console.error("Error toggling favorite:", error);
+      // Revert optimistic update on error
+      const currentStatus = queryClient.getQueryData<FavoriteStatusResponse>([
+        `/api/favorites/${userId}/${productId}`
+      ]);
+      if (currentStatus) {
+        queryClient.setQueryData([`/api/favorites/${userId}/${productId}`], {
+          success: true,
+          isFavorite: !currentStatus.isFavorite,
+        });
+      }
     }
   };
 

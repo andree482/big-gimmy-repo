@@ -290,7 +290,7 @@ export default function UserProfile({ onClose }: UserProfileProps) {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-2' : 'grid-cols-4'}`}>
+        <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-2' : 'grid-cols-3'}`}>
           {!isAdmin && (
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="w-4 h-4" />
@@ -301,138 +301,11 @@ export default function UserProfile({ onClose }: UserProfileProps) {
             <MapPin className="w-4 h-4" />
             Indirizzi
           </TabsTrigger>
-          {!isAdmin && (
-            <TabsTrigger value="orders" className="flex items-center gap-2">
-              <Package className="w-4 h-4" />
-              Ordini ({orders.length})
-            </TabsTrigger>
-          )}
           <TabsTrigger value="settings" className="flex items-center gap-2">
             <Settings className="w-4 h-4" />
             Impostazioni
           </TabsTrigger>
         </TabsList>
-
-        {/* Tab Ordini - Hidden for admin */}
-        {!isAdmin && (
-          <TabsContent value="orders">
-            <Card>
-              <CardHeader>
-                <CardTitle>I tuoi ordini</CardTitle>
-                <CardDescription>
-                  Visualizza la cronologia dei tuoi acquisti
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {orders.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Package className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Nessun ordine ancora</h3>
-                    <p className="text-gray-600">I tuoi acquisti appariranno qui una volta completati.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {orders.map((order: Order) => (
-                      <Card key={order.id} className="border border-gray-200">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <h4 className="font-semibold">Ordine #{order.snipcartOrderId}</h4>
-                              <p className="text-sm text-gray-600">
-                                {new Date(order.createdAt).toLocaleDateString('it-IT')}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <Badge 
-                                variant={
-                                  order.status === 'completed' ? 'default' : 
-                                  order.status === 'pending' ? 'secondary' : 'destructive'
-                                }
-                                className="flex items-center gap-1"
-                              >
-                                {order.status === 'completed' && <CheckCircle className="w-3 h-3" />}
-                                {order.status === 'pending' && <Clock className="w-3 h-3" />}
-                                {order.status === 'cancelled' && <AlertCircle className="w-3 h-3" />}
-                                {order.status === 'completed' ? 'Completato' : 
-                                 order.status === 'pending' ? 'In elaborazione' : 'Annullato'}
-                              </Badge>
-                              <span className="font-semibold">€{(order.total / 100).toFixed(2)}</span>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            {order.items?.map((item: OrderItem, index: number) => (
-                              <div key={index} className="flex justify-between text-sm">
-                                <span>{item.name} - {item.variant}</span>
-                                <span>x{item.quantity} • €{(item.price / 100).toFixed(2)}</span>
-                              </div>
-                            ))}
-                          </div>
-                          
-                          <div className="mt-3 pt-3 border-t border-gray-100">
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                  <Eye className="w-4 h-4 mr-2" />
-                                  Dettagli ordine
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Dettagli Ordine #{order.snipcartOrderId}</DialogTitle>
-                                  <DialogDescription>
-                                    Informazioni complete sull'ordine del {new Date(order.createdAt).toLocaleDateString('it-IT')}
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <div>
-                                    <h4 className="font-semibold mb-2">Prodotti ordinati:</h4>
-                                    <div className="space-y-2">
-                                      {order.items?.map((item: OrderItem, index: number) => (
-                                        <div key={index} className="flex justify-between py-2 border-b border-gray-100">
-                                          <div>
-                                            <p className="font-medium">{item.name}</p>
-                                            <p className="text-sm text-gray-600">{item.variant}</p>
-                                          </div>
-                                          <div className="text-right">
-                                            <p>Quantità: {item.quantity}</p>
-                                            <p className="font-semibold">€{(item.price / 100).toFixed(2)}</p>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                  
-                                  {order.shippingAddress && (
-                                    <div>
-                                      <h4 className="font-semibold mb-2">Indirizzo di spedizione:</h4>
-                                      <p className="text-sm text-gray-600">
-                                        {typeof order.shippingAddress === 'string' 
-                                          ? order.shippingAddress 
-                                          : JSON.stringify(order.shippingAddress)}
-                                      </p>
-                                    </div>
-                                  )}
-                                  
-                                  <div className="pt-3 border-t border-gray-200">
-                                    <div className="flex justify-between text-lg font-semibold">
-                                      <span>Totale:</span>
-                                      <span>€{(order.total / 100).toFixed(2)}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
 
         {/* Tab Profilo - Hidden for admin */}
         {!isAdmin && (

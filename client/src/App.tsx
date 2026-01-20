@@ -18,6 +18,8 @@ import Gallery from "@/pages/Gallery";
 import Contact from "@/pages/Contact";
 import Favorites from "@/pages/Favorites";
 import Cart from "@/pages/Cart";
+import CheckoutSuccess from "@/pages/CheckoutSuccess";
+import CheckoutCancel from "@/pages/CheckoutCancel";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import CookiePolicy from "@/pages/CookiePolicy";
 import NotFound from "@/pages/not-found";
@@ -31,6 +33,7 @@ import AdminOrders from "@/pages/AdminOrders";
 import AdminUsers from "@/pages/AdminUsers";
 import AdminLayout from "@/components/admin/AdminLayout";
 import Profile from "@/pages/Profile";
+import MyOrders from "@/pages/MyOrders";
 
 function Router() {
   // Attiva lo scroll automatico verso l'alto ad ogni cambio di pagina
@@ -49,9 +52,13 @@ function Router() {
       <Route path="/contatti" component={Contact} />
       <Route path="/preferiti" component={Favorites} />
       <Route path="/carrello" component={Cart} />
+      <Route path="/cart" component={Cart} />
+      <Route path="/checkout/success" component={CheckoutSuccess} />
+      <Route path="/checkout/cancel" component={CheckoutCancel} />
       <Route path="/admin/users" component={() => <AdminLayout><AdminUsers /></AdminLayout>} />
       <Route path="/admin/ordini" component={() => <AdminLayout><AdminOrders /></AdminLayout>} />
       <Route path="/profilo" component={Profile} />
+      <Route path="/ordini" component={MyOrders} />
       <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/cookie-policy" component={CookiePolicy} />
       <Route component={NotFound} />

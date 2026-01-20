@@ -1177,17 +1177,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   app.get("/api/auth/me/orders", async (req: Request, res: Response) => {
     try {
-      const sanitized = MOCK_ORDERS.map(o => ({
+      // Ottieni l'utente corrente
+      const authUser = await getAuthFromToken(req);
+      const sessionUser = (req.session as any)?.user;
+      const currentUserId = authUser?.id || sessionUser?.id;
+
+      if (!currentUserId) {
+        return res.json({ success: true, orders: [] });
+      }
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      // Query alla tabella orders in Supabase filtrando per user_id
+      const { data: orders, error } = await (supabaseAdmin as any)
+        .from("orders")
+        .select("*")
+        .eq("user_id", currentUserId)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("[ORDERS] Errore lettura orders per user:", error);
+        return res.status(500).json({ success: false, message: "Errore lettura ordini" });
+      }
+
+      // Sanitizza i dati rimuovendo informazioni sensibili
+      const sanitized = (orders || []).map((o: any) => ({
         id: o.id,
-        snipcartOrderId: o.snipcartOrderId,
+        snipcartOrderId: o.snipcart_order_id,
         total: o.total,
         status: o.status,
         items: o.items,
-        createdAt: o.createdAt,
-        updatedAt: o.updatedAt,
+        createdAt: o.created_at,
+        updatedAt: o.updated_at,
       }));
+
       return res.json({ success: true, orders: sanitized });
-    } catch {
+    } catch (err) {
+      console.error("[ORDERS] Errore endpoint /api/auth/me/orders:", err);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
@@ -1376,103 +1404,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ================================
-  // ADMIN ORDERS (mock) - solo admin
+  // ADMIN ORDERS - legge dalla tabella "orders" in Supabase
   // ================================
-  const MOCK_ORDERS = [
-    {
-      id: 1001,
-      userId: 501,
-      snipcartOrderId: "SNIP-001001",
-      total: 4599,
-      status: "ordered",
-      items: [
-        { id: "p-1", name: "Proteine Whey 1kg", quantity: 1, price: 2999 },
-        { id: "p-2", name: "Creatina Monoidrato 300g", quantity: 1, price: 1600 },
-      ],
-      shippingAddress: { street: "Via Roma 10", city: "Torino", postalCode: "10121", province: "TO" },
-      billingAddress: { street: "Via Roma 10", city: "Torino", postalCode: "10121", province: "TO" },
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-      updatedAt: new Date().toISOString(),
-      userEmail: "mario.rossi@example.com",
-      userFirstName: "Mario",
-      userLastName: "Rossi",
-    },
-    {
-      id: 1002,
-      userId: 502,
-      snipcartOrderId: "SNIP-001002",
-      total: 8999,
-      status: "completed",
-      items: [
-        { id: "p-3", name: "Omega-3 120 cps", quantity: 2, price: 1999 },
-        { id: "p-4", name: "Multivitaminico", quantity: 1, price: 5001 },
-      ],
-      shippingAddress: { street: "Via Garibaldi 5", city: "Milano", postalCode: "20100", province: "MI" },
-      billingAddress: { street: "Via Garibaldi 5", city: "Milano", postalCode: "20100", province: "MI" },
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-      updatedAt: new Date().toISOString(),
-      userEmail: "laura.bianchi@example.com",
-      userFirstName: "Laura",
-      userLastName: "Bianchi",
-    },
-    {
-      id: 1003,
-      userId: 503,
-      snipcartOrderId: "SNIP-001003",
-      total: 6599,
-      status: "processing",
-      items: [
-        { id: "p-5", name: "Termogenico X", quantity: 1, price: 3299 },
-        { id: "p-6", name: "Barrette Proteiche (box)", quantity: 1, price: 3300 },
-      ],
-      shippingAddress: { street: "Corso Francia 45", city: "Torino", postalCode: "10138", province: "TO" },
-      billingAddress: { street: "Corso Francia 45", city: "Torino", postalCode: "10138", province: "TO" },
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-      updatedAt: new Date().toISOString(),
-      userEmail: "giulia.verdi@example.com",
-      userFirstName: "Giulia",
-      userLastName: "Verdi",
-    },
-  ];
-
-  const MOCK_USERS = [
-    {
-      id: 501,
-      email: "mario.rossi@example.com",
-      firstName: "Mario",
-      lastName: "Rossi",
-      isAdmin: false,
-    },
-    {
-      id: 502,
-      email: "laura.bianchi@example.com",
-      firstName: "Laura",
-      lastName: "Bianchi",
-      isAdmin: false,
-    },
-    {
-      id: 503,
-      email: "giulia.verdi@example.com",
-      firstName: "Giulia",
-      lastName: "Verdi",
-      isAdmin: false,
-    },
-  ];
-
   app.get("/api/admin/orders", ensureAuth, ensureAdmin, async (req: Request, res: Response) => {
     try {
-      // Restituisce l'array puro come atteso dal client
-      return res.json(MOCK_ORDERS);
-    } catch {
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      // Query alla tabella orders con join su users per email
+      const { data: orders, error } = await (supabaseAdmin as any)
+        .from("orders")
+        .select(`
+          id,
+          user_id,
+          status,
+          currency,
+          total_cents,
+          stripe_session_id,
+          created_at,
+          updated_at,
+          users:user_id (email)
+        `)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("[ADMIN] Errore lettura orders:", error);
+        return res.status(500).json({ success: false, message: "Errore lettura ordini" });
+      }
+
+      // Per ogni ordine, recupera gli order_items con i dettagli prodotto
+      const ordersWithItems = await Promise.all(
+        (orders || []).map(async (order: any) => {
+          const { data: items } = await (supabaseAdmin as any)
+            .from("order_items")
+            .select(`
+              id,
+              quantity,
+              unit_price_cents,
+              line_total_cents,
+              product_option:product_option_id (
+                id,
+                flavor,
+                size,
+                product:product_id (
+                  name
+                )
+              )
+            `)
+            .eq("order_id", order.id);
+
+          // Formatta gli items per il frontend
+          const formattedItems = (items || []).map((item: any) => ({
+            id: item.id,
+            quantity: item.quantity,
+            price: item.unit_price_cents,
+            name: item.product_option?.product?.name
+              ? `${item.product_option.product.name}${item.product_option.flavor ? ` - ${item.product_option.flavor}` : ''}${item.product_option.size ? ` (${item.product_option.size})` : ''}`
+              : 'Prodotto'
+          }));
+
+          return {
+            id: order.id,
+            user_id: order.user_id,
+            snipcart_order_id: order.id,
+            total: order.total_cents,
+            status: order.status,
+            items: formattedItems,
+            created_at: order.created_at,
+            updated_at: order.updated_at,
+            user_email: order.users?.email || null
+          };
+        })
+      );
+
+      return res.json(ordersWithItems);
+    } catch (err) {
+      console.error("[ADMIN] Errore endpoint /api/admin/orders:", err);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
 
-
+  // ================================
+  // ADMIN USERS - legge dalla tabella "users" in Supabase
+  // ================================
   app.get("/api/admin/users", ensureAuth, ensureAdmin, async (req: Request, res: Response) => {
     try {
-      return res.json({ success: true, users: MOCK_USERS });
-    } catch {
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      // Query alla tabella users in Supabase
+      const { data: users, error } = await (supabaseAdmin as any)
+        .from("users")
+        .select("id,email,first_name,last_name,is_admin,created_at,updated_at")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("[ADMIN] Errore lettura users:", error);
+        return res.status(500).json({ success: false, message: "Errore lettura utenti" });
+      }
+
+      // Trasforma i dati nel formato atteso dal client
+      const formattedUsers = (users || []).map((u: any) => ({
+        id: u.id,
+        email: u.email,
+        firstName: u.first_name,
+        lastName: u.last_name,
+        isAdmin: !!u.is_admin,
+        createdAt: u.created_at,
+        updatedAt: u.updated_at,
+      }));
+
+      return res.json({ success: true, users: formattedUsers });
+    } catch (err) {
+      console.error("[ADMIN] Errore endpoint /api/admin/users:", err);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
@@ -2019,16 +2065,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             const { data: prods, error: prodErr } = await (client as any)
               .from("products")
-              .select("id,slug,name,description,brand_id,category_id")
+              .select(`
+                id,
+                slug,
+                name,
+                description,
+                brand_id,
+                category_id,
+                brands!products_brand_id_fkey(name, slug),
+                product_categories!products_category_id_fkey(name, slug),
+                product_images!product_images_product_id_fkey(src, is_primary),
+                product_options!product_options_product_id_fkey(price_cents)
+              `)
               .in("id", ids);
             if (!prodErr) {
-              // enrich basic fields
-              const favorites = (prods || []).map((p: any) => ({
-                id: p.id,
-                slug: p.slug,
-                name: p.name,
-                description: p.description,
-              }));
+              // Processa i prodotti esattamente come fa searchProducts per mantenere coerenza
+              const favorites = (prods || []).map((p: any) => {
+                // Get primary image from product_images (same as searchProducts storage.ts:469)
+                const primaryImg = p.product_images?.find((img: any) => img.is_primary)?.src;
+                const firstImg = p.product_images?.[0]?.src;
+                const rawImage = primaryImg || firstImg || null;
+
+                // Calculate min price from product_options (same as searchProducts)
+                const prices = (p.product_options || []).map((opt: any) => opt.price_cents).filter((price: number) => price > 0);
+                const minPriceCents = prices.length > 0 ? Math.min(...prices) : null;
+
+                // Process primaryImage exactly like searchProducts does (storage.ts:513-517)
+                const processedImage = rawImage ? (
+                  rawImage.startsWith('/images/') || rawImage.startsWith('/attached_assets/')
+                    ? rawImage
+                    : `/images/products/${rawImage}`
+                ) : undefined;
+
+                return {
+                  id: p.id,
+                  slug: p.slug,
+                  name: p.name,
+                  description: p.description,
+                  primaryImage: processedImage, // Usa primaryImage come searchProducts
+                  brand_name: p.brands?.name || null,
+                  brand_slug: p.brands?.slug || null,
+                  category_slug: p.product_categories?.slug || null,
+                  min_price_cents: minPriceCents,
+                };
+              });
               return res.json({ success: true, favorites });
             }
           }
@@ -2396,9 +2476,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user?.authenticated) {
         return res.status(401).json({ success: false, message: "Non autenticato" });
       }
-      const orders = Array.isArray(sess.orders) ? sess.orders : [];
-      return res.json({ orders });
-    } catch {
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      // Recupera ordini dal database per questo utente
+      const { data: orders, error } = await (supabaseAdmin as any)
+        .from("orders")
+        .select(`
+          id,
+          user_id,
+          shipping_address_id,
+          status,
+          currency,
+          total_cents,
+          stripe_session_id,
+          created_at,
+          updated_at
+        `)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("[ORDERS] Errore recupero ordini:", error);
+        return res.status(500).json({ success: false, message: "Errore recupero ordini" });
+      }
+
+      // Recupera anche gli order_items per ogni ordine
+      const ordersWithItems = await Promise.all(
+        (orders || []).map(async (order: any) => {
+          const { data: items, error: itemsError } = await (supabaseAdmin as any)
+            .from("order_items")
+            .select(`
+              id,
+              quantity,
+              unit_price_cents,
+              line_total_cents,
+              product_option:product_option_id (
+                id,
+                flavor,
+                size,
+                image,
+                product:product_id (
+                  name,
+                  image
+                )
+              )
+            `)
+            .eq("order_id", order.id);
+
+          if (itemsError) {
+            console.error(`[ORDERS] Errore recupero items per ordine ${order.id}:`, itemsError);
+          }
+
+          // Formatta items per il frontend
+          const formattedItems = (items || []).map((item: any) => ({
+            id: item.id,
+            name: item.product_option?.product?.name || "Prodotto",
+            variant: [item.product_option?.flavor, item.product_option?.size].filter(Boolean).join(" - "),
+            quantity: item.quantity,
+            price: item.unit_price_cents,
+            image: item.product_option?.image || item.product_option?.product?.image || null
+          }));
+
+          return {
+            id: order.id,
+            snipcartOrderId: order.stripe_session_id,
+            total: order.total_cents,
+            status: order.status,
+            items: formattedItems,
+            shippingAddress: null, // TODO: fetch shipping address if needed
+            createdAt: order.created_at,
+            updatedAt: order.updated_at
+          };
+        })
+      );
+
+      return res.json({ orders: ordersWithItems });
+    } catch (error) {
+      console.error("[ORDERS] Errore:", error);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // Get order by Stripe session ID
+  app.get("/api/orders/by-session/:sessionId", async (req: Request, res: Response) => {
+    try {
+      const sess = req.session as any;
+      const auth = await getAuthFromToken(req);
+      const user = auth ? { authenticated: true, id: auth.id } : sess?.user;
+
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+
+      const { sessionId } = req.params;
+      if (!sessionId) {
+        return res.status(400).json({ success: false, message: "Session ID mancante" });
+      }
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      // Cerca l'ordine tramite stripe_session_id, verificando che appartenga all'utente
+      const { data: order, error } = await (supabaseAdmin as any)
+        .from("orders")
+        .select("id, user_id, status, currency, total_cents, created_at")
+        .eq("id", sessionId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (error || !order) {
+        console.log(`[ORDERS] Ordine non trovato per session: ${sessionId}, user: ${user.id}`);
+        return res.json({ success: true, order: null });
+      }
+
+      return res.json({ success: true, order });
+    } catch (error: any) {
+      console.error("[ORDERS] Errore recupero ordine per session:", error?.message || error);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
@@ -2703,9 +2900,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         const { userId } = req.params;
         if (supabaseAdmin) {
-          const { data, error } = await (supabaseAdmin as any).rpc("get_cart", { p_user_id: userId });
+          // Query diretta alla tabella cart_items con join
+          const { data, error } = await (supabaseAdmin as any)
+            .from("cart_items")
+            .select(`
+              id,
+              quantity,
+              product_option_id,
+              product_options (
+                id,
+                flavor,
+                size,
+                price_cents,
+                product_id,
+                products (
+                  id,
+                  name,
+                  image_url
+                )
+              )
+            `)
+            .eq("user_id", userId);
+
           if (error) return res.status(400).json({ success: false, error });
-          return res.json({ success: true, items: data });
+
+          // Trasforma nel formato atteso dal frontend
+          const items = (data || []).map((item: any) => ({
+            id: item.id,
+            product_option_id: item.product_option_id,
+            quantity: item.quantity,
+            price_cents: item.product_options?.price_cents,
+            name: item.product_options?.products?.name || "Prodotto",
+            variant: `${item.product_options?.flavor || ""} ${item.product_options?.size || ""}`.trim(),
+            image: item.product_options?.products?.image_url,
+          }));
+
+          return res.json({ success: true, items });
         } else {
           const items = sess.cart || [];
           return res.json({ success: true, items });
@@ -2725,9 +2955,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(401).json({ success: false, message: "Non autenticato" });
         }
         if (supabaseAdmin && user?.id) {
-          const { data, error } = await (supabaseAdmin as any).rpc("get_cart", { p_user_id: String(user.id) });
+          // Query diretta alla tabella cart_items con join
+          const { data, error } = await (supabaseAdmin as any)
+            .from("cart_items")
+            .select(`
+              id,
+              quantity,
+              product_option_id,
+              product_options (
+                id,
+                flavor,
+                size,
+                price_cents,
+                product_id,
+                products (
+                  id,
+                  name,
+                  image_url
+                )
+              )
+            `)
+            .eq("user_id", String(user.id));
+
           if (error) return res.status(400).json({ success: false, error });
-          return res.json({ success: true, items: data });
+
+          // Trasforma nel formato atteso dal frontend
+          const items = (data || []).map((item: any) => ({
+            id: item.id,
+            product_option_id: item.product_option_id,
+            quantity: item.quantity,
+            price_cents: item.product_options?.price_cents,
+            name: item.product_options?.products?.name || "Prodotto",
+            variant: `${item.product_options?.flavor || ""} ${item.product_options?.size || ""}`.trim(),
+            image: item.product_options?.products?.image_url,
+          }));
+
+          return res.json({ success: true, items });
         }
         const items = sess.cart || [];
         return res.json({ success: true, items });
@@ -3047,9 +3310,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ success: false, message: "Supabase non configurato" });
         }
         const { userId } = req.params;
-        const { data, error } = await (supabaseAdmin as any).rpc("get_cart", { p_user_id: userId });
+        // Query diretta alla tabella cart_items con join
+        const { data, error } = await (supabaseAdmin as any)
+          .from("cart_items")
+          .select(`
+            id,
+            quantity,
+            product_option_id,
+            product_options (
+              id,
+              flavor,
+              size,
+              price_cents,
+              product_id,
+              products (
+                id,
+                name,
+                image_url
+              )
+            )
+          `)
+          .eq("user_id", userId);
+
         if (error) return res.status(400).json({ success: false, error });
-        return res.json({ success: true, items: data });
+
+        // Trasforma nel formato atteso dal frontend
+        const items = (data || []).map((item: any) => ({
+          id: item.id,
+          product_option_id: item.product_option_id,
+          quantity: item.quantity,
+          price_cents: item.product_options?.price_cents,
+          name: item.product_options?.products?.name || "Prodotto",
+          variant: `${item.product_options?.flavor || ""} ${item.product_options?.size || ""}`.trim(),
+          image: item.product_options?.products?.image_url,
+        }));
+
+        return res.json({ success: true, items });
       } catch (error) {
         return res.status(500).json({ success: false, message: "Errore caricamento carrello" });
       }
@@ -3145,11 +3441,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(401).json({ success: false, message: "Non autenticato" });
         }
 
+        // Recupera indirizzo spedizione dal body (opzionale)
+        const { shipping_address_id } = req.body || {};
+
         let items: any[] = [];
         if (supabaseAdmin && user?.id) {
-          const { data, error } = await (supabaseAdmin as any).rpc("get_cart", { p_user_id: String(user.id) });
-          if (error) return res.status(400).json({ success: false, error });
-          items = Array.isArray(data) ? data : [];
+          // Query diretta alla tabella cart_items con join a product_options e products
+          const { data, error } = await (supabaseAdmin as any)
+            .from("cart_items")
+            .select(`
+              id,
+              quantity,
+              product_option_id,
+              product_options (
+                id,
+                flavor,
+                size,
+                price_cents,
+                product_id,
+                products (
+                  id,
+                  name
+                )
+              )
+            `)
+            .eq("user_id", user.id);
+
+          if (error) {
+            console.error("Checkout cart query error:", error);
+            return res.status(400).json({ success: false, error });
+          }
+
+          // Trasforma i dati nel formato atteso
+          items = (data || []).map((item: any) => ({
+            product_option_id: item.product_option_id,
+            quantity: item.quantity,
+            price_cents: item.product_options?.price_cents,
+            name: item.product_options?.products?.name || "Prodotto",
+            variant: `${item.product_options?.flavor || ""} ${item.product_options?.size || ""}`.trim(),
+            image: null, // Le immagini verranno gestite separatamente se necessario
+          }));
         } else {
           items = Array.isArray(sess.cart) ? sess.cart : [];
         }
@@ -3158,42 +3489,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const secret = process.env.STRIPE_SECRET_KEY;
-        const successUrl = process.env.CHECKOUT_SUCCESS_URL || "http://localhost:8080/success";
-        const cancelUrl = process.env.CHECKOUT_CANCEL_URL || "http://localhost:8080/cancel";
+        const successUrl = process.env.CHECKOUT_SUCCESS_URL || "http://localhost:5000/checkout/success";
+        const cancelUrl = process.env.CHECKOUT_CANCEL_URL || "http://localhost:5000/checkout/cancel";
         if (!secret) {
           console.error("Checkout error: STRIPE_SECRET_KEY mancante");
           return res.status(500).json({ success: false, message: "Stripe non configurato" });
         }
 
-        console.log("Checkout env check:", { hasSecret: !!secret, successUrl, cancelUrl });
+        console.log("Checkout env check:", { hasSecret: !!secret, successUrl, cancelUrl, userId: user.id });
 
         const stripe = new Stripe(secret as string);
 
-        const line_items = items.map((i) => {
+        // Calcola il totale per applicare lo sconto
+        const subtotalCents = items.reduce((sum, i) => {
           const priceCents = typeof i.price_cents === "number" ? i.price_cents : Math.round(Number(i.price) * 100);
+          return sum + (priceCents * Number(i.quantity));
+        }, 0);
+
+        // Applica sconto 10%
+        const totalAfterDiscount = Math.round(subtotalCents * 0.90);
+
+        // Spedizione: gratis sopra 160 EUR, altrimenti 12 EUR
+        const shippingCents = totalAfterDiscount >= 16000 ? 0 : 1200;
+
+        const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((i) => {
+          const priceCents = typeof i.price_cents === "number" ? i.price_cents : Math.round(Number(i.price) * 100);
+          // Applica sconto 10% sul prezzo unitario
+          const discountedPrice = Math.round(priceCents * 0.90);
           return {
             price_data: {
               currency: "eur",
               product_data: {
-                name: `${String(i.name ?? '')} — ${String(i.variant ?? '')}`.trim(),
-                images: i.image ? [i.image] : [],
+                name: `${String(i.name ?? '')} - ${String(i.variant ?? '')}`.trim(),
+                images: i.image && i.image.startsWith('http') ? [i.image] : [],
               },
-              unit_amount: priceCents,
+              unit_amount: discountedPrice,
             },
             quantity: Number(i.quantity),
           };
         });
 
+        // Aggiungi spedizione come line item se necessario
+        if (shippingCents > 0) {
+          line_items.push({
+            price_data: {
+              currency: "eur",
+              product_data: {
+                name: "Spedizione",
+              },
+              unit_amount: shippingCents,
+            },
+            quantity: 1,
+          });
+        }
+
+        // Prepara metadata con info carrello (max 500 chars per valore)
+        const cartMetadata = items.map(i => ({
+          product_option_id: i.product_option_id,
+          quantity: i.quantity,
+          price_cents: i.price_cents
+        }));
+        const cartItemsJson = JSON.stringify(cartMetadata).slice(0, 500);
+
         const sessionStripe = await stripe.checkout.sessions.create({
           mode: "payment",
           payment_method_types: ["card"],
           line_items,
-          success_url: successUrl,
+          success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: cancelUrl,
+          customer_email: user.email || undefined,
+          metadata: {
+            user_id: user.id,
+            shipping_address_id: shipping_address_id ? String(shipping_address_id) : "",
+            cart_items: cartItemsJson,
+          },
         });
 
+        console.log(`Checkout session creata: ${sessionStripe.id} per user: ${user.id}`);
         return res.json({ success: true, url: sessionStripe.url });
-      } catch (error) {
+      } catch (error: any) {
+        console.error("Checkout error:", error?.message || error);
         return res.status(500).json({ success: false, message: "Errore creazione checkout" });
       }
     });

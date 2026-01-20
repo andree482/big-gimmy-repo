@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getProductImagePath } from "@/lib/imageUtils";
 import { useAuth } from "@/hooks/useAuth";
 import { openAuthModal } from "@/lib/authModalBus";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,29 +45,43 @@ const Favorites = () => {
 
 
 
+  // Usa la stessa logica della pagina Products per coerenza
   const getProductImage = (product: any) => {
-    // Se il prodotto ha immagini nella struttura corretta (prodotti statici)
+    console.log('🔍 [Favorites] getProductImage chiamata per:', product.name);
+    console.log('🔍 [Favorites] product.slug:', product.slug);
+    console.log('🔍 [Favorites] product.primaryImage:', product.primaryImage);
+    console.log('🔍 [Favorites] product.primary_image:', product.primary_image);
+
+    // 1. Prova images array (prodotti statici)
     if (product.images && product.images.length > 0 && product.images[0].src) {
+      console.log('✅ [Favorites] Usando images[0].src:', product.images[0].src);
       return product.images[0].src;
     }
 
-    // Per prodotti dal database, usa primaryImage se disponibile
-    if (product.primaryImage) {
-      return product.primaryImage;
+    // 2. Prova primaryImage dal backend (dopo il processing)
+    const primaryImg = product.primaryImage || product.primary_image;
+    if (primaryImg && typeof primaryImg === 'string' && primaryImg.length > 0) {
+      console.log('✅ [Favorites] Usando primaryImage:', primaryImg);
+      return primaryImg;
     }
 
-    // Usa il sistema universale di gestione immagini per prodotti dal database
+    // 3. Fallback su getProductImagePath con slug (usa il mapping completo)
     if (product.slug) {
-      return getProductImagePath(product.slug);
+      const imagePath = getProductImagePath(product.slug);
+      console.log('✅ [Favorites] Usando getProductImagePath con slug:', imagePath);
+      return imagePath;
     }
 
-    // Prova anche con l'ID se slug non è presente
+    // 4. Fallback su getProductImagePath con ID
     if (product.id) {
-      return getProductImagePath(product.id.toString());
+      const imagePath = getProductImagePath(product.id.toString());
+      console.log('✅ [Favorites] Usando getProductImagePath con ID:', imagePath);
+      return imagePath;
     }
 
-    // Fallback finale
-    return "/images/products/placeholder-product.jpg";
+    // 5. Placeholder finale
+    console.log('⚠️ [Favorites] Usando placeholder');
+    return "/images/placeholder-product.jpg";
   };
 
   const formatPrice = (price: number) => {
@@ -230,15 +245,16 @@ const Favorites = () => {
                   <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow group">
                     <div className="relative">
                       <Link href={`/prodotti/${product.categorySlug || product.category_slug || 'proteine'}/${product.slug}`}>
-                        <div className="aspect-square overflow-hidden bg-gray-100">
-                          <img
+                        <div className="aspect-square overflow-hidden bg-gray-100 flex items-center justify-center">
+                          <OptimizedImage
                             src={getProductImage(product)}
                             alt={product.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDQwMCA0MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNDAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxyZWN0IHg9IjEyMCIgeT0iMTIwIiB3aWR0aD0iMTYwIiBoZWlnaHQ9IjE2MCIgcng9IjgiIGZpbGw9IiNFNUU3RUIiLz4KPHN0eWxlPi50ZXh0e2ZvbnQtZmFtaWx5OkFyaWFsLHNhbnMtc2VyaWY7Zm9udC1zaXplOjE0cHh9PC9zdHlsZT4KPHN0eWxlPi5pbWFnZS1ub3QtYXZhaWxhYmxle2ZpbGw6IzZCNzI4MH08L3N0eWxlPgo8dGV4dCB4PSIyMDAiIHk9IjI5MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgY2xhc3M9ImltYWdlLW5vdC1hdmFpbGFibGUiPkltbWFnaW5lIG5vbiBkaXNwb25pYmlsZTwvdGV4dD4KPC9zdmc+";
-                            }}
+                            className="w-full h-full bg-white rounded-md group-hover:scale-105 transition-transform duration-300"
+                            placeholder="/images/placeholder-product.jpg"
+                            width={300}
+                            height={300}
+                            objectFit="contain"
+                            objectPosition="center center"
                           />
                         </div>
                       </Link>

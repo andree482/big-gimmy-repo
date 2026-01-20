@@ -1,0 +1,315 @@
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Package, Clock, CheckCircle, AlertCircle, ChevronDown, ShoppingBag, ArrowLeft } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
+
+interface OrderItem {
+  id: string;
+  name: string;
+  variant: string;
+  quantity: number;
+  price: number;
+  image?: string | null;
+}
+
+interface Order {
+  id: string;
+  snipcartOrderId: string;
+  total: number;
+  status: string;
+  items: OrderItem[];
+  shippingAddress?: any;
+  billingAddress?: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const formatPrice = (cents: number) => {
+  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(cents / 100);
+};
+
+const formatDateTime = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('it-IT', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+// Tronca l'ID ordine a 8 caratteri per la visualizzazione
+const shortenOrderId = (id: string) => {
+  if (!id) return '';
+  return id.toString().substring(0, 8).toUpperCase();
+};
+
+const getStatusInfo = (status: string) => {
+  switch (status) {
+    case 'completed':
+    case 'paid':
+      return {
+        label: 'Completato',
+        icon: CheckCircle,
+        bgColor: 'bg-green-100',
+        textColor: 'text-green-700',
+        borderColor: 'border-green-300',
+        accentColor: 'bg-green-500'
+      };
+    case 'pending':
+      return {
+        label: 'In elaborazione',
+        icon: Clock,
+        bgColor: 'bg-amber-100',
+        textColor: 'text-amber-700',
+        borderColor: 'border-amber-300',
+        accentColor: 'bg-amber-500'
+      };
+    case 'cancelled':
+      return {
+        label: 'Annullato',
+        icon: AlertCircle,
+        bgColor: 'bg-red-100',
+        textColor: 'text-red-700',
+        borderColor: 'border-red-300',
+        accentColor: 'bg-red-500'
+      };
+    default:
+      return {
+        label: status,
+        icon: Package,
+        bgColor: 'bg-gray-100',
+        textColor: 'text-gray-700',
+        borderColor: 'border-gray-300',
+        accentColor: 'bg-gray-500'
+      };
+  }
+};
+
+function OrderCard({ order }: { order: Order }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const statusInfo = getStatusInfo(order.status);
+  const StatusIcon = statusInfo.icon;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-md">
+      {/* Accent bar */}
+      <div className={`h-1 ${statusInfo.accentColor}`} />
+
+      {/* Header */}
+      <div
+        className="p-5 cursor-pointer select-none"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-start sm:items-center justify-between gap-4">
+          {/* Left side */}
+          <div className="flex-1 min-w-0">
+            {/* Status and date row */}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${statusInfo.bgColor} ${statusInfo.textColor}`}>
+                <StatusIcon className="w-3.5 h-3.5" />
+                {statusInfo.label}
+              </span>
+              <span className="text-xs text-gray-400">
+                {formatDateTime(order.createdAt)}
+              </span>
+            </div>
+
+            {/* Order ID and products count */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Ordine</span>
+              <span className="font-mono text-sm font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">
+                #{shortenOrderId(order.id)}
+              </span>
+              {order.items && order.items.length > 0 && (
+                <span className="text-sm text-gray-400">
+                  ({order.items.length} {order.items.length === 1 ? 'articolo' : 'articoli'})
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Right side - Total and expand */}
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-2xl font-bold text-gray-900">
+                {formatPrice(order.total)}
+              </p>
+            </div>
+            <div
+              className={`p-2 rounded-full transition-all duration-200 ${isExpanded ? 'bg-gray-100 rotate-180' : 'hover:bg-gray-50'}`}
+            >
+              <ChevronDown className="w-5 h-5 text-gray-400" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded content */}
+      <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+        <div className="border-t border-gray-100">
+          {/* Products list */}
+          <div className="p-5">
+            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">
+              Dettagli ordine
+            </h4>
+            <div className="space-y-3">
+              {order.items && order.items.length > 0 ? (
+                order.items.map((item: OrderItem, index: number) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-4 p-3 bg-gray-50 rounded-xl"
+                  >
+                    {/* Product image */}
+                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-white border border-gray-200 flex-shrink-0">
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                          }}
+                        />
+                      ) : null}
+                      <div className={`w-full h-full flex items-center justify-center bg-gray-100 ${item.image ? 'hidden' : ''}`}>
+                        <Package className="w-6 h-6 text-gray-300" />
+                      </div>
+                    </div>
+
+                    {/* Product info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 truncate">{item.name}</p>
+                      {item.variant && (
+                        <p className="text-sm text-gray-500 truncate">{item.variant}</p>
+                      )}
+                    </div>
+
+                    {/* Quantity and price */}
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-bold text-gray-900">{formatPrice(item.price * item.quantity)}</p>
+                      <p className="text-sm text-gray-500">
+                        {item.quantity} x {formatPrice(item.price)}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">Dettagli prodotti non disponibili</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Order summary */}
+          <div className="px-5 pb-5">
+            <div className="flex items-center justify-between p-4 bg-gray-900 rounded-xl text-white">
+              <span className="font-medium">Totale pagato</span>
+              <span className="text-2xl font-bold">{formatPrice(order.total)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function MyOrders() {
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!isAuthLoading && !isAuthenticated) {
+      setLocation("/");
+    }
+  }, [isAuthenticated, isAuthLoading, setLocation]);
+
+  const { data: ordersResponse, isLoading: isOrdersLoading } = useQuery({
+    queryKey: ["/api/orders"],
+    enabled: !!user,
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/orders", undefined, { suppressAuthModal: true });
+      return res;
+    },
+  });
+
+  const orders = ordersResponse?.orders || [];
+
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#FFD100] border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-5 max-w-3xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">I miei ordini</h1>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {orders.length > 0
+                  ? `${orders.length} ${orders.length === 1 ? 'ordine' : 'ordini'} effettuati`
+                  : 'Storico acquisti'
+                }
+              </p>
+            </div>
+            <Link href="/profilo">
+              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Profilo
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="container mx-auto px-4 py-6 max-w-3xl">
+        {isOrdersLoading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-[#FFD100] border-t-transparent mb-4"></div>
+            <p className="text-gray-500">Caricamento ordini...</p>
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-sm">
+            <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-6">
+              <ShoppingBag className="w-10 h-10 text-gray-400" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">
+              Nessun ordine ancora
+            </h2>
+            <p className="text-gray-500 mb-8 max-w-sm mx-auto">
+              Non hai ancora effettuato acquisti. Scopri i nostri prodotti e inizia a fare shopping!
+            </p>
+            <Link href="/prodotti">
+              <Button className="bg-[#FFD100] text-black hover:bg-[#e6bc00] font-semibold px-8 shadow-lg shadow-yellow-200">
+                Scopri i prodotti
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {orders.map((order: Order) => (
+              <OrderCard key={order.id} order={order} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

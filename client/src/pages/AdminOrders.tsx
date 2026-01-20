@@ -6,57 +6,56 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingBag, Package, Truck, CheckCircle, Clock, Euro, Filter, X } from "lucide-react";
+import { ShoppingBag, Package, Truck, CheckCircle, Clock, Euro, Filter, X, CreditCard } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
 interface OrderItem {
-  id: string;
+  id?: string;
   name: string;
   quantity: number;
-  price: number;
-}
-
-interface Address {
-  street: string;
-  city: string;
-  postalCode: string;
-  province: string;
+  price?: number;
 }
 
 interface Order {
   id: number;
-  userId: number;
-  snipcartOrderId: string;
+  user_id: string;
+  snipcart_order_id: string;
   total: number;
   status: string;
-  items: OrderItem[];
-  shippingAddress: Address;
-  billingAddress: Address;
-  createdAt: string;
-  updatedAt: string;
-  userEmail?: string;
-  userFirstName?: string;
-  userLastName?: string;
+  items: OrderItem[] | null;
+  shipping_address: Record<string, unknown> | null;
+  billing_address: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+  user_email?: string | null;
+  user_first_name?: string | null;
+  user_last_name?: string | null;
 }
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
+  pending: "In attesa",
+  paid: "Pagato",
   ordered: "Ordinato",
-  processing: "In elaborazione", 
+  processing: "In elaborazione",
   shipped: "Spedito",
   completed: "Completato",
   cancelled: "Annullato"
 };
 
-const statusColors = {
+const statusColors: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  paid: "bg-green-100 text-green-800",
   ordered: "bg-orange-100 text-orange-800",
   processing: "bg-blue-100 text-blue-800",
-  shipped: "bg-purple-100 text-purple-800", 
+  shipped: "bg-purple-100 text-purple-800",
   completed: "bg-green-100 text-green-800",
   cancelled: "bg-red-100 text-red-800"
 };
 
-const statusIcons = {
+const statusIcons: Record<string, typeof Clock> = {
+  pending: Clock,
+  paid: CreditCard,
   ordered: Clock,
   processing: Package,
   shipped: Truck,
@@ -133,8 +132,8 @@ export default function AdminOrders() {
 
   // Calcolo statistiche (sempre sui dati totali)
   const totalOrders = orders.length;
-  const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-  const orderedOrders = orders.filter(order => order.status === 'ordered').length;
+  const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
+  const paidOrders = orders.filter(order => order.status === 'paid').length;
   const completedOrders = orders.filter(order => order.status === 'completed').length;
 
   return (
@@ -170,7 +169,8 @@ export default function AdminOrders() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tutti gli stati</SelectItem>
-                    <SelectItem value="ordered">Ordinato</SelectItem>
+                    <SelectItem value="pending">In attesa</SelectItem>
+                    <SelectItem value="paid">Pagato</SelectItem>
                     <SelectItem value="processing">In elaborazione</SelectItem>
                     <SelectItem value="shipped">Spedito</SelectItem>
                     <SelectItem value="completed">Completato</SelectItem>
@@ -230,14 +230,14 @@ export default function AdminOrders() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
-              Ordinati
+              Pagati
             </CardTitle>
-            <Clock className="h-4 w-4 text-orange-600" />
+            <CreditCard className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">{orderedOrders}</div>
+            <div className="text-2xl font-bold text-gray-900">{paidOrders}</div>
             <p className="text-xs text-gray-500">
-              {orderedOrders === 1 ? 'ordine appena ordinato' : 'ordini appena ordinati'}
+              {paidOrders === 1 ? 'ordine pagato' : 'ordini pagati'}
             </p>
           </CardContent>
         </Card>
@@ -287,84 +287,78 @@ export default function AdminOrders() {
                     <TableHead>Data</TableHead>
                     <TableHead>Stato</TableHead>
                     <TableHead>Prodotti</TableHead>
-                    <TableHead>Totale</TableHead>
-                    <TableHead>Indirizzo</TableHead>
+                    <TableHead className="text-right">Totale</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredOrders.map((order) => {
-                    const StatusIcon = statusIcons[order.status as keyof typeof statusIcons] || Clock;
-                    
+                    const StatusIcon = statusIcons[order.status] || Clock;
+                    const items = Array.isArray(order.items) ? order.items : [];
+                    const orderId = String(order.id).substring(0, 8);
+
                     return (
                       <TableRow key={order.id} className="hover:bg-gray-50">
                         <TableCell className="font-medium">
-                          <div>
-                            <div className="font-semibold text-gray-900">
-                              #{order.id}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {order.snipcartOrderId}
-                            </div>
+                          <div className="font-semibold text-gray-900">
+                            #{orderId}
                           </div>
                         </TableCell>
-                        
+
                         <TableCell>
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              {order.userFirstName} {order.userLastName}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {order.userEmail}
-                            </div>
+                          <div className="text-sm text-gray-900">
+                            {order.user_email || '-'}
                           </div>
                         </TableCell>
-                        
+
                         <TableCell>
-                          <div className="text-sm">
-                            {format(new Date(order.createdAt), 'dd/MM/yyyy', { locale: it })}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {format(new Date(order.createdAt), 'HH:mm', { locale: it })}
-                          </div>
+                          {order.created_at && !isNaN(new Date(order.created_at).getTime()) ? (
+                            <>
+                              <div className="text-sm">
+                                {format(new Date(order.created_at), 'dd/MM/yyyy', { locale: it })}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {format(new Date(order.created_at), 'HH:mm', { locale: it })}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-sm text-gray-400">-</div>
+                          )}
                         </TableCell>
-                        
+
                         <TableCell>
-                          <Badge 
-                            variant="secondary" 
-                            className={`${statusColors[order.status as keyof typeof statusColors]} border-0`}
+                          <Badge
+                            variant="secondary"
+                            className={`${statusColors[order.status] || 'bg-gray-100 text-gray-800'} border-0`}
                           >
                             <StatusIcon className="h-3 w-3 mr-1" />
-                            {statusLabels[order.status as keyof typeof statusLabels] || order.status}
+                            {statusLabels[order.status] || order.status}
                           </Badge>
                         </TableCell>
-                        
+
                         <TableCell>
                           <div className="space-y-1">
-                            {order.items?.slice(0, 2).map((item, index) => (
-                              <div key={index} className="text-sm">
-                                <span className="font-medium">{item.quantity}x</span> {item.name}
-                              </div>
-                            ))}
-                            {order.items?.length > 2 && (
-                              <div className="text-xs text-gray-500">
-                                +{order.items.length - 2} altri prodotti
-                              </div>
+                            {items.length > 0 ? (
+                              <>
+                                {items.slice(0, 3).map((item, index) => (
+                                  <div key={index} className="text-sm">
+                                    {item.quantity} x {item.name}
+                                  </div>
+                                ))}
+                                {items.length > 3 && (
+                                  <div className="text-xs text-gray-500">
+                                    +{items.length - 3} altri prodotti
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-gray-400 text-sm">-</span>
                             )}
                           </div>
                         </TableCell>
-                        
-                        <TableCell>
+
+                        <TableCell className="text-right">
                           <div className="font-semibold text-gray-900">
-                            €{(order.total / 100).toFixed(2)}
-                          </div>
-                        </TableCell>
-                        
-                        <TableCell>
-                          <div className="text-sm">
-                            <div>{order.shippingAddress?.street}</div>
-                            <div className="text-gray-500">
-                              {order.shippingAddress?.city}, {order.shippingAddress?.postalCode}
-                            </div>
+                            €{((order.total || 0) / 100).toFixed(2)}
                           </div>
                         </TableCell>
                       </TableRow>

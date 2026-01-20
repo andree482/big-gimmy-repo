@@ -814,39 +814,38 @@ export class DatabaseStorage implements IStorage {
     
     const product = result.rows[0] as any;
     if (!product) return undefined;
-    
-    // Fetch availability data for this product
-    const availabilityResult = await db.execute(`
-      SELECT pa.is_available, pa.stock_quantity, s.name as store_name, s.id as store_id
-      FROM product_availability pa
-      JOIN stores s ON pa.store_id = s.id
-      WHERE pa.product_id = ${product.id}
-    `);
-    
-    const availability = availabilityResult.rows.map((row: any) => ({
-      storeId: row.store_id,
-      storeName: row.store_name,
-      isAvailable: row.is_available,
-      stockQuantity: row.stock_quantity
-    }));
-    
+
+    // Note: product_availability table doesn't exist yet, skipping availability query
+    // TODO: Re-enable when product_availability table is created
+    // const availabilityResult = await db.execute(`
+    //   SELECT pa.is_available, pa.stock_quantity, s.name as store_name, s.id as store_id
+    //   FROM product_availability pa
+    //   JOIN stores s ON pa.store_id = s.id
+    //   WHERE pa.product_id = ${product.id}
+    // `);
+    // const availability = availabilityResult.rows.map((row: any) => ({
+    //   storeId: row.store_id,
+    //   storeName: row.store_name,
+    //   isAvailable: row.is_available,
+    //   stockQuantity: row.stock_quantity
+    // }));
+
     console.log(`🔍 DEBUG: product.primaryimage = "${product.primaryimage}"`);
-    
+
     const imageUrl = product.primaryimage ? (
       product.primaryimage.startsWith('/images/') || product.primaryimage.startsWith('/attached_assets/')
         ? product.primaryimage
         : `/images/products/${product.primaryimage}`
     ) : undefined;
-    
+
     const finalProduct = {
       ...product,
       primaryImage: imageUrl,
       image_url: imageUrl, // Frontend cerca questo campo
-      availability: availability // Aggiungo i dati di availability dal database
+      availability: [] // Empty array since product_availability table doesn't exist yet
     };
-    
+
     console.log(`🔍 DEBUG: finalProduct.primaryImage = "${finalProduct.primaryImage}"`);
-    console.log(`🔍 DEBUG: finalProduct.availability =`, availability);
     return finalProduct;
   }
 

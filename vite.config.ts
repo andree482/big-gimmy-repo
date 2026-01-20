@@ -19,6 +19,7 @@ export default defineConfig({
   },
     server: {
     hmr: false, // disabilita HMR
+    allowedHosts: ['infrangible-darci-filthily.ngrok-free.dev'],
   },
   resolve: {
     alias: {

@@ -7,6 +7,7 @@ import { createServer } from "http";
 import { createClient } from '@supabase/supabase-js';
 import compression from "compression";
 import cors from "cors";
+import Stripe from "stripe";
 
 const app = express();
 app.set('trust proxy', 1);
@@ -16,6 +17,173 @@ app.use('/sw.js', (req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
   res.sendFile(path.resolve(process.cwd(), 'client/dist', 'sw.js'));
 });
+
+// ================================
+// STRIPE WEBHOOK (deve essere PRIMA di express.json())
+// ================================
+const supabaseAdminForWebhook = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  : null;
+
+app.post("/api/webhook/stripe",
+  express.raw({ type: "application/json" }),
+  async (req: Request, res: Response) => {
+    const secret = process.env.STRIPE_SECRET_KEY;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    if (!secret) {
+      console.error("[STRIPE WEBHOOK] STRIPE_SECRET_KEY mancante");
+      return res.status(500).send("Stripe non configurato");
+    }
+
+    const stripe = new Stripe(secret);
+    const sig = req.headers["stripe-signature"] as string;
+
+    let event: Stripe.Event;
+
+    try {
+      // Se abbiamo il webhook secret, verifichiamo la firma
+      if (webhookSecret && webhookSecret !== "whsec_XXXXXXXX") {
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      } else {
+        // In sviluppo senza webhook secret, parsiamo direttamente
+        console.warn("[STRIPE WEBHOOK] Webhook secret non configurato - parsing diretto (solo per sviluppo!)");
+        event = JSON.parse(req.body.toString());
+      }
+    } catch (err: any) {
+      console.error("[STRIPE WEBHOOK] Errore verifica firma:", err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    console.log(`[STRIPE WEBHOOK] Evento ricevuto: ${event.type}`);
+
+    // Gestisci l'evento
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await handleSuccessfulPayment(session);
+        break;
+      }
+      case "payment_intent.payment_failed": {
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        console.error("[STRIPE WEBHOOK] Pagamento fallito:", paymentIntent.id);
+        break;
+      }
+      default:
+        console.log(`[STRIPE WEBHOOK] Evento non gestito: ${event.type}`);
+    }
+
+    res.json({ received: true });
+  }
+);
+
+// Funzione per gestire il pagamento riuscito
+async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
+  const userId = session.metadata?.user_id;
+  const shippingAddressId = session.metadata?.shipping_address_id;
+
+  console.log(`[STRIPE WEBHOOK] Pagamento completato per user: ${userId}`);
+
+  if (!userId) {
+    console.error("[STRIPE WEBHOOK] user_id mancante nei metadata");
+    return;
+  }
+
+  if (!supabaseAdminForWebhook) {
+    console.error("[STRIPE WEBHOOK] Supabase admin client non disponibile");
+    return;
+  }
+
+  try {
+    // Prima recupera il carrello dell'utente dal database (prima di svuotarlo!)
+    const { data: cartItems, error: cartError } = await supabaseAdminForWebhook
+      .from("cart_items")
+      .select(`
+        id,
+        quantity,
+        product_option_id,
+        product_options (
+          id,
+          price_cents
+        )
+      `)
+      .eq("user_id", userId);
+
+    if (cartError) {
+      console.error("[STRIPE WEBHOOK] Errore recupero carrello:", cartError);
+    }
+
+    console.log(`[STRIPE WEBHOOK] Carrello recuperato: ${cartItems?.length || 0} items`);
+    console.log(`[STRIPE WEBHOOK] Cart items:`, JSON.stringify(cartItems, null, 2));
+
+    // Crea l'ordine nel database
+    const { data: order, error: orderError } = await supabaseAdminForWebhook
+      .from("orders")
+      .insert({
+        user_id: userId,
+        shipping_address_id: shippingAddressId ? parseInt(shippingAddressId) : null,
+        status: "paid",
+        currency: session.currency?.toUpperCase() || "EUR",
+        total_cents: session.amount_total || 0,
+        id: session.id,
+        stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : null,
+      })
+      .select()
+      .single();
+
+    if (orderError) {
+      console.error("[STRIPE WEBHOOK] Errore creazione ordine:", orderError);
+      return;
+    }
+
+    console.log(`[STRIPE WEBHOOK] Ordine creato: ${order.id}`);
+
+    // Crea le righe dell'ordine (order_items) dal carrello
+    if (cartItems && cartItems.length > 0) {
+      const orderItems = cartItems.map((item: any) => {
+        const priceCents = item.product_options?.price_cents || 0;
+        return {
+          order_id: order.id,
+          product_option_id: item.product_option_id,
+          quantity: item.quantity,
+          unit_price_cents: priceCents,
+          line_total_cents: item.quantity * priceCents,
+        };
+      });
+
+      console.log(`[STRIPE WEBHOOK] Inserimento order_items:`, JSON.stringify(orderItems, null, 2));
+
+      // Inserisci in order_items
+      const { error: itemsError } = await supabaseAdminForWebhook
+        .from("order_items")
+        .insert(orderItems);
+
+      if (itemsError) {
+        console.error("[STRIPE WEBHOOK] Errore inserimento order_items:", itemsError.message, itemsError);
+      } else {
+        console.log(`[STRIPE WEBHOOK] Inseriti ${orderItems.length} order_items`);
+      }
+    } else {
+      console.warn("[STRIPE WEBHOOK] Carrello vuoto o non trovato per user:", userId);
+    }
+
+    // Svuota il carrello dell'utente (DOPO aver salvato gli order_items)
+    const { error: clearError } = await supabaseAdminForWebhook
+      .from("cart_items")
+      .delete()
+      .eq("user_id", userId);
+
+    if (clearError) {
+      console.warn("[STRIPE WEBHOOK] Errore svuotamento carrello:", clearError.message);
+    } else {
+      console.log(`[STRIPE WEBHOOK] Carrello svuotato per user: ${userId}`);
+    }
+
+  } catch (error) {
+    console.error("[STRIPE WEBHOOK] Errore handleSuccessfulPayment:", error);
+  }
+}
+
 app.use(express.json());
 
 app.use(express.urlencoded({ extended: false }));

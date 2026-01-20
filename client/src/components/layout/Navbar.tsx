@@ -186,7 +186,7 @@ const Navbar = () => {
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/profilo" onClick={handleNavClick}>
+                        <Link href="/ordini" onClick={handleNavClick}>
                           <ShoppingCart className="mr-2 h-4 w-4" />
                           <span>I miei ordini</span>
                         </Link>
@@ -199,7 +199,7 @@ const Navbar = () => {
                       <DropdownMenuItem asChild>
                         <Link href="/admin/users" onClick={handleNavClick}>
                           <Settings className="mr-2 h-4 w-4" />
-                          <span>Admin Panel</span>
+                          <span>Gestionale Admin</span>
                         </Link>
                       </DropdownMenuItem>
                     </>

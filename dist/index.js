@@ -2142,17 +2142,32 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/auth/me/orders", async (req, res) => {
     try {
-      const sanitized = MOCK_ORDERS.map((o) => ({
+      const authUser = await getAuthFromToken(req);
+      const sessionUser = req.session?.user;
+      const currentUserId = authUser?.id || sessionUser?.id;
+      if (!currentUserId) {
+        return res.json({ success: true, orders: [] });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+      const { data: orders, error } = await supabaseAdmin.from("orders").select("*").eq("user_id", currentUserId).order("created_at", { ascending: false });
+      if (error) {
+        console.error("[ORDERS] Errore lettura orders per user:", error);
+        return res.status(500).json({ success: false, message: "Errore lettura ordini" });
+      }
+      const sanitized = (orders || []).map((o) => ({
         id: o.id,
-        snipcartOrderId: o.snipcartOrderId,
+        snipcartOrderId: o.snipcart_order_id,
         total: o.total,
         status: o.status,
         items: o.items,
-        createdAt: o.createdAt,
-        updatedAt: o.updatedAt
+        createdAt: o.created_at,
+        updatedAt: o.updated_at
       }));
       return res.json({ success: true, orders: sanitized });
-    } catch {
+    } catch (err) {
+      console.error("[ORDERS] Errore endpoint /api/auth/me/orders:", err);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
@@ -2322,96 +2337,44 @@ async function registerRoutes(app2) {
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
-  const MOCK_ORDERS = [
-    {
-      id: 1001,
-      userId: 501,
-      snipcartOrderId: "SNIP-001001",
-      total: 4599,
-      status: "ordered",
-      items: [
-        { id: "p-1", name: "Proteine Whey 1kg", quantity: 1, price: 2999 },
-        { id: "p-2", name: "Creatina Monoidrato 300g", quantity: 1, price: 1600 }
-      ],
-      shippingAddress: { street: "Via Roma 10", city: "Torino", postalCode: "10121", province: "TO" },
-      billingAddress: { street: "Via Roma 10", city: "Torino", postalCode: "10121", province: "TO" },
-      createdAt: new Date(Date.now() - 1e3 * 60 * 60 * 24).toISOString(),
-      updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      userEmail: "mario.rossi@example.com",
-      userFirstName: "Mario",
-      userLastName: "Rossi"
-    },
-    {
-      id: 1002,
-      userId: 502,
-      snipcartOrderId: "SNIP-001002",
-      total: 8999,
-      status: "completed",
-      items: [
-        { id: "p-3", name: "Omega-3 120 cps", quantity: 2, price: 1999 },
-        { id: "p-4", name: "Multivitaminico", quantity: 1, price: 5001 }
-      ],
-      shippingAddress: { street: "Via Garibaldi 5", city: "Milano", postalCode: "20100", province: "MI" },
-      billingAddress: { street: "Via Garibaldi 5", city: "Milano", postalCode: "20100", province: "MI" },
-      createdAt: new Date(Date.now() - 1e3 * 60 * 60 * 48).toISOString(),
-      updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      userEmail: "laura.bianchi@example.com",
-      userFirstName: "Laura",
-      userLastName: "Bianchi"
-    },
-    {
-      id: 1003,
-      userId: 503,
-      snipcartOrderId: "SNIP-001003",
-      total: 6599,
-      status: "processing",
-      items: [
-        { id: "p-5", name: "Termogenico X", quantity: 1, price: 3299 },
-        { id: "p-6", name: "Barrette Proteiche (box)", quantity: 1, price: 3300 }
-      ],
-      shippingAddress: { street: "Corso Francia 45", city: "Torino", postalCode: "10138", province: "TO" },
-      billingAddress: { street: "Corso Francia 45", city: "Torino", postalCode: "10138", province: "TO" },
-      createdAt: new Date(Date.now() - 1e3 * 60 * 60 * 6).toISOString(),
-      updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      userEmail: "giulia.verdi@example.com",
-      userFirstName: "Giulia",
-      userLastName: "Verdi"
-    }
-  ];
-  const MOCK_USERS = [
-    {
-      id: 501,
-      email: "mario.rossi@example.com",
-      firstName: "Mario",
-      lastName: "Rossi",
-      isAdmin: false
-    },
-    {
-      id: 502,
-      email: "laura.bianchi@example.com",
-      firstName: "Laura",
-      lastName: "Bianchi",
-      isAdmin: false
-    },
-    {
-      id: 503,
-      email: "giulia.verdi@example.com",
-      firstName: "Giulia",
-      lastName: "Verdi",
-      isAdmin: false
-    }
-  ];
   app2.get("/api/admin/orders", ensureAuth, ensureAdmin, async (req, res) => {
     try {
-      return res.json(MOCK_ORDERS);
-    } catch {
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+      const { data: orders, error } = await supabaseAdmin.from("orders").select("*").order("created_at", { ascending: false });
+      if (error) {
+        console.error("[ADMIN] Errore lettura orders:", error);
+        return res.status(500).json({ success: false, message: "Errore lettura ordini" });
+      }
+      return res.json(orders || []);
+    } catch (err) {
+      console.error("[ADMIN] Errore endpoint /api/admin/orders:", err);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
   app2.get("/api/admin/users", ensureAuth, ensureAdmin, async (req, res) => {
     try {
-      return res.json({ success: true, users: MOCK_USERS });
-    } catch {
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+      const { data: users2, error } = await supabaseAdmin.from("users").select("id,email,first_name,last_name,is_admin,created_at,updated_at").order("created_at", { ascending: false });
+      if (error) {
+        console.error("[ADMIN] Errore lettura users:", error);
+        return res.status(500).json({ success: false, message: "Errore lettura utenti" });
+      }
+      const formattedUsers = (users2 || []).map((u) => ({
+        id: u.id,
+        email: u.email,
+        firstName: u.first_name,
+        lastName: u.last_name,
+        isAdmin: !!u.is_admin,
+        createdAt: u.created_at,
+        updatedAt: u.updated_at
+      }));
+      return res.json({ success: true, users: formattedUsers });
+    } catch (err) {
+      console.error("[ADMIN] Errore endpoint /api/admin/users:", err);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
@@ -2841,14 +2804,27 @@ async function registerRoutes(app2) {
             if (ids.length === 0) {
               return res.json({ success: true, favorites: [] });
             }
-            const { data: prods, error: prodErr } = await client.from("products").select("id,slug,name,description,brand_id,category_id").in("id", ids);
+            const { data: prods, error: prodErr } = await client.from("products").select(`
+                id,
+                slug,
+                name,
+                description,
+                brand_id,
+                category_id,
+                product_images!product_images_product_id_fkey(src, is_primary)
+              `).in("id", ids);
             if (!prodErr) {
-              const favorites = (prods || []).map((p) => ({
-                id: p.id,
-                slug: p.slug,
-                name: p.name,
-                description: p.description
-              }));
+              const favorites = (prods || []).map((p) => {
+                const primaryImg = p.product_images?.find((img) => img.is_primary)?.src;
+                const firstImg = p.product_images?.[0]?.src;
+                return {
+                  id: p.id,
+                  slug: p.slug,
+                  name: p.name,
+                  description: p.description,
+                  primary_image: primaryImg || firstImg || null
+                };
+              });
               return res.json({ success: true, favorites });
             }
           }

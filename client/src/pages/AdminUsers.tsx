@@ -9,10 +9,14 @@ import { Users, Search, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface UserData {
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
   phone: string | null;
+  isAdmin: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function AdminUsers() {
@@ -27,16 +31,22 @@ export default function AdminUsers() {
 
   const users = usersResponse?.users || [];
 
-  // Filter users based on search term
-  const filteredUsers = users.filter(user => 
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.phone && user.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Filter out admin users and apply search term
+  const filteredUsers = users
+    .filter(user => !user.isAdmin) // Escludi gli admin
+    .filter(user =>
+      (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (user.phone && user.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (user.firstName && user.firstName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (user.lastName && user.lastName.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
 
-  // Sort users by email
-  const sortedUsers = filteredUsers.sort((a, b) => a.email.localeCompare(b.email));
+  // Sort users by email (handle null emails)
+  const sortedUsers = filteredUsers.sort((a, b) => {
+    const emailA = a.email || '';
+    const emailB = b.email || '';
+    return emailA.localeCompare(emailB);
+  });
 
   // Export users to CSV
   const exportToCSV = () => {
@@ -51,7 +61,7 @@ export default function AdminUsers() {
 
     const csvHeader = "Email,Nome,Cognome,Telefono\n";
     const csvContent = sortedUsers
-      .map(user => `"${user.email}","${user.first_name || ''}","${user.last_name || ''}","${user.phone || ''}"`)
+      .map(user => `"${user.email || ''}","${user.firstName || ''}","${user.lastName || ''}","${user.phone || ''}"`)
       .join("\n");
     
     const csvData = csvHeader + csvContent;
@@ -213,14 +223,20 @@ export default function AdminUsers() {
                         {index + 1}
                       </TableCell>
                       <TableCell>
-                        <span className="font-medium text-gray-900">
-                          {user.email}
-                        </span>
+                        {user.email ? (
+                          <span className="font-medium text-gray-900">
+                            {user.email}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 italic text-sm">
+                            Email non disponibile
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
-                        {user.first_name ? (
+                        {user.firstName ? (
                           <span className="text-gray-700 capitalize">
-                            {user.first_name}
+                            {user.firstName}
                           </span>
                         ) : (
                           <span className="text-gray-400 italic text-sm">
@@ -229,9 +245,9 @@ export default function AdminUsers() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {user.last_name ? (
+                        {user.lastName ? (
                           <span className="text-gray-700 capitalize">
-                            {user.last_name}
+                            {user.lastName}
                           </span>
                         ) : (
                           <span className="text-gray-400 italic text-sm">
@@ -265,7 +281,7 @@ export default function AdminUsers() {
                   <strong>{sortedUsers.length}</strong> utenti totali
                 </span>
                 <span>
-                  <strong>{sortedUsers.filter(u => u.first_name && u.last_name).length}</strong> con nome completo
+                  <strong>{sortedUsers.filter(u => u.firstName && u.lastName).length}</strong> con nome completo
                 </span>
                 <span>
                   <strong>{sortedUsers.filter(u => u.phone).length}</strong> con numero di telefono
