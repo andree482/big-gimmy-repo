@@ -1,44 +1,25 @@
-import { useState, useEffect, ComponentType } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { Lock, Eye, EyeOff } from "lucide-react";
 
 // Codice di accesso per la versione privata del sito
 const ACCESS_CODE = "XNCahKl09P!298Gq20LkAns!1";
 const STORAGE_KEY = "site_access_granted";
 
-// Loading component per quando l'app sta caricando
-function AppLoading() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center">
-      <div className="animate-pulse text-amber-600 text-lg">Caricamento...</div>
-    </div>
-  );
+interface SiteAccessGateProps {
+  children: ReactNode;
 }
 
-export default function SiteAccessGate() {
+export default function SiteAccessGate({ children }: SiteAccessGateProps) {
   const [isAccessGranted, setIsAccessGranted] = useState<boolean | null>(null);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [showCode, setShowCode] = useState(false);
-  const [AppComponent, setAppComponent] = useState<ComponentType | null>(null);
-  const [isLoadingApp, setIsLoadingApp] = useState(false);
 
   // Controlla se l'accesso è già stato concesso (salvato in sessionStorage)
   useEffect(() => {
     const accessGranted = sessionStorage.getItem(STORAGE_KEY);
     setIsAccessGranted(accessGranted === "true");
   }, []);
-
-  // Carica l'app SOLO quando l'accesso viene concesso
-  useEffect(() => {
-    if (isAccessGranted && !AppComponent && !isLoadingApp) {
-      setIsLoadingApp(true);
-      // Import dinamico esplicito - viene eseguito solo qui
-      import("@/AppWithProviders").then((module) => {
-        setAppComponent(() => module.default);
-        setIsLoadingApp(false);
-      });
-    }
-  }, [isAccessGranted, AppComponent, isLoadingApp]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,20 +45,16 @@ export default function SiteAccessGate() {
     );
   }
 
-  // Se l'accesso è concesso, mostra l'app (o il loading mentre si carica)
+  // Se l'accesso è concesso, mostra il contenuto
   if (isAccessGranted) {
-    if (!AppComponent || isLoadingApp) {
-      return <AppLoading />;
-    }
-    return <AppComponent />;
+    return <>{children}</>;
   }
 
-  // Altrimenti mostra il form di accesso (senza dipendenze esterne a Supabase)
+  // Altrimenti mostra il form di accesso
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden">
         <div className="p-6 text-center space-y-4">
-          {/* Logo placeholder - testo semplice */}
           <h1 className="text-3xl font-bold text-amber-700">Big Gimmy</h1>
 
           <div className="flex justify-center">

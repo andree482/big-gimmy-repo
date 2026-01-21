@@ -1,9 +1,14 @@
 // lib/supabase.ts
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY,
+// Usa valori placeholder se le variabili d'ambiente non sono definite
+// Questo permette al sito di caricarsi anche senza Supabase configurato
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
+
+export const supabase: SupabaseClient = createClient(
+  supabaseUrl,
+  supabaseKey,
   {
     auth: {
       persistSession: true,
@@ -12,3 +17,8 @@ export const supabase = createClient(
     },
   }
 );
+
+// Flag per verificare se Supabase è configurato correttamente
+export const isSupabaseConfigured =
+  !!import.meta.env.VITE_SUPABASE_URL &&
+  !!import.meta.env.VITE_SUPABASE_ANON_KEY;
