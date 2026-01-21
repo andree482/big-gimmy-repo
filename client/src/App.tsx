@@ -9,7 +9,6 @@ import { CartProvider } from "@/components/cart/CartProvider";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
 import InfoBanner from "@/components/layout/InfoBanner";
 import { AuthModal } from "@/components/auth/AuthModal";
-import SiteAccessGate from "@/components/SiteAccessGate";
 
 import Home from "@/pages/Home";
 import AboutUs from "@/pages/AboutUs";
@@ -98,20 +97,18 @@ function App() {
  
 
   return (
-    <SiteAccessGate>
-      <CartProvider>
-        <div className="flex flex-col min-h-screen">
-          <Navbar />
-          <InfoBanner />
-          <main className="flex-grow">
-            <Router />
-          </main>
-          <Footer />
-          <CookieConsentBanner />
-          <AccessibilityMenu />
-        </div>
-      </CartProvider>
-    </SiteAccessGate>
+    <CartProvider>
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <InfoBanner />
+        <main className="flex-grow">
+          <Router />
+        </main>
+        <Footer />
+        <CookieConsentBanner />
+        <AccessibilityMenu />
+      </div>
+    </CartProvider>
   );
 }
 

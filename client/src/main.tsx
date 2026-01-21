@@ -6,14 +6,17 @@ import { queryClient } from "./lib/queryClient";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/useAuth";
+import SiteAccessGate from "@/components/SiteAccessGate";
 
 createRoot(document.getElementById("root")!).render(
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <SiteAccessGate>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </SiteAccessGate>
 );
