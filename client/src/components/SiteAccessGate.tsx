@@ -1,19 +1,23 @@
-import { useState, useEffect, ReactNode } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Lock, Eye, EyeOff } from "lucide-react";
-import Logo from "@/components/ui/Logo";
 
 // Codice di accesso per la versione privata del sito
 const ACCESS_CODE = "XNCahKl09P!298Gq20LkAns!1";
 const STORAGE_KEY = "site_access_granted";
 
-interface SiteAccessGateProps {
-  children: ReactNode;
+// Lazy load dell'app SOLO quando l'accesso è concesso
+const AppWithProviders = lazy(() => import("@/AppWithProviders"));
+
+// Loading component per quando l'app sta caricando
+function AppLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center">
+      <div className="animate-pulse text-amber-600 text-lg">Caricamento...</div>
+    </div>
+  );
 }
 
-export default function SiteAccessGate({ children }: SiteAccessGateProps) {
+export default function SiteAccessGate() {
   const [isAccessGranted, setIsAccessGranted] = useState<boolean | null>(null);
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -38,7 +42,7 @@ export default function SiteAccessGate({ children }: SiteAccessGateProps) {
     }
   };
 
-  // Loading state
+  // Loading state iniziale
   if (isAccessGranted === null) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center">
@@ -49,37 +53,44 @@ export default function SiteAccessGate({ children }: SiteAccessGateProps) {
     );
   }
 
-  // Se l'accesso è concesso, mostra il contenuto del sito
+  // Se l'accesso è concesso, carica l'app (lazy loading)
   if (isAccessGranted) {
-    return <>{children}</>;
+    return (
+      <Suspense fallback={<AppLoading />}>
+        <AppWithProviders />
+      </Suspense>
+    );
   }
 
-  // Altrimenti mostra il form di accesso
+  // Altrimenti mostra il form di accesso (senza dipendenze esterne a Supabase)
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader className="text-center space-y-4">
-          <div className="flex justify-center">
-            <Logo className="h-16 w-auto" />
-          </div>
+      <div className="w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden">
+        <div className="p-6 text-center space-y-4">
+          {/* Logo placeholder - testo semplice */}
+          <h1 className="text-3xl font-bold text-amber-700">Big Gimmy</h1>
+
           <div className="flex justify-center">
             <div className="p-3 bg-amber-100 rounded-full">
               <Lock className="w-8 h-8 text-amber-600" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold text-gray-800">
+
+          <h2 className="text-2xl font-bold text-gray-800">
             Accesso Riservato
-          </CardTitle>
-          <CardDescription className="text-gray-600">
+          </h2>
+
+          <p className="text-gray-600 text-sm">
             Questo sito è in fase di sviluppo e l'accesso è riservato.
             <br />
             Inserisci il codice di accesso per continuare.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+
+        <div className="px-6 pb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
-              <Input
+              <input
                 type={showCode ? "text" : "password"}
                 placeholder="Inserisci il codice di accesso"
                 value={code}
@@ -87,8 +98,9 @@ export default function SiteAccessGate({ children }: SiteAccessGateProps) {
                   setCode(e.target.value);
                   setError("");
                 }}
-                className="pr-10 text-center text-lg tracking-wider"
+                autoComplete="off"
                 autoFocus
+                className="w-full h-10 px-3 py-2 pr-10 text-center text-lg tracking-wider rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               />
               <button
                 type="button"
@@ -103,20 +115,20 @@ export default function SiteAccessGate({ children }: SiteAccessGateProps) {
               <p className="text-red-500 text-sm text-center">{error}</p>
             )}
 
-            <Button
+            <button
               type="submit"
-              className="w-full bg-amber-600 hover:bg-amber-700 text-white"
               disabled={!code.trim()}
+              className="w-full h-10 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
             >
               Accedi al Sito
-            </Button>
+            </button>
           </form>
 
           <p className="mt-6 text-xs text-center text-gray-500">
             Se non hai il codice di accesso, contatta il proprietario del sito.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
