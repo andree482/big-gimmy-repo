@@ -13,6 +13,8 @@ export default defineConfig({
     outDir: path.resolve(__dirname, 'client/dist'),
     emptyOutDir: true,
     manifest: true,
+    // Disabilita il modulepreload per evitare che AppWithProviders venga caricato prima del login
+    modulePreload: false,
     rollupOptions: {
       input: path.resolve(__dirname, 'client/index.html')
     }
