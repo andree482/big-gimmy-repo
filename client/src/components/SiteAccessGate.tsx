@@ -1,12 +1,9 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, ComponentType } from "react";
 import { Lock, Eye, EyeOff } from "lucide-react";
 
 // Codice di accesso per la versione privata del sito
 const ACCESS_CODE = "XNCahKl09P!298Gq20LkAns!1";
 const STORAGE_KEY = "site_access_granted";
-
-// Lazy load dell'app SOLO quando l'accesso è concesso
-const AppWithProviders = lazy(() => import("@/AppWithProviders"));
 
 // Loading component per quando l'app sta caricando
 function AppLoading() {
@@ -22,12 +19,26 @@ export default function SiteAccessGate() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [showCode, setShowCode] = useState(false);
+  const [AppComponent, setAppComponent] = useState<ComponentType | null>(null);
+  const [isLoadingApp, setIsLoadingApp] = useState(false);
 
   // Controlla se l'accesso è già stato concesso (salvato in sessionStorage)
   useEffect(() => {
     const accessGranted = sessionStorage.getItem(STORAGE_KEY);
     setIsAccessGranted(accessGranted === "true");
   }, []);
+
+  // Carica l'app SOLO quando l'accesso viene concesso
+  useEffect(() => {
+    if (isAccessGranted && !AppComponent && !isLoadingApp) {
+      setIsLoadingApp(true);
+      // Import dinamico esplicito - viene eseguito solo qui
+      import("@/AppWithProviders").then((module) => {
+        setAppComponent(() => module.default);
+        setIsLoadingApp(false);
+      });
+    }
+  }, [isAccessGranted, AppComponent, isLoadingApp]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,13 +64,12 @@ export default function SiteAccessGate() {
     );
   }
 
-  // Se l'accesso è concesso, carica l'app (lazy loading)
+  // Se l'accesso è concesso, mostra l'app (o il loading mentre si carica)
   if (isAccessGranted) {
-    return (
-      <Suspense fallback={<AppLoading />}>
-        <AppWithProviders />
-      </Suspense>
-    );
+    if (!AppComponent || isLoadingApp) {
+      return <AppLoading />;
+    }
+    return <AppComponent />;
   }
 
   // Altrimenti mostra il form di accesso (senza dipendenze esterne a Supabase)
