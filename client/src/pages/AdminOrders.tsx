@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,9 +6,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingBag, Package, Truck, CheckCircle, Clock, Euro, Filter, X, CreditCard } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ShoppingBag, Package, Truck, CheckCircle, Clock, Euro, Filter, X, CreditCard, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { apiRequest } from "@/lib/queryClient";
 
 interface OrderItem {
   id?: string;
@@ -18,7 +29,7 @@ interface OrderItem {
 }
 
 interface Order {
-  id: number;
+  id: string;
   user_id: string;
   snipcart_order_id: string;
   total: number;
@@ -31,6 +42,8 @@ interface Order {
   user_email?: string | null;
   user_first_name?: string | null;
   user_last_name?: string | null;
+  tracking_number?: string | null;
+  carrier?: string | null;
 }
 
 const statusLabels: Record<string, string> = {
@@ -63,14 +76,71 @@ const statusIcons: Record<string, typeof Clock> = {
   cancelled: Clock
 };
 
+// Corrieri supportati con i loro URL di tracciamento
+const carrierOptions = [
+  { value: "bartolini", label: "BRT (Bartolini)", trackingUrl: "https://www.brt.it/it/tracking?spession=" },
+  { value: "gls", label: "GLS", trackingUrl: "https://www.gls-italy.com/it/trova-spedizione?match=" },
+  { value: "dhl", label: "DHL", trackingUrl: "https://www.dhl.com/it-it/home/tracking.html?tracking-id=" },
+  { value: "ups", label: "UPS", trackingUrl: "https://www.ups.com/track?tracknum=" },
+  { value: "sda", label: "SDA", trackingUrl: "https://www.sda.it/wps/portal/Servizi_online/dettaglio-spedizione?locale=it&tression=" },
+  { value: "poste_italiane", label: "Poste Italiane", trackingUrl: "https://www.poste.it/cerca/index.html#/risultati-spedizioni/" },
+  { value: "fedex", label: "FedEx", trackingUrl: "https://www.fedex.com/fedextrack/?trknbr=" },
+  { value: "tnt", label: "TNT", trackingUrl: "https://www.tnt.it/tracking/tracking.do?cons=" },
+];
+
+function getTrackingUrl(carrier: string | null, trackingNumber: string | null): string | null {
+  if (!carrier || !trackingNumber) return null;
+  const carrierInfo = carrierOptions.find(c => c.value === carrier);
+  if (carrierInfo) {
+    return carrierInfo.trackingUrl + trackingNumber;
+  }
+  return null;
+}
+
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("");
-  
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [trackingNumber, setTrackingNumber] = useState("");
+  const [carrier, setCarrier] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const queryClient = useQueryClient();
+
   const { data: orders = [], isLoading, error } = useQuery<Order[]>({
     queryKey: ['/api/admin/orders'],
   });
 
-  const filteredOrders = orders.filter((order: Order) => 
+  const updateTrackingMutation = useMutation({
+    mutationFn: async ({ orderId, tracking_number, carrier }: { orderId: string; tracking_number: string; carrier: string }) => {
+      return apiRequest("PUT", `/api/admin/orders/${orderId}/tracking`, { tracking_number, carrier });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/orders'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/admin/orders'] });
+      setIsDialogOpen(false);
+      setSelectedOrder(null);
+      setTrackingNumber("");
+      setCarrier("");
+    },
+  });
+
+  const openTrackingDialog = (order: Order) => {
+    setSelectedOrder(order);
+    setTrackingNumber(order.tracking_number || "");
+    setCarrier(order.carrier || "");
+    setIsDialogOpen(true);
+  };
+
+  const handleSaveTracking = () => {
+    if (!selectedOrder || !trackingNumber || !carrier) return;
+    updateTrackingMutation.mutate({
+      orderId: selectedOrder.id,
+      tracking_number: trackingNumber,
+      carrier: carrier,
+    });
+  };
+
+  const filteredOrders = orders.filter((order: Order) =>
     statusFilter === "" || order.status === statusFilter
   );
 
@@ -81,7 +151,7 @@ export default function AdminOrders() {
           <Skeleton className="h-8 w-64 mb-2" />
           <Skeleton className="h-4 w-96" />
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           {[...Array(4)].map((_, i) => (
             <Card key={i}>
@@ -288,6 +358,7 @@ export default function AdminOrders() {
                     <TableHead>Stato</TableHead>
                     <TableHead>Prodotti</TableHead>
                     <TableHead className="text-right">Totale</TableHead>
+                    <TableHead className="text-center">Tracciamento</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -295,6 +366,7 @@ export default function AdminOrders() {
                     const StatusIcon = statusIcons[order.status] || Clock;
                     const items = Array.isArray(order.items) ? order.items : [];
                     const orderId = String(order.id).substring(0, 8);
+                    const trackingUrl = getTrackingUrl(order.carrier, order.tracking_number);
 
                     return (
                       <TableRow key={order.id} className="hover:bg-gray-50">
@@ -361,6 +433,42 @@ export default function AdminOrders() {
                             €{((order.total || 0) / 100).toFixed(2)}
                           </div>
                         </TableCell>
+
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            {trackingUrl ? (
+                              <>
+                                <a
+                                  href={trackingUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  Traccia
+                                </a>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-xs h-6 px-2"
+                                  onClick={() => openTrackingDialog(order)}
+                                >
+                                  Modifica
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => openTrackingDialog(order)}
+                              >
+                                <Truck className="h-3 w-3 mr-1" />
+                                Aggiungi
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -370,6 +478,69 @@ export default function AdminOrders() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog per inserire/modificare tracking */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tracciamento Ordine</DialogTitle>
+            <DialogDescription>
+              Inserisci il corriere e il numero di tracciamento per l'ordine #{selectedOrder?.id?.substring(0, 8)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="carrier">Corriere</Label>
+              <Select value={carrier} onValueChange={setCarrier}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleziona corriere" />
+                </SelectTrigger>
+                <SelectContent>
+                  {carrierOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="trackingNumber">Numero di Tracciamento</Label>
+              <Input
+                id="trackingNumber"
+                value={trackingNumber}
+                onChange={(e) => setTrackingNumber(e.target.value)}
+                placeholder="Es. 12345678901234"
+              />
+            </div>
+            {carrier && trackingNumber && (
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-xs text-gray-500 mb-1">Anteprima link:</p>
+                <a
+                  href={getTrackingUrl(carrier, trackingNumber) || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:text-blue-800 break-all"
+                >
+                  {getTrackingUrl(carrier, trackingNumber)}
+                </a>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button
+              onClick={handleSaveTracking}
+              disabled={!trackingNumber || !carrier || updateTrackingMutation.isPending}
+              className="bg-[#FFD100] text-black hover:bg-[#e6bc00]"
+            >
+              {updateTrackingMutation.isPending ? "Salvataggio..." : "Salva"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

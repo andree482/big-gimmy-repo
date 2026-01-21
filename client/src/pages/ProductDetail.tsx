@@ -5436,14 +5436,14 @@ export default function ProductDetail() {
         <div className="container mx-auto">
           <Tabs defaultValue="description" className="w-full">
             {/* Nascondi tab Valori Nutrizionali e Ingredienti per categoria Accessori (category_id = 6) */}
-            <TabsList className={`grid w-full ${product.category_id === 6 ? 'grid-cols-2 gap-3' : 'grid-cols-2 md:grid-cols-4 gap-3 md:gap-2'} mb-8`}>
-              <TabsTrigger value="description">Descrizione</TabsTrigger>
+            <TabsList className={`grid w-full ${product.category_id === 6 ? 'grid-cols-2 gap-2' : 'grid-cols-2 md:grid-cols-4 gap-2'} mb-8 h-auto p-2`}>
+              <TabsTrigger value="description" className="text-xs sm:text-sm py-2 px-2 whitespace-normal h-auto">Descrizione</TabsTrigger>
               {product.category_id !== 6 && (
-                <TabsTrigger value="nutrition">Valori Nutrizionali</TabsTrigger>
+                <TabsTrigger value="nutrition" className="text-xs sm:text-sm py-2 px-2 whitespace-normal h-auto">Valori Nutrizionali</TabsTrigger>
               )}
-              <TabsTrigger value="usage">Modalità d'Uso</TabsTrigger>
+              <TabsTrigger value="usage" className="text-xs sm:text-sm py-2 px-2 whitespace-normal h-auto">Modalità d'Uso</TabsTrigger>
               {product.category_id !== 6 && (
-                <TabsTrigger value="ingredients">Ingredienti</TabsTrigger>
+                <TabsTrigger value="ingredients" className="text-xs sm:text-sm py-2 px-2 whitespace-normal h-auto">Ingredienti</TabsTrigger>
               )}
             </TabsList>
 

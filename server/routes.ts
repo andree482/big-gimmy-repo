@@ -1424,6 +1424,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stripe_session_id,
           created_at,
           updated_at,
+          tracking_number,
+          carrier,
           users:user_id (email)
         `)
         .order("created_at", { ascending: false });
@@ -1473,7 +1475,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             items: formattedItems,
             created_at: order.created_at,
             updated_at: order.updated_at,
-            user_email: order.users?.email || null
+            user_email: order.users?.email || null,
+            tracking_number: order.tracking_number || null,
+            carrier: order.carrier || null
           };
         })
       );
@@ -2493,7 +2497,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           total_cents,
           stripe_session_id,
           created_at,
-          updated_at
+          updated_at,
+          tracking_number,
+          carrier
         `)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
@@ -2548,7 +2554,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             items: formattedItems,
             shippingAddress: null, // TODO: fetch shipping address if needed
             createdAt: order.created_at,
-            updatedAt: order.updated_at
+            updatedAt: order.updated_at,
+            trackingNumber: order.tracking_number || null,
+            carrier: order.carrier || null
           };
         })
       );
@@ -3572,6 +3580,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ success: false, message: "Errore creazione checkout" });
       }
     });
+
+  // ================================
+  // ORDER TRACKING ENDPOINT (semplificato)
+  // ================================
+
+  // PUT aggiorna tracking number e corriere (admin only)
+  app.put("/api/admin/orders/:orderId/tracking", ensureAuth, ensureAdmin, async (req: Request, res: Response) => {
+    try {
+      const { orderId } = req.params;
+      const { tracking_number, carrier } = req.body;
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      const updates: any = {
+        updated_at: new Date().toISOString()
+      };
+
+      if (tracking_number !== undefined) updates.tracking_number = tracking_number;
+      if (carrier !== undefined) updates.carrier = carrier;
+
+      const { error } = await (supabaseAdmin as any)
+        .from("orders")
+        .update(updates)
+        .eq("id", orderId);
+
+      if (error) {
+        console.error("[TRACKING] Errore aggiornamento tracking:", error);
+        return res.status(500).json({ success: false, message: "Errore aggiornamento tracciamento" });
+      }
+
+      return res.json({ success: true, message: "Tracciamento aggiornato" });
+    } catch (err) {
+      console.error("[TRACKING] Errore PUT /api/admin/orders/:orderId/tracking:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
 
   const httpServer = createServer(app);
 

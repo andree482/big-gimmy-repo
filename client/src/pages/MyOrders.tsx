@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Package, Clock, CheckCircle, AlertCircle, ChevronDown, ShoppingBag, ArrowLeft } from "lucide-react";
+import { Package, Clock, CheckCircle, AlertCircle, ChevronDown, ShoppingBag, ArrowLeft, ExternalLink, Truck } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -25,6 +25,8 @@ interface Order {
   billingAddress?: any;
   createdAt: string;
   updatedAt: string;
+  trackingNumber?: string | null;
+  carrier?: string | null;
 }
 
 const formatPrice = (cents: number) => {
@@ -47,17 +49,47 @@ const shortenOrderId = (id: string) => {
   return id.toString().substring(0, 8).toUpperCase();
 };
 
+// Corrieri supportati con i loro URL di tracciamento
+const carrierOptions: Record<string, { label: string; trackingUrl: string }> = {
+  bartolini: { label: "BRT (Bartolini)", trackingUrl: "https://www.brt.it/it/tracking?spession=" },
+  gls: { label: "GLS", trackingUrl: "https://www.gls-italy.com/it/trova-spedizione?match=" },
+  dhl: { label: "DHL", trackingUrl: "https://www.dhl.com/it-it/home/tracking.html?tracking-id=" },
+  ups: { label: "UPS", trackingUrl: "https://www.ups.com/track?tracknum=" },
+  sda: { label: "SDA", trackingUrl: "https://www.sda.it/wps/portal/Servizi_online/dettaglio-spedizione?locale=it&tression=" },
+  poste_italiane: { label: "Poste Italiane", trackingUrl: "https://www.poste.it/cerca/index.html#/risultati-spedizioni/" },
+  fedex: { label: "FedEx", trackingUrl: "https://www.fedex.com/fedextrack/?trknbr=" },
+  tnt: { label: "TNT", trackingUrl: "https://www.tnt.it/tracking/tracking.do?cons=" },
+};
+
+function getTrackingUrl(carrier: string | null, trackingNumber: string | null): string | null {
+  if (!carrier || !trackingNumber) return null;
+  const carrierInfo = carrierOptions[carrier];
+  if (carrierInfo) {
+    return carrierInfo.trackingUrl + trackingNumber;
+  }
+  return null;
+}
+
 const getStatusInfo = (status: string) => {
   switch (status) {
     case 'completed':
     case 'paid':
       return {
-        label: 'Completato',
+        label: 'Pagato',
         icon: CheckCircle,
         bgColor: 'bg-green-100',
         textColor: 'text-green-700',
         borderColor: 'border-green-300',
         accentColor: 'bg-green-500'
+      };
+    case 'shipped':
+      return {
+        label: 'Spedito',
+        icon: Truck,
+        bgColor: 'bg-purple-100',
+        textColor: 'text-purple-700',
+        borderColor: 'border-purple-300',
+        accentColor: 'bg-purple-500'
       };
     case 'pending':
       return {
@@ -93,6 +125,8 @@ function OrderCard({ order }: { order: Order }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const statusInfo = getStatusInfo(order.status);
   const StatusIcon = statusInfo.icon;
+  const trackingUrl = getTrackingUrl(order.carrier, order.trackingNumber);
+  const carrierLabel = order.carrier ? carrierOptions[order.carrier]?.label || order.carrier : null;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-md">
@@ -208,11 +242,34 @@ function OrderCard({ order }: { order: Order }) {
           </div>
 
           {/* Order summary */}
-          <div className="px-5 pb-5">
+          <div className="px-5 pb-5 space-y-3">
             <div className="flex items-center justify-between p-4 bg-gray-900 rounded-xl text-white">
               <span className="font-medium">Totale pagato</span>
               <span className="text-2xl font-bold">{formatPrice(order.total)}</span>
             </div>
+
+            {/* Tasto Tracciamento - solo se c'è tracking */}
+            {trackingUrl ? (
+              <a
+                href={trackingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block"
+              >
+                <Button
+                  variant="outline"
+                  className="w-full flex items-center justify-center gap-2 border-[#FFD100] text-black hover:bg-[#FFD100]/10"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Traccia su {carrierLabel}
+                </Button>
+              </a>
+            ) : (
+              <div className="text-center text-sm text-gray-500 py-2">
+                <Clock className="w-4 h-4 inline mr-1" />
+                Tracciamento non ancora disponibile
+              </div>
+            )}
           </div>
         </div>
       </div>
