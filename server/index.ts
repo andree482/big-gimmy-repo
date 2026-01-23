@@ -116,7 +116,7 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
     console.log(`[STRIPE WEBHOOK] Carrello recuperato: ${cartItems?.length || 0} items`);
     console.log(`[STRIPE WEBHOOK] Cart items:`, JSON.stringify(cartItems, null, 2));
 
-    // Crea l'ordine nel database
+    // Crea l'ordine nel database (l'ID UUID viene generato automaticamente)
     const { data: order, error: orderError } = await supabaseAdminForWebhook
       .from("orders")
       .insert({
@@ -125,7 +125,6 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
         status: "paid",
         currency: session.currency?.toUpperCase() || "EUR",
         total_cents: session.amount_total || 0,
-        id: session.id,
         stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : null,
       })
       .select()
