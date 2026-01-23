@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -18,8 +19,11 @@ const registerSchema = z.object({
   lastName: z.string().min(2, 'Cognome deve essere almeno 2 caratteri'),
   phone: z
     .string()
-    .regex(/^(\+?\d{1,3}\s?)?(\d[\s-]?){6,}$/, 'Numero di telefono non valido')
-    .optional(),
+    .optional()
+    .refine(
+      (val) => !val || val.length === 0 || /^\+\d{1,3}\s+[\d\s]+$/.test(val),
+      'Numero di telefono non valido'
+    ),
   address: z
     .string()
     .min(2, 'Indirizzo deve essere almeno 2 caratteri')
@@ -74,18 +78,27 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
 
   const onSubmit = async (data: RegisterFormData) => {
     setSubmitting(true);
-    const safety = setTimeout(() => setSubmitting(false), 8000);
+    const safety = setTimeout(() => setSubmitting(false), 3000);
     try {
       const { confirmPassword, ...registerData } = data;
-      await register(registerData);
+      const result = await register(registerData);
       toast({
         title: 'Registrazione completata',
         description: 'Benvenuto in BigGimmy! Il tuo account è stato creato con successo.',
       });
       setRegistered(true);
-      setTimeout(() => {
-        onSuccess?.();
-      }, 1200);
+
+      // Se l'utente è stato auto-loggato, ricarica la pagina
+      if (result?.autoLoggedIn) {
+        setTimeout(() => {
+          window.location.reload();
+        }, 800);
+      } else {
+        // Se richiede conferma email, chiama onSuccess dopo un breve delay
+        setTimeout(() => {
+          onSuccess?.();
+        }, 1200);
+      }
     } catch (error: any) {
       toast({
         title: 'Errore registrazione',
@@ -199,12 +212,21 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">Numero di Telefono</Label>
-            <Input
-              id="phone"
-              placeholder="+39 123 456 7890"
-              {...form.register('phone')}
+            <Controller
+              name="phone"
+              control={form.control}
+              render={({ field }) => (
+                <PhoneInput
+                  id="phone"
+                  label="Numero di Telefono"
+                  value={field.value || ''}
+                  onChange={field.onChange}
+                />
+              )}
             />
+            {form.formState.errors.phone && (
+              <p className="text-sm text-red-600">{form.formState.errors.phone.message}</p>
+            )}
           </div>
 
           <div className="space-y-2">

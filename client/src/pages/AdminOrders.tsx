@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ShoppingBag, Package, Truck, CheckCircle, Clock, Euro, Filter, X, CreditCard, ExternalLink } from "lucide-react";
+import { ShoppingBag, Package, Truck, CheckCircle, Clock, Euro, Filter, X, CreditCard, ExternalLink, MapPin, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { apiRequest } from "@/lib/queryClient";
@@ -28,6 +28,16 @@ interface OrderItem {
   price?: number;
 }
 
+interface ShippingAddress {
+  firstName?: string;
+  lastName?: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  province: string;
+  country?: string;
+}
+
 interface Order {
   id: string;
   user_id: string;
@@ -35,8 +45,9 @@ interface Order {
   total: number;
   status: string;
   items: OrderItem[] | null;
-  shipping_address: Record<string, unknown> | null;
+  shipping_address: ShippingAddress | null;
   billing_address: Record<string, unknown> | null;
+  notes?: string | null;
   created_at: string;
   updated_at: string;
   user_email?: string | null;
@@ -46,34 +57,65 @@ interface Order {
   carrier?: string | null;
 }
 
+// Status enum values e labels
+const ORDER_STATUSES = [
+  { value: "shipped", label: "Spedito" },
+  { value: "pending_payment", label: "In attesa di pagamento" },
+  { value: "paid", label: "Pagato" },
+  { value: "cancelled", label: "Cancellato" },
+  { value: "failed", label: "Fallito" },
+  { value: "refunded", label: "Rimborsato" },
+  { value: "awaiting_delivery", label: "In attesa di consegna" },
+  { value: "delivered", label: "Consegnato" },
+  { value: "refund_requested", label: "Richiesta di rimborso" },
+] as const;
+
 const statusLabels: Record<string, string> = {
   pending: "In attesa",
+  pending_payment: "In attesa di pagamento",
   paid: "Pagato",
   ordered: "Ordinato",
   processing: "In elaborazione",
   shipped: "Spedito",
   completed: "Completato",
-  cancelled: "Annullato"
+  delivered: "Consegnato",
+  cancelled: "Cancellato",
+  failed: "Fallito",
+  refunded: "Rimborsato",
+  awaiting_delivery: "In attesa di consegna",
+  refund_requested: "Richiesta di rimborso",
 };
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
+  pending_payment: "bg-yellow-100 text-yellow-800",
   paid: "bg-green-100 text-green-800",
   ordered: "bg-orange-100 text-orange-800",
   processing: "bg-blue-100 text-blue-800",
   shipped: "bg-purple-100 text-purple-800",
   completed: "bg-green-100 text-green-800",
-  cancelled: "bg-red-100 text-red-800"
+  delivered: "bg-green-100 text-green-800",
+  cancelled: "bg-red-100 text-red-800",
+  failed: "bg-red-100 text-red-800",
+  refunded: "bg-gray-100 text-gray-800",
+  awaiting_delivery: "bg-blue-100 text-blue-800",
+  refund_requested: "bg-orange-100 text-orange-800",
 };
 
 const statusIcons: Record<string, typeof Clock> = {
   pending: Clock,
+  pending_payment: Clock,
   paid: CreditCard,
   ordered: Clock,
   processing: Package,
   shipped: Truck,
   completed: CheckCircle,
-  cancelled: Clock
+  delivered: CheckCircle,
+  cancelled: Clock,
+  failed: Clock,
+  refunded: CreditCard,
+  awaiting_delivery: Truck,
+  refund_requested: Clock,
 };
 
 // Corrieri supportati con i loro URL di tracciamento
@@ -123,6 +165,20 @@ export default function AdminOrders() {
       setCarrier("");
     },
   });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
+      return apiRequest("PUT", `/api/admin/orders/${orderId}/status`, { status });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/orders'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/admin/orders'] });
+    },
+  });
+
+  const handleStatusChange = (orderId: string, newStatus: string) => {
+    updateStatusMutation.mutate({ orderId, status: newStatus });
+  };
 
   const openTrackingDialog = (order: Order) => {
     setSelectedOrder(order);
@@ -357,6 +413,7 @@ export default function AdminOrders() {
                     <TableHead>Data</TableHead>
                     <TableHead>Stato</TableHead>
                     <TableHead>Prodotti</TableHead>
+                    <TableHead>Indirizzo</TableHead>
                     <TableHead className="text-right">Totale</TableHead>
                     <TableHead className="text-center">Tracciamento</TableHead>
                   </TableRow>
@@ -398,13 +455,25 @@ export default function AdminOrders() {
                         </TableCell>
 
                         <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={`${statusColors[order.status] || 'bg-gray-100 text-gray-800'} border-0`}
+                          <Select
+                            value={order.status}
+                            onValueChange={(value) => handleStatusChange(order.id, value)}
+                            disabled={updateStatusMutation.isPending}
                           >
-                            <StatusIcon className="h-3 w-3 mr-1" />
-                            {statusLabels[order.status] || order.status}
-                          </Badge>
+                            <SelectTrigger className={`w-[180px] h-8 text-xs ${statusColors[order.status] || 'bg-gray-100 text-gray-800'} border-0`}>
+                              <div className="flex items-center gap-1">
+                                <StatusIcon className="h-3 w-3" />
+                                <SelectValue>{statusLabels[order.status] || order.status}</SelectValue>
+                              </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ORDER_STATUSES.map((status) => (
+                                <SelectItem key={status.value} value={status.value}>
+                                  {status.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
 
                         <TableCell>
@@ -426,6 +495,30 @@ export default function AdminOrders() {
                               <span className="text-gray-400 text-sm">-</span>
                             )}
                           </div>
+                        </TableCell>
+
+                        <TableCell>
+                          {order.shipping_address ? (
+                            <div className="text-xs space-y-0.5 max-w-[180px]">
+                              {order.shipping_address.firstName && order.shipping_address.lastName && (
+                                <p className="font-medium text-gray-900 truncate">
+                                  {order.shipping_address.firstName} {order.shipping_address.lastName}
+                                </p>
+                              )}
+                              <p className="text-gray-600 truncate">{order.shipping_address.address}</p>
+                              <p className="text-gray-500">
+                                {order.shipping_address.postalCode} {order.shipping_address.city}
+                              </p>
+                              {order.notes && (
+                                <div className="flex items-center gap-1 text-yellow-600 mt-1" title={order.notes}>
+                                  <FileText className="h-3 w-3" />
+                                  <span className="truncate">Note</span>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
                         </TableCell>
 
                         <TableCell className="text-right">

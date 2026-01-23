@@ -603,6 +603,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // DELETE account - Elimina l'account utente da Supabase e dal database
+  app.delete("/api/auth/account", ensureAuth, async (req: Request, res: Response) => {
+    try {
+      const { password } = req.body;
+      const userId = (req as any).userId || (req.session as any)?.user?.id;
+      const userEmail = (req as any).userEmail || (req.session as any)?.user?.email;
+
+      if (!userId || !userEmail) {
+        return res.status(401).json({ success: false, message: "Utente non autenticato" });
+      }
+
+      if (!password) {
+        return res.status(400).json({ success: false, message: "Password richiesta per confermare l'eliminazione" });
+      }
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      // Verifica password con Supabase (tramite signInWithPassword non disponibile lato server con admin)
+      // La verifica è già stata fatta lato client prima di chiamare questo endpoint
+
+      // 1. Elimina gli indirizzi dell'utente
+      await (supabaseAdmin as any)
+        .from("user_addresses")
+        .delete()
+        .eq("user_id", userId);
+
+      // 2. Elimina gli ordini dell'utente (opzionale - potrebbe essere necessario mantenerli per motivi legali)
+      // In questo caso manteniamo gli ordini ma rimuoviamo il riferimento all'utente
+      await (supabaseAdmin as any)
+        .from("orders")
+        .update({ user_id: null })
+        .eq("user_id", userId);
+
+      // 3. Elimina il profilo utente dalla tabella users
+      await (supabaseAdmin as any)
+        .from("users")
+        .delete()
+        .eq("id", userId);
+
+      // 4. Elimina l'utente da Supabase Auth
+      const { error: authError } = await (supabaseAdmin as any).auth.admin.deleteUser(userId);
+      if (authError) {
+        console.error("[AUTH] Errore eliminazione utente Supabase Auth:", authError);
+        // Continua comunque - i dati del database sono già stati eliminati
+      }
+
+      // 5. Distruggi la sessione
+      req.session.destroy((err) => {
+        if (err) console.error("[AUTH] Errore distruzione sessione:", err);
+      });
+      res.clearCookie('biggimmy-session', { path: '/' });
+
+      console.log(`[AUTH] Account eliminato: ${userEmail} (ID: ${userId})`);
+      return res.json({ success: true, message: "Account eliminato con successo" });
+    } catch (err) {
+      console.error("[AUTH] Errore eliminazione account:", err);
+      return res.status(500).json({ success: false, message: "Errore durante l'eliminazione dell'account" });
+    }
+  });
+
   app.get("/api/auth/diagnostics", async (req: Request, res: Response) => {
     try {
       const tokenAuth = await getAuthFromToken(req);
@@ -1295,11 +1357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           if (!error && data?.user?.id) {
             userId = String(data.user.id);
-            if (supabaseAdmin) {
-              try {
-                await (supabaseAdmin as any).auth.admin.updateUserById(userId, { email_confirmed_at: new Date().toISOString() });
-              } catch {}
-            }
+            // La verifica email è gestita da Supabase (invia email di conferma)
           }
         } catch (e) {
           console.warn("[AUTH] Supabase Auth signUp fallito:", e);
@@ -1418,10 +1476,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select(`
           id,
           user_id,
+          shipping_address_id,
           status,
           currency,
           total_cents,
           stripe_session_id,
+          notes,
           created_at,
           updated_at,
           tracking_number,
@@ -1435,7 +1495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ success: false, message: "Errore lettura ordini" });
       }
 
-      // Per ogni ordine, recupera gli order_items con i dettagli prodotto
+      // Per ogni ordine, recupera gli order_items con i dettagli prodotto e l'indirizzo
       const ordersWithItems = await Promise.all(
         (orders || []).map(async (order: any) => {
           const { data: items } = await (supabaseAdmin as any)
@@ -1456,6 +1516,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             `)
             .eq("order_id", order.id);
 
+          // Recupera indirizzo di spedizione se presente
+          let shippingAddress = null;
+          if (order.shipping_address_id) {
+            const { data: addr } = await (supabaseAdmin as any)
+              .from("user_addresses")
+              .select("id, first_name, last_name, street, city, cap, province, country")
+              .eq("id", order.shipping_address_id)
+              .single();
+
+            if (addr) {
+              shippingAddress = {
+                firstName: addr.first_name,
+                lastName: addr.last_name,
+                address: addr.street,
+                city: addr.city,
+                postalCode: addr.cap,
+                province: addr.province,
+                country: addr.country
+              };
+            }
+          }
+
           // Formatta gli items per il frontend
           const formattedItems = (items || []).map((item: any) => ({
             id: item.id,
@@ -1473,6 +1555,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             total: order.total_cents,
             status: order.status,
             items: formattedItems,
+            shipping_address: shippingAddress,
+            notes: order.notes || null,
             created_at: order.created_at,
             updated_at: order.updated_at,
             user_email: order.users?.email || null,
@@ -2496,6 +2580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           currency,
           total_cents,
           stripe_session_id,
+          notes,
           created_at,
           updated_at,
           tracking_number,
@@ -2509,9 +2594,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ success: false, message: "Errore recupero ordini" });
       }
 
-      // Recupera anche gli order_items per ogni ordine
+      // Recupera anche gli order_items e l'indirizzo di spedizione per ogni ordine
       const ordersWithItems = await Promise.all(
         (orders || []).map(async (order: any) => {
+          // Recupera items dell'ordine
           const { data: items, error: itemsError } = await (supabaseAdmin as any)
             .from("order_items")
             .select(`
@@ -2536,6 +2622,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.error(`[ORDERS] Errore recupero items per ordine ${order.id}:`, itemsError);
           }
 
+          // Recupera indirizzo di spedizione se presente
+          let shippingAddress = null;
+          if (order.shipping_address_id) {
+            const { data: addr } = await (supabaseAdmin as any)
+              .from("user_addresses")
+              .select("id, first_name, last_name, street, city, cap, province, country")
+              .eq("id", order.shipping_address_id)
+              .single();
+
+            if (addr) {
+              shippingAddress = {
+                firstName: addr.first_name,
+                lastName: addr.last_name,
+                address: addr.street,
+                city: addr.city,
+                postalCode: addr.cap,
+                province: addr.province,
+                country: addr.country
+              };
+            }
+          }
+
           // Formatta items per il frontend
           const formattedItems = (items || []).map((item: any) => ({
             id: item.id,
@@ -2552,7 +2660,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             total: order.total_cents,
             status: order.status,
             items: formattedItems,
-            shippingAddress: null, // TODO: fetch shipping address if needed
+            shippingAddress: shippingAddress,
+            notes: order.notes || null,
             createdAt: order.created_at,
             updatedAt: order.updated_at,
             trackingNumber: order.tracking_number || null,
@@ -3449,8 +3558,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(401).json({ success: false, message: "Non autenticato" });
         }
 
-        // Recupera indirizzo spedizione dal body (opzionale)
-        const { shipping_address_id } = req.body || {};
+        // Recupera indirizzo spedizione e note dal body
+        const { shipping_address_id, notes } = req.body || {};
 
         let items: any[] = [];
         if (supabaseAdmin && user?.id) {
@@ -3570,6 +3679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             user_id: user.id,
             shipping_address_id: shipping_address_id ? String(shipping_address_id) : "",
             cart_items: cartItemsJson,
+            notes: notes ? String(notes).slice(0, 500) : "",
           },
         });
 
@@ -3615,6 +3725,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json({ success: true, message: "Tracciamento aggiornato" });
     } catch (err) {
       console.error("[TRACKING] Errore PUT /api/admin/orders/:orderId/tracking:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // PUT aggiorna stato ordine (admin only)
+  app.put("/api/admin/orders/:orderId/status", ensureAuth, ensureAdmin, async (req: Request, res: Response) => {
+    try {
+      const { orderId } = req.params;
+      const { status } = req.body;
+
+      // Valori enum validi per lo status
+      const validStatuses = [
+        'shipped', 'pending_payment', 'paid', 'cancelled', 'failed',
+        'refunded', 'awaiting_delivery', 'delivered', 'refund_requested'
+      ];
+
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: "Stato non valido. Valori ammessi: " + validStatuses.join(', ')
+        });
+      }
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      const { error } = await (supabaseAdmin as any)
+        .from("orders")
+        .update({
+          status: status,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", orderId);
+
+      if (error) {
+        console.error("[STATUS] Errore aggiornamento stato:", error);
+        return res.status(500).json({ success: false, message: "Errore aggiornamento stato" });
+      }
+
+      return res.json({ success: true, message: "Stato ordine aggiornato" });
+    } catch (err) {
+      console.error("[STATUS] Errore PUT /api/admin/orders/:orderId/status:", err);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });

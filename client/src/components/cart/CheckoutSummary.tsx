@@ -3,6 +3,7 @@ import { Progress } from "@/components/ui/progress";
 import { ShoppingCart, Percent, Target } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { CheckoutAuthModal } from "./CheckoutAuthModal";
+import { CheckoutAddressModal } from "./CheckoutAddressModal";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,6 +19,7 @@ const FREE_SHIPPING_THRESHOLD = 160;
 export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummaryProps) {
   const { isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAddressModal, setShowAddressModal] = useState(false);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const { toast } = useToast();
   
@@ -189,24 +191,14 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
         {/* Pulsante checkout */}
         <button
           disabled={!calculations.canCheckout || loadingCheckout}
-          onClick={async () => {
+          onClick={() => {
             if (!calculations.canCheckout) return;
             if (!isAuthenticated) {
               setShowAuthModal(true);
               return;
             }
-            try {
-              setLoadingCheckout(true);
-              const resp = await apiRequest("POST", "/api/checkout");
-              const url = resp?.url;
-              if (typeof url === "string" && url.length > 0) {
-                window.location.href = url;
-              } else {
-                toast({ title: "Checkout non disponibile", description: "Configurare Stripe lato server" });
-              }
-            } finally {
-              setLoadingCheckout(false);
-            }
+            // Mostra il modal per selezione indirizzo
+            setShowAddressModal(true);
           }}
           className={`w-full py-4 px-6 rounded-lg font-semibold text-lg transition-all duration-200 ${
             calculations.canCheckout && !loadingCheckout
@@ -214,9 +206,11 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
         >
-          {calculations.canCheckout && !loadingCheckout
-            ? `Procedi al Pagamento - €${calculations.finalTotal.toFixed(2)}` 
-            : `Ordine minimo €${MINIMUM_ORDER}`
+          {loadingCheckout
+            ? "Elaborazione..."
+            : calculations.canCheckout
+              ? `Procedi al Pagamento - €${calculations.finalTotal.toFixed(2)}`
+              : `Ordine minimo €${MINIMUM_ORDER}`
           }
         </button>
 
@@ -226,6 +220,34 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
           onClose={() => setShowAuthModal(false)}
           cartTotal={calculations.finalTotal}
           itemCount={itemCount}
+        />
+
+        {/* Modal per selezione indirizzo */}
+        <CheckoutAddressModal
+          isOpen={showAddressModal}
+          onClose={() => setShowAddressModal(false)}
+          cartTotal={calculations.finalTotal}
+          onConfirm={async (addressId: number, notes: string) => {
+            setShowAddressModal(false);
+            try {
+              setLoadingCheckout(true);
+              const resp = await apiRequest("POST", "/api/checkout", {
+                shipping_address_id: addressId,
+                notes: notes,
+              });
+              const url = resp?.url;
+              if (typeof url === "string" && url.length > 0) {
+                window.location.href = url;
+              } else {
+                toast({ title: "Checkout non disponibile", description: "Configurare Stripe lato server" });
+              }
+            } catch (error) {
+              console.error("Errore checkout:", error);
+              toast({ title: "Errore", description: "Impossibile procedere al checkout", variant: "destructive" });
+            } finally {
+              setLoadingCheckout(false);
+            }
+          }}
         />
 
         {/* Note aggiuntive */}

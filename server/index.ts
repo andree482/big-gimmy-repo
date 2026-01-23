@@ -81,6 +81,8 @@ app.post("/api/webhook/stripe",
 async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
   const userId = session.metadata?.user_id;
   const shippingAddressId = session.metadata?.shipping_address_id;
+  const notes = session.metadata?.notes;
+  const stripeSessionId = session.id;
 
   console.log(`[STRIPE WEBHOOK] Pagamento completato per user: ${userId}`);
 
@@ -126,6 +128,8 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
         currency: session.currency?.toUpperCase() || "EUR",
         total_cents: session.amount_total || 0,
         stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : null,
+        stripe_session_id: stripeSessionId,
+        notes: notes || null,
       })
       .select()
       .single();

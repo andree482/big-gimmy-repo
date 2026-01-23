@@ -393,17 +393,38 @@ const useAuthQuery = () => {
           }
         }
       });
-      
+
       if (error) throw error;
+
+      // Salva i dati sul server
       try {
-        await apiRequest("POST", "/api/auth/register", credentials, { suppressAuthModal: true, timeoutMs: 12000 });
+        await apiRequest("POST", "/api/auth/register", credentials, { suppressAuthModal: true, timeoutMs: 5000 });
       } catch {}
-      return data;
+
+      // Se l'utente è già confermato, effettua il login automatico
+      if (data?.session) {
+        // Utente già confermato - sincronizza lo stato
+        await new Promise(resolve => setTimeout(resolve, 300));
+        try {
+          const me = await apiRequest("GET", "/api/auth/me", undefined, {
+            suppressAuthModal: true,
+            timeoutMs: 5000
+          });
+          if (me?.authenticated && me?.user) {
+            setUser(me.user);
+            setIsServerVerified(true);
+            localStorage.setItem('bg_auth_persist', JSON.stringify({
+              email: me.user.email,
+              when: Date.now()
+            }));
+          }
+        } catch {}
+      }
+
+      return { ...data, autoLoggedIn: !!data?.session };
     },
     onSuccess: (data) => {
-      if (data.user) {
-        // setUser sarà chiamato da onAuthStateChange -> syncUser
-      }
+      // L'utente è già stato impostato nel mutationFn se auto-logged in
     },
     onError: (error: Error) => {
       setError(error.message);

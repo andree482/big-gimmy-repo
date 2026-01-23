@@ -8,13 +8,22 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
-import { Trash2, Plus, User, MapPin, Package, Settings, Clock, CheckCircle, AlertCircle, Eye } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Trash2, Plus, User, MapPin, Settings, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { supabase } from "@/lib/supabase";
+
+// Opzioni per la modalità daltonici
+const COLORBLIND_OPTIONS = [
+  { value: "normal", label: "Visualizzazione normale" },
+  { value: "protanopia", label: "Protanopia (rosso-verde)" },
+  { value: "deuteranopia", label: "Deuteranopia (verde-rosso)" },
+  { value: "tritanopia", label: "Tritanopia (blu-giallo)" },
+] as const;
 
 interface UserProfileProps {
   onClose?: () => void;
@@ -42,25 +51,6 @@ interface AddressData {
   isDefault: boolean;
 }
 
-interface OrderItem {
-  id: string;
-  name: string;
-  variant: string;
-  quantity: number;
-  price: number;
-}
-
-interface Order {
-  id: number;
-  snipcartOrderId: string;
-  total: number;
-  status: string;
-  items: OrderItem[];
-  shippingAddress?: any;
-  billingAddress?: any;
-  createdAt: string;
-  updatedAt: string;
-}
 
 export default function UserProfile({ onClose }: UserProfileProps) {
   const [activeTab, setActiveTab] = useState("profile");
@@ -68,6 +58,26 @@ export default function UserProfile({ onClose }: UserProfileProps) {
   const [addingAddr, setAddingAddr] = useState(false);
   const { toast } = useToast();
   const { user, updateProfile } = useAuth();
+
+  // Settings state
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [cartPersistence, setCartPersistence] = useState(true);
+  const [colorblindMode, setColorblindMode] = useState("normal");
+
+  // Change password modal state
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  // Delete account modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   // Profile form
   const profileForm = useForm<ProfileData>({
@@ -270,6 +280,149 @@ export default function UserProfile({ onClose }: UserProfileProps) {
 
   const handleDeleteAddress = (addressId: number) => {
     deleteAddressMutation.mutate(addressId);
+  };
+
+  // Load user settings from localStorage
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('bg_user_settings');
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        if (settings.emailNotifications !== undefined) setEmailNotifications(settings.emailNotifications);
+        if (settings.cartPersistence !== undefined) setCartPersistence(settings.cartPersistence);
+        if (settings.colorblindMode) setColorblindMode(settings.colorblindMode);
+      } catch {}
+    }
+  }, []);
+
+  // Apply colorblind mode using data-vision attribute (matches existing CSS)
+  useEffect(() => {
+    const root = document.documentElement;
+    if (colorblindMode === 'normal') {
+      root.removeAttribute('data-vision');
+    } else {
+      root.setAttribute('data-vision', colorblindMode);
+    }
+  }, [colorblindMode]);
+
+  // Save settings to localStorage
+  const saveSettings = (key: string, value: any) => {
+    const savedSettings = localStorage.getItem('bg_user_settings');
+    const settings = savedSettings ? JSON.parse(savedSettings) : {};
+    settings[key] = value;
+    localStorage.setItem('bg_user_settings', JSON.stringify(settings));
+  };
+
+  const handleEmailNotificationsChange = (checked: boolean) => {
+    setEmailNotifications(checked);
+    saveSettings('emailNotifications', checked);
+    toast({ title: "Impostazione salvata", description: checked ? "Notifiche email attivate" : "Notifiche email disattivate" });
+  };
+
+  const handleCartPersistenceChange = (checked: boolean) => {
+    setCartPersistence(checked);
+    saveSettings('cartPersistence', checked);
+    if (!checked) {
+      // Clear cart from localStorage if disabled
+      localStorage.removeItem('bg_cart');
+    }
+    toast({ title: "Impostazione salvata", description: checked ? "Carrello salvato tra sessioni" : "Carrello non verrà salvato" });
+  };
+
+  const handleColorblindModeChange = (value: string) => {
+    setColorblindMode(value);
+    saveSettings('colorblindMode', value);
+    toast({
+      title: "Modalità accessibilità aggiornata",
+      description: COLORBLIND_OPTIONS.find(o => o.value === value)?.label || value
+    });
+  };
+
+  // Change password handler
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      toast({ title: "Errore", description: "Compila tutti i campi", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast({ title: "Errore", description: "Le password non corrispondono", variant: "destructive" });
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast({ title: "Errore", description: "La nuova password deve essere di almeno 6 caratteri", variant: "destructive" });
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      // First verify current password by signing in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        toast({ title: "Errore", description: "Password attuale non corretta", variant: "destructive" });
+        return;
+      }
+
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        toast({ title: "Errore", description: updateError.message, variant: "destructive" });
+        return;
+      }
+
+      toast({ title: "Successo", description: "Password aggiornata con successo" });
+      setShowPasswordModal(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (error: any) {
+      toast({ title: "Errore", description: error?.message || "Errore durante il cambio password", variant: "destructive" });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  // Delete account handler
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      toast({ title: "Errore", description: "Inserisci la password per confermare", variant: "destructive" });
+      return;
+    }
+
+    setDeletingAccount(true);
+    try {
+      // Verify password first
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: deletePassword,
+      });
+
+      if (signInError) {
+        toast({ title: "Errore", description: "Password non corretta", variant: "destructive" });
+        return;
+      }
+
+      // Call API to delete account (server will handle Supabase deletion)
+      await apiRequest("DELETE", "/api/auth/account", { password: deletePassword });
+
+      // Sign out
+      await supabase.auth.signOut();
+
+      toast({ title: "Account eliminato", description: "Il tuo account è stato eliminato con successo" });
+
+      // Redirect to home
+      window.location.href = '/';
+    } catch (error: any) {
+      toast({ title: "Errore", description: error?.message || "Errore durante l'eliminazione", variant: "destructive" });
+    } finally {
+      setDeletingAccount(false);
+    }
   };
 
   // Don't show profile and orders tabs for admin users
@@ -516,67 +669,82 @@ export default function UserProfile({ onClose }: UserProfileProps) {
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Preferenze generali</h3>
-                
+
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Notifiche email</Label>
+                    <Label>Notifiche email ordini</Label>
                     <p className="text-sm text-gray-600">
                       Ricevi aggiornamenti sui tuoi ordini via email
                     </p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch
+                    checked={emailNotifications}
+                    onCheckedChange={handleEmailNotificationsChange}
+                  />
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Newsletter</Label>
+                    <Label>Salva carrello tra sessioni</Label>
                     <p className="text-sm text-gray-600">
-                      Ricevi offerte speciali e novità sui prodotti
+                      Mantieni i prodotti nel carrello quando chiudi il browser
                     </p>
                   </div>
-                  <Switch />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Salva automaticamente nel carrello</Label>
-                    <p className="text-sm text-gray-600">
-                      Mantieni i prodotti nel carrello tra le sessioni
-                    </p>
-                  </div>
-                  <Switch defaultChecked />
+                  <Switch
+                    checked={cartPersistence}
+                    onCheckedChange={handleCartPersistenceChange}
+                  />
                 </div>
               </div>
-              
+
               <div className="border-t pt-6">
                 <h3 className="text-lg font-semibold mb-4">Accessibilità</h3>
-                
-                <div className="flex items-center justify-between">
+
+                <div className="space-y-3">
                   <div className="space-y-0.5">
                     <Label>Modalità per daltonici</Label>
                     <p className="text-sm text-gray-600">
                       Attiva contrasti e colori migliorati per l'accessibilità
                     </p>
                   </div>
-                  <Switch />
+                  <Select value={colorblindMode} onValueChange={handleColorblindModeChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COLORBLIND_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-              
+
               <div className="border-t pt-6">
                 <h3 className="text-lg font-semibold mb-4">Sicurezza account</h3>
-                
+
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>Email account</Label>
                     <Input value={user?.email} disabled className="bg-gray-50" />
                   </div>
-                  
-                  <Button variant="outline" className="w-full justify-start">
+
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => setShowPasswordModal(true)}
+                  >
                     Cambia password
                   </Button>
-                  
+
                   {!isAdmin && (
-                    <Button variant="outline" className="w-full justify-start text-red-600 hover:text-red-700">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => setShowDeleteModal(true)}
+                    >
                       Elimina account
                     </Button>
                   )}
@@ -586,6 +754,144 @@ export default function UserProfile({ onClose }: UserProfileProps) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Modal Cambio Password */}
+      <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cambia password</DialogTitle>
+            <DialogDescription>
+              Inserisci la password attuale e la nuova password
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">Password attuale</Label>
+              <div className="relative">
+                <Input
+                  id="currentPassword"
+                  type={showCurrentPassword ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                >
+                  {showCurrentPassword ? <EyeOff className="h-4 w-4 text-gray-500" /> : <Eye className="h-4 w-4 text-gray-500" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">Nuova password</Label>
+              <div className="relative">
+                <Input
+                  id="newPassword"
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                >
+                  {showNewPassword ? <EyeOff className="h-4 w-4 text-gray-500" /> : <Eye className="h-4 w-4 text-gray-500" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmNewPassword">Conferma nuova password</Label>
+              <Input
+                id="confirmNewPassword"
+                type="password"
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPasswordModal(false)}>
+              Annulla
+            </Button>
+            <Button
+              onClick={handleChangePassword}
+              disabled={changingPassword}
+              className="bg-[#FFD100] text-black hover:bg-[#e6bc00]"
+            >
+              {changingPassword ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Aggiornamento...
+                </>
+              ) : (
+                "Cambia password"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Elimina Account */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Elimina account</DialogTitle>
+            <DialogDescription>
+              Questa azione è irreversibile. Tutti i tuoi dati verranno eliminati permanentemente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-800">
+                Per confermare l'eliminazione, inserisci la tua password.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="deletePassword">Password</Label>
+              <div className="relative">
+                <Input
+                  id="deletePassword"
+                  type={showDeletePassword ? "text" : "password"}
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  onClick={() => setShowDeletePassword(!showDeletePassword)}
+                >
+                  {showDeletePassword ? <EyeOff className="h-4 w-4 text-gray-500" /> : <Eye className="h-4 w-4 text-gray-500" />}
+                </button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+              Annulla
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={deletingAccount}
+            >
+              {deletingAccount ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminazione...
+                </>
+              ) : (
+                "Elimina definitivamente"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

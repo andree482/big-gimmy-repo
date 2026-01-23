@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Package, Clock, CheckCircle, AlertCircle, ChevronDown, ShoppingBag, ArrowLeft, ExternalLink, Truck } from "lucide-react";
+import { Package, Clock, CheckCircle, AlertCircle, ChevronDown, ShoppingBag, ArrowLeft, ExternalLink, Truck, MapPin, FileText } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -15,14 +15,25 @@ interface OrderItem {
   image?: string | null;
 }
 
+interface ShippingAddress {
+  firstName?: string;
+  lastName?: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  province: string;
+  country?: string;
+}
+
 interface Order {
   id: string;
   snipcartOrderId: string;
   total: number;
   status: string;
   items: OrderItem[];
-  shippingAddress?: any;
+  shippingAddress?: ShippingAddress | null;
   billingAddress?: any;
+  notes?: string | null;
   createdAt: string;
   updatedAt: string;
   trackingNumber?: string | null;
@@ -92,8 +103,9 @@ const getStatusInfo = (status: string) => {
         accentColor: 'bg-purple-500'
       };
     case 'pending':
+    case 'pending_payment':
       return {
-        label: 'In elaborazione',
+        label: status === 'pending_payment' ? 'In attesa di pagamento' : 'In elaborazione',
         icon: Clock,
         bgColor: 'bg-amber-100',
         textColor: 'text-amber-700',
@@ -101,13 +113,50 @@ const getStatusInfo = (status: string) => {
         accentColor: 'bg-amber-500'
       };
     case 'cancelled':
+    case 'failed':
       return {
-        label: 'Annullato',
+        label: status === 'failed' ? 'Fallito' : 'Annullato',
         icon: AlertCircle,
         bgColor: 'bg-red-100',
         textColor: 'text-red-700',
         borderColor: 'border-red-300',
         accentColor: 'bg-red-500'
+      };
+    case 'delivered':
+      return {
+        label: 'Consegnato',
+        icon: CheckCircle,
+        bgColor: 'bg-green-100',
+        textColor: 'text-green-700',
+        borderColor: 'border-green-300',
+        accentColor: 'bg-green-500'
+      };
+    case 'awaiting_delivery':
+      return {
+        label: 'In attesa di consegna',
+        icon: Truck,
+        bgColor: 'bg-blue-100',
+        textColor: 'text-blue-700',
+        borderColor: 'border-blue-300',
+        accentColor: 'bg-blue-500'
+      };
+    case 'refunded':
+      return {
+        label: 'Rimborsato',
+        icon: Package,
+        bgColor: 'bg-gray-100',
+        textColor: 'text-gray-700',
+        borderColor: 'border-gray-300',
+        accentColor: 'bg-gray-500'
+      };
+    case 'refund_requested':
+      return {
+        label: 'Richiesta di rimborso',
+        icon: Clock,
+        bgColor: 'bg-orange-100',
+        textColor: 'text-orange-700',
+        borderColor: 'border-orange-300',
+        accentColor: 'bg-orange-500'
       };
     default:
       return {
@@ -185,6 +234,39 @@ function OrderCard({ order }: { order: Order }) {
       {/* Expanded content */}
       <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
         <div className="border-t border-gray-100">
+          {/* Shipping address */}
+          {order.shippingAddress && (
+            <div className="p-5 border-b border-gray-100">
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <MapPin className="w-3.5 h-3.5" />
+                Indirizzo di spedizione
+              </h4>
+              <div className="bg-gray-50 rounded-xl p-4">
+                {order.shippingAddress.firstName && order.shippingAddress.lastName && (
+                  <p className="font-medium text-gray-900">
+                    {order.shippingAddress.firstName} {order.shippingAddress.lastName}
+                  </p>
+                )}
+                <p className="text-sm text-gray-600">{order.shippingAddress.address}</p>
+                <p className="text-sm text-gray-600">
+                  {order.shippingAddress.postalCode} {order.shippingAddress.city} ({order.shippingAddress.province})
+                </p>
+                {order.shippingAddress.country && (
+                  <p className="text-sm text-gray-500">{order.shippingAddress.country}</p>
+                )}
+              </div>
+              {order.notes && (
+                <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <p className="text-xs font-medium text-yellow-800 flex items-center gap-1 mb-1">
+                    <FileText className="w-3 h-3" />
+                    Note
+                  </p>
+                  <p className="text-sm text-yellow-700">{order.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Products list */}
           <div className="p-5">
             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">

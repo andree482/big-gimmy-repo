@@ -33,12 +33,18 @@ export default function ProductVariantSelector({
   const [currentVariant, setCurrentVariant] = useState<ProductVariant | null>(null);
   const [preloadedImages, setPreloadedImages] = useState<Set<string>>(new Set());
 
-  // Ottieni gusti unici
-  const availableFlavors = Array.from(new Set(variants.map(v => v.flavor)));
+  // Ottieni gusti unici e ordinali alfabeticamente (A-Z)
+  const availableFlavors = Array.from(new Set(variants.map(v => v.flavor)))
+    .sort((a, b) => a.localeCompare(b, 'it'));
 
-  // Ottieni formati disponibili per il gusto selezionato
-  const availableSizes = selectedFlavor 
+  // Ottieni formati disponibili per il gusto selezionato, ordinati per prezzo crescente
+  const availableSizes = selectedFlavor
     ? Array.from(new Set(variants.filter(v => v.flavor === selectedFlavor).map(v => v.size)))
+        .sort((a, b) => {
+          const variantA = variants.find(v => v.flavor === selectedFlavor && v.size === a);
+          const variantB = variants.find(v => v.flavor === selectedFlavor && v.size === b);
+          return (variantA?.price || 0) - (variantB?.price || 0);
+        })
     : [];
 
   // Pre-carica tutte le immagini delle varianti per cambio istantaneo
