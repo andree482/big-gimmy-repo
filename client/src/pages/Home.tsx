@@ -4,7 +4,7 @@ import Cta from "@/components/home/Cta";
 import { Link } from "wouter";
 import { storeImages, productCategories } from "@/lib/constants";
 import ScrollAnimatedSection from "@/components/animations/ScrollAnimatedSection";
-import { AnimatedCard, AnimatedText, AnimatedButton } from "@/components/animations/AnimatedCard";
+import { AnimatedCard, AnimatedText } from "@/components/animations/AnimatedCard";
 import { motion } from "framer-motion";
 
 // Immagini per la sezione Chi Siamo
@@ -163,7 +163,7 @@ const Home = () => {
                       <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent"></div>
                     </div>
                     <div className="p-4 sm:p-5 md:p-6">
-                      <h4 className="font-montserrat font-bold text-lg sm:text-xl mb-2">{category.name}</h4>
+                      <h3 className="font-montserrat font-bold text-lg sm:text-xl mb-2">{category.name}</h3>
                       <p className="mb-4 text-sm sm:text-base">{category.description}</p>
                       <Link 
                         href="/prodotti" 
@@ -193,20 +193,28 @@ const Home = () => {
               })}
             </div>
             
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7, duration: 0.4 }}
               className="text-center mt-8 sm:mt-10 md:mt-12"
             >
-              <AnimatedButton
-                className="bg-[#FFD100] hover:bg-yellow-500 text-[#212121] font-montserrat font-bold px-6 sm:px-8 py-3 rounded-md transition-all inline-block w-full sm:w-auto max-w-xs mx-auto"
-                variant="primary"
+              <motion.div
+                whileHover={{
+                  scale: 1.05,
+                  boxShadow: '0 10px 25px rgba(255, 209, 0, 0.3)',
+                }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className="inline-block"
               >
-                <Link href="/prodotti">
+                <Link
+                  href="/prodotti"
+                  className="bg-[#FFD100] hover:bg-yellow-500 text-[#212121] font-montserrat font-bold px-6 sm:px-8 py-3 rounded-md transition-all inline-block w-full sm:w-auto max-w-xs mx-auto"
+                >
                   Scopri tutti i prodotti
                 </Link>
-              </AnimatedButton>
+              </motion.div>
             </motion.div>
           </div>
         </section>

@@ -19,6 +19,46 @@ const supabaseAdmin = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_R
   ? createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
   : null;
 
+// Funzione per aggiornare gli ordini in_attesa_di_pagamento scaduti (più di 10 minuti) a "fallito"
+async function updateExpiredPendingOrders(): Promise<number> {
+  if (!supabaseAdmin) return 0;
+
+  try {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
+    const { data: expiredOrders, error: selectError } = await (supabaseAdmin as any)
+      .from("orders")
+      .select("id")
+      .eq("status", "in_attesa_di_pagamento")
+      .lt("created_at", tenMinutesAgo);
+
+    if (selectError || !expiredOrders || expiredOrders.length === 0) {
+      return 0;
+    }
+
+    const expiredIds = expiredOrders.map((o: any) => o.id);
+
+    const { error: updateError } = await (supabaseAdmin as any)
+      .from("orders")
+      .update({
+        status: "fallito",
+        updated_at: new Date().toISOString()
+      })
+      .in("id", expiredIds);
+
+    if (updateError) {
+      console.error("[ORDERS] Errore aggiornamento ordini scaduti:", updateError);
+      return 0;
+    }
+
+    console.log(`[ORDERS] ${expiredIds.length} ordini scaduti aggiornati a 'fallito'`);
+    return expiredIds.length;
+  } catch (error) {
+    console.error("[ORDERS] Errore in updateExpiredPendingOrders:", error);
+    return 0;
+  }
+}
+
 function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
   const buf = crypto.scryptSync(password, salt, 64);
@@ -901,7 +941,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             const dbUser = await (supabaseAdmin as any)
               .from("users")
-              .select("is_admin,first_name,last_name,phone")
+              .select("is_admin,first_name,last_name,phone,address,city,postal_code,province,country")
               .eq("id", user.id)
               .maybeSingle();
 
@@ -910,6 +950,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               dbFirstName = dbUser.data.first_name;
               dbLastName = dbUser.data.last_name;
               dbPhone = dbUser.data.phone;
+              // Aggiorna anche i campi indirizzo dalla sessione
+              user.address = dbUser.data.address || user.address;
+              user.city = dbUser.data.city || user.city;
+              user.postalCode = dbUser.data.postal_code || user.postalCode;
+              user.province = dbUser.data.province || user.province;
+              user.country = dbUser.data.country || user.country;
               console.log(`[AUTH] /me - DB refresh: isAdmin=${dbIsAdmin}, firstName=${dbFirstName}, lastName=${dbLastName}`);
             }
           } catch (e) {
@@ -1317,6 +1363,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
       const { email, password, firstName, lastName, phone, address, city, postalCode, province, country } = req.body || {};
+
+      // Log dettagliato dei dati ricevuti
+      console.log("[AUTH REGISTER] Dati ricevuti:", {
+        email,
+        firstName,
+        lastName,
+        phone,
+        address,
+        city,
+        postalCode,
+        province,
+        country,
+        hasPassword: !!password
+      });
+
       if (!email || !password) {
         return res.status(400).json({ success: false, message: "Email e password sono obbligatori" });
       }
@@ -1324,19 +1385,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const passOk = typeof password === "string" && password.length >= 6;
       const firstOk = !firstName || (typeof firstName === "string" && firstName.trim().length >= 2);
       const lastOk = !lastName || (typeof lastName === "string" && lastName.trim().length >= 2);
-      const phoneOk = !phone || (typeof phone === "string" && /^(\+?\d{1,3}\s?)?(\d[\s-]?){6,}$/.test(phone));
+      // Validazione telefono più permissiva: accetta numeri con o senza prefisso, spazi, trattini
+      const phoneOk = !phone || (typeof phone === "string" && /^[\d\s\-\+\(\)\.]{6,20}$/.test(phone));
       const addrOk = !address || (typeof address === "string" && address.trim().length >= 2);
       const cityOk = !city || (typeof city === "string" && city.trim().length >= 2);
       const capOk = !postalCode || (typeof postalCode === "string" && /^\d{5}$/.test(postalCode));
-      const provOk = !province || (typeof province === "string" && /^[A-Z]{2}$/.test(province));
-      if (!emailOk || !passOk || !firstOk || !lastOk || !phoneOk || !addrOk || !cityOk || !capOk || !provOk) {
-        return res.status(400).json({ success: false, message: "Dati non validi" });
+      const provOk = !province || (typeof province === "string" && /^[A-Z]{2}$/i.test(province));
+
+      // Messaggi di errore specifici
+      const errors: string[] = [];
+      if (!emailOk) errors.push("Email non valida");
+      if (!passOk) errors.push("Password deve essere almeno 6 caratteri");
+      if (!firstOk) errors.push("Nome deve essere almeno 2 caratteri");
+      if (!lastOk) errors.push("Cognome deve essere almeno 2 caratteri");
+      if (!phoneOk) errors.push("Numero di telefono non valido");
+      if (!addrOk) errors.push("Indirizzo deve essere almeno 2 caratteri");
+      if (!cityOk) errors.push("Città deve essere almeno 2 caratteri");
+      if (!capOk) errors.push("CAP deve essere di 5 cifre");
+      if (!provOk) errors.push("Provincia deve essere di 2 lettere");
+
+      if (errors.length > 0) {
+        console.log("[AUTH] Validazione fallita:", errors);
+        return res.status(400).json({ success: false, message: errors.join(", ") });
       }
       const client = supabaseAdmin || (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY ? createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY) : null);
       const now = new Date().toISOString();
-      let userId: string = crypto.randomUUID();
+      let userId: string | null = null;
       let persisted = false;
+
       // Create Supabase Auth user (ANON key supports signUp)
+      // Il trigger handle_new_user creerà automaticamente la riga in public.users
       if (supabaseAnon) {
         try {
           const { data, error } = await (supabaseAnon as any).auth.signUp({
@@ -1347,93 +1425,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 first_name: firstName,
                 last_name: lastName,
                 phone,
-                address,
-                city,
-                postal_code: postalCode,
-                province,
-                country,
               }
             }
           });
-          if (!error && data?.user?.id) {
+
+          // Prima controlla se abbiamo l'utente (anche se c'è errore)
+          if (data?.user?.id) {
             userId = String(data.user.id);
-            // La verifica email è gestita da Supabase (invia email di conferma)
+            console.log("[AUTH REGISTER] Supabase Auth signUp, userId:", userId);
+            persisted = true;
           }
-        } catch (e) {
-          console.warn("[AUTH] Supabase Auth signUp fallito:", e);
+
+          // Se c'è errore E non abbiamo l'utente
+          if (error && !userId) {
+            // Se l'utente esiste già, prova a cercarlo nel DB per continuare il flusso
+            if ((error as any).code === 'user_already_exists' && client) {
+              console.log("[AUTH REGISTER] Utente già esistente, cerco nel DB...");
+              const { data: existingUser } = await (client as any)
+                .from("users")
+                .select("id")
+                .eq("email", email)
+                .limit(1)
+                .maybeSingle();
+              if (existingUser?.id) {
+                userId = String(existingUser.id);
+                persisted = true;
+                console.log("[AUTH REGISTER] Utente esistente trovato, userId:", userId);
+              } else {
+                return res.status(400).json({ success: false, message: "Un account con questa email esiste già. Prova ad accedere." });
+              }
+            } else {
+              console.error("[AUTH REGISTER] Supabase Auth signUp errore:", error);
+              return res.status(400).json({ success: false, message: error.message || "Errore durante la registrazione" });
+            }
+          } else if (error && userId) {
+            // Errore ma utente creato - logga warning ma continua
+            console.warn("[AUTH REGISTER] Warning durante signUp (utente creato):", error.message);
+          }
+        } catch (e: any) {
+          console.error("[AUTH] Supabase Auth signUp exception:", e);
+          return res.status(500).json({ success: false, message: "Errore durante la registrazione" });
         }
       }
-      if (client) {
+
+      // Se il signUp non ha funzionato, non possiamo procedere
+      if (!userId) {
+        console.error("[AUTH REGISTER] userId non disponibile dopo signUp");
+        return res.status(500).json({ success: false, message: "Errore durante la registrazione" });
+      }
+
+      // Aggiorna i campi aggiuntivi in public.users (il trigger crea solo i campi base)
+      if (client && persisted) {
         try {
-          const existing = await (client as any)
+          // Aspetta un attimo per permettere al trigger di completare
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          console.log("[AUTH REGISTER] Aggiornamento users per userId:", userId);
+          const { error } = await (client as any)
             .from("users")
-            .select("id,email")
-            .eq("email", email)
-            .limit(1)
-            .maybeSingle();
-          if (existing?.data?.id) {
-            userId = String(existing.data.id);
-            const { error } = await (client as any)
-              .from("users")
-              .update({
-                password: hashPassword(password),
-                first_name: firstName,
-                last_name: lastName,
-                phone,
-                address,
-                city,
-                postal_code: postalCode,
-                province,
-                country,
-                updated_at: now
-              })
-              .eq("id", userId);
-            if (!error) persisted = true;
+            .update({
+              first_name: firstName,
+              last_name: lastName,
+              phone,
+              updated_at: now
+            })
+            .eq("id", userId);
+
+          if (error) {
+            console.warn("[AUTH REGISTER] UPDATE su users fallito (non critico):", error);
           } else {
-            const { error } = await (client as any)
-              .from("users")
-              .insert({
-                id: userId,
-                email,
-                password: hashPassword(password),
-                first_name: firstName,
-                last_name: lastName,
-                phone,
-                address,
-                city,
-                postal_code: postalCode,
-                province,
-                country,
-                created_at: now,
-                updated_at: now,
-                is_admin: false
-              });
-            if (!error) persisted = true;
-            else {
-              console.warn("[AUTH] Insert su 'users' fallito, ritento su 'users_backup'");
-              const { error: err2 } = await (client as any)
-                .from("users_backup")
-                .insert({
-                  id: userId,
-                  email,
-                  password: hashPassword(password),
-                  first_name: firstName,
-                  last_name: lastName,
-                  phone,
-                  address,
-                  city,
-                  postal_code: postalCode,
-                  province,
-                  country,
-                  created_at: now,
-                  updated_at: now,
-                  is_admin: false
-                });
-              if (!err2) persisted = true;
-            }
+            console.log("[AUTH REGISTER] UPDATE su users riuscito per:", { email, firstName, lastName, phone });
           }
         } catch (e) {
-          console.error("[AUTH] Registrazione DB errore:", e);
+          console.warn("[AUTH] Aggiornamento users errore (non critico):", e);
+        }
+
+        // Se l'utente ha fornito dati di indirizzo durante la registrazione, crea un indirizzo default
+        if (persisted && address && city && postalCode) {
+          try {
+            const { error: addrError } = await (client as any)
+              .from("user_addresses")
+              .insert({
+                user_id: userId,
+                street: address,
+                city,
+                cap: postalCode,
+                province,
+                country: country || "Italia",
+                is_default: true,
+                first_name: firstName,
+                last_name: lastName,
+              });
+            if (addrError) {
+              console.error("[AUTH] Errore INSERT user_addresses:", addrError);
+            } else {
+              console.log("[AUTH] Indirizzo default creato durante la registrazione per utente:", userId);
+            }
+          } catch (addrErr) {
+            console.error("[AUTH] Exception creazione indirizzo default durante registrazione:", addrErr);
+          }
+        } else {
+          console.log("[AUTH] Indirizzo non creato:", { persisted, hasAddress: !!address, hasCity: !!city, hasPostalCode: !!postalCode });
         }
       }
       if (req.session) {
@@ -1469,6 +1561,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!supabaseAdmin) {
         return res.status(500).json({ success: false, message: "Database non configurato" });
       }
+
+      // Prima aggiorna gli ordini scaduti (in_attesa_di_pagamento da più di 10 min) a "fallito"
+      await updateExpiredPendingOrders();
 
       // Query alla tabella orders con join su users per email
       const { data: orders, error } = await (supabaseAdmin as any)
@@ -1509,6 +1604,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 id,
                 flavor,
                 size,
+                image,
                 product:product_id (
                   name
                 )
@@ -1538,14 +1634,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
 
-          // Formatta gli items per il frontend
-          const formattedItems = (items || []).map((item: any) => ({
-            id: item.id,
-            quantity: item.quantity,
-            price: item.unit_price_cents,
-            name: item.product_option?.product?.name
-              ? `${item.product_option.product.name}${item.product_option.flavor ? ` - ${item.product_option.flavor}` : ''}${item.product_option.size ? ` (${item.product_option.size})` : ''}`
-              : 'Prodotto'
+          // Formatta gli items per il frontend con fallback immagine da product_images
+          const formattedItems = await Promise.all((items || []).map(async (item: any) => {
+            let image = item.product_option?.image || null;
+
+            // Se non c'è immagine in product_option, prova a recuperarla da product_images
+            if (!image && item.product_option?.id) {
+              // Recupera product_id da product_option
+              const { data: poData } = await (supabaseAdmin as any)
+                .from("product_options")
+                .select("product_id")
+                .eq("id", item.product_option.id)
+                .single();
+
+              if (poData?.product_id) {
+                const { data: productImage } = await (supabaseAdmin as any)
+                  .from("product_images")
+                  .select("src")
+                  .eq("product_id", poData.product_id)
+                  .eq("is_primary", true)
+                  .single();
+
+                if (productImage?.src) {
+                  image = productImage.src.startsWith('/images/') || productImage.src.startsWith('/attached_assets/')
+                    ? productImage.src
+                    : `/images/products/${productImage.src}`;
+                }
+              }
+            }
+
+            return {
+              id: item.id,
+              quantity: item.quantity,
+              price: item.unit_price_cents,
+              name: item.product_option?.product?.name
+                ? `${item.product_option.product.name}${item.product_option.flavor ? ` - ${item.product_option.flavor}` : ''}${item.product_option.size ? ` (${item.product_option.size})` : ''}`
+                : 'Prodotto',
+              image: image
+            };
           }));
 
           return {
@@ -1585,7 +1711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Query alla tabella users in Supabase
       const { data: users, error } = await (supabaseAdmin as any)
         .from("users")
-        .select("id,email,first_name,last_name,is_admin,created_at,updated_at")
+        .select("id,email,first_name,last_name,phone,is_admin,created_at,updated_at")
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -1599,6 +1725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         email: u.email,
         firstName: u.first_name,
         lastName: u.last_name,
+        phone: u.phone || null,
         isAdmin: !!u.is_admin,
         createdAt: u.created_at,
         updatedAt: u.updated_at,
@@ -2353,19 +2480,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } as any);
         const { data: me } = await (client as any).auth.getUser();
         const userId = me?.user?.id;
+        console.log("[ADDRESSES] GET - userId:", userId);
         if (!userId) return res.status(401).json({ success: false, message: "Non autenticato" });
-        let { data, error } = await (client as any)
+
+        // Usa supabaseAdmin per bypassare RLS e vedere tutti gli indirizzi dell'utente
+        let { data, error } = await (supabaseAdmin as any)
           .from("user_addresses")
           .select("id,street,city,cap,province,country,is_default,first_name,last_name")
-          .eq("user_id", String(userId));
+          .eq("user_id", userId);
+
+        console.log("[ADDRESSES] GET - risultato:", { count: data?.length, error, userId });
         if (error) {
-          const fallback = await (client as any)
-            .from("user_addresses")
-            .select("id,street,city,cap,province,country,is_default")
-            .eq("user_id", String(userId));
-          data = fallback.data;
-          error = fallback.error;
-          if (error) return res.status(400).json({ success: false, error });
+          console.error("[ADDRESSES] GET - errore:", error);
+          return res.status(400).json({ success: false, error });
         }
         const normalized = (data || []).map((row: any) => ({
           id: row.id,
@@ -2391,28 +2518,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/addresses", async (req: Request, res: Response) => {
+    console.log("[ADDRESSES] POST - inizio richiesta");
     try {
       const authHdr = (req.headers as any)["authorization"] || (req.headers as any)["Authorization"];
       const token = typeof authHdr === "string" && authHdr.startsWith("Bearer ") ? authHdr.slice(7) : undefined;
       const { firstName, lastName, address, city, postalCode, province, country, isDefault } = req.body || {};
-      if (token && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+      console.log("[ADDRESSES] POST - dati:", { firstName, lastName, address, city, postalCode });
+      if (token && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY && supabaseAdmin) {
         const client = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
           global: { headers: { Authorization: `Bearer ${token}` } }
         } as any);
         const { data: me } = await (client as any).auth.getUser();
         const userId = me?.user?.id;
         if (!userId) return res.status(401).json({ success: false, message: "Non autenticato" });
+
+        // Usa supabaseAdmin per bypassare RLS
         // Count existing addresses to decide default
-        const { count: addrCount } = await (client as any)
+        const { count: addrCount } = await (supabaseAdmin as any)
           .from("user_addresses")
           .select("id", { count: "exact", head: true })
-          .eq("user_id", String(userId));
+          .eq("user_id", userId);
         const willBeDefault = (addrCount ?? 0) === 0 ? true : !!isDefault;
 
-        let { data, error } = await (client as any)
+        // Controlla se esiste già un indirizzo identico (evita duplicati da doppio submit)
+        const { data: existing } = await (supabaseAdmin as any)
+          .from("user_addresses")
+          .select("id, first_name, last_name, street, city, cap, province, country, is_default")
+          .eq("user_id", userId)
+          .eq("street", address)
+          .eq("city", city)
+          .eq("cap", postalCode)
+          .limit(1)
+          .maybeSingle();
+
+        if (existing?.id) {
+          console.log("[ADDRESSES] POST - indirizzo già esistente, id:", existing.id);
+          const normalized = {
+            id: existing.id,
+            firstName: existing.first_name,
+            lastName: existing.last_name,
+            address: existing.street,
+            city: existing.city,
+            postalCode: existing.cap,
+            province: existing.province,
+            country: existing.country,
+            isDefault: !!existing.is_default,
+            type: "home",
+          };
+          return res.status(200).json({ success: true, address: normalized, duplicate: true });
+        }
+
+        console.log("[ADDRESSES] POST - eseguo insert per userId:", userId);
+        let { data, error } = await (supabaseAdmin as any)
           .from("user_addresses")
           .insert({
-            user_id: String(userId),
+            user_id: userId,
             street: address,
             city,
             cap: postalCode,
@@ -2424,31 +2584,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .select("*")
           .maybeSingle();
+
         if (error) {
-          const retry = await (client as any)
-            .from("user_addresses")
-            .insert({
-              user_id: String(userId),
-              street: address,
-              city,
-              cap: postalCode,
-              province,
-              country,
-              is_default: willBeDefault,
-            })
-            .select("*")
-            .maybeSingle();
-          data = retry.data;
-          error = retry.error;
-          if (error) return res.status(400).json({ success: false, error });
+          console.error("[ADDRESSES] POST - errore insert:", error);
+          return res.status(400).json({ success: false, error });
         }
+        console.log("[ADDRESSES] POST - insert riuscito, id:", data?.id);
 
         // If set as default, unset others
         if (willBeDefault && data?.id) {
-          await (client as any)
+          await (supabaseAdmin as any)
             .from("user_addresses")
             .update({ is_default: false })
-            .eq("user_id", String(userId))
+            .eq("user_id", userId)
             .neq("id", data.id);
         }
 
@@ -2493,22 +2641,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const authHdr = (req.headers as any)["authorization"] || (req.headers as any)["Authorization"];
       const token = typeof authHdr === "string" && authHdr.startsWith("Bearer ") ? authHdr.slice(7) : undefined;
       const addrId = Number(req.params.id);
-      if (token && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+      if (token && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY && supabaseAdmin) {
         const client = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
           global: { headers: { Authorization: `Bearer ${token}` } }
         } as any);
         const { data: me } = await (client as any).auth.getUser();
         const userId = me?.user?.id;
         if (!userId) return res.status(401).json({ success: false, message: "Non autenticato" });
-        await (client as any)
+
+        // Usa supabaseAdmin per bypassare RLS
+        await (supabaseAdmin as any)
           .from("user_addresses")
           .update({ is_default: false })
-          .eq("user_id", String(userId));
-        const { error } = await (client as any)
+          .eq("user_id", userId);
+        const { error } = await (supabaseAdmin as any)
           .from("user_addresses")
           .update({ is_default: true })
           .eq("id", addrId)
-          .eq("user_id", String(userId));
+          .eq("user_id", userId);
         if (error) return res.status(400).json({ success: false, error });
         return res.json({ success: true });
       }
@@ -2528,18 +2678,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const authHdr = (req.headers as any)["authorization"] || (req.headers as any)["Authorization"];
       const token = typeof authHdr === "string" && authHdr.startsWith("Bearer ") ? authHdr.slice(7) : undefined;
       const addrId = Number(req.params.id);
-      if (token && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+      if (token && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY && supabaseAdmin) {
         const client = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
           global: { headers: { Authorization: `Bearer ${token}` } }
         } as any);
         const { data: me } = await (client as any).auth.getUser();
         const userId = me?.user?.id;
         if (!userId) return res.status(401).json({ success: false, message: "Non autenticato" });
-        const { error } = await (client as any)
+
+        // Usa supabaseAdmin per bypassare RLS
+        const { error } = await (supabaseAdmin as any)
           .from("user_addresses")
           .delete()
           .eq("id", addrId)
-          .eq("user_id", String(userId));
+          .eq("user_id", userId);
         if (error) return res.status(400).json({ success: false, error });
         return res.json({ success: true });
       }
@@ -2564,6 +2716,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user?.authenticated) {
         return res.status(401).json({ success: false, message: "Non autenticato" });
       }
+
+      // Prima aggiorna gli ordini scaduti (in_attesa_di_pagamento da più di 10 min) a "fallito"
+      await updateExpiredPendingOrders();
 
       if (!supabaseAdmin) {
         return res.status(500).json({ success: false, message: "Database non configurato" });
@@ -2611,8 +2766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 size,
                 image,
                 product:product_id (
-                  name,
-                  image
+                  name
                 )
               )
             `)
@@ -2620,6 +2774,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (itemsError) {
             console.error(`[ORDERS] Errore recupero items per ordine ${order.id}:`, itemsError);
+          }
+
+          // Debug: log items recuperati per verificare struttura
+          if (items && items.length > 0) {
+            console.log(`[ORDERS] Items per ordine ${order.id}:`, items.map((i: any) => ({
+              id: i.id,
+              product_option_id: i.product_option?.id,
+              product_name: i.product_option?.product?.name,
+              has_product_option: !!i.product_option,
+              has_product: !!i.product_option?.product
+            })));
+          } else {
+            console.log(`[ORDERS] Nessun item trovato per ordine ${order.id}`);
           }
 
           // Recupera indirizzo di spedizione se presente
@@ -2644,19 +2811,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
 
-          // Formatta items per il frontend
-          const formattedItems = (items || []).map((item: any) => ({
-            id: item.id,
-            name: item.product_option?.product?.name || "Prodotto",
-            variant: [item.product_option?.flavor, item.product_option?.size].filter(Boolean).join(" - "),
-            quantity: item.quantity,
-            price: item.unit_price_cents,
-            image: item.product_option?.image || item.product_option?.product?.image || null
+          // Formatta items per il frontend con fallback per dati mancanti
+          const formattedItems = await Promise.all((items || []).map(async (item: any) => {
+            let productName = item.product_option?.product?.name;
+            let flavor = item.product_option?.flavor;
+            let size = item.product_option?.size;
+            let image = item.product_option?.image;
+
+            // Se product_option è null ma abbiamo product_option_id, prova query diretta
+            if (!item.product_option && item.product_option_id) {
+              console.log(`[ORDERS] Tentativo recupero diretto product_option_id: ${item.product_option_id}`);
+              const { data: po } = await (supabaseAdmin as any)
+                .from("product_options")
+                .select("flavor, size, image, product:product_id (name)")
+                .eq("id", item.product_option_id)
+                .single();
+
+              if (po) {
+                productName = po.product?.name;
+                flavor = po.flavor;
+                size = po.size;
+                image = po.image;
+                console.log(`[ORDERS] Recuperato: ${productName} - ${flavor} ${size}`);
+              }
+            }
+
+            return {
+              id: item.id,
+              name: productName || "Prodotto sconosciuto",
+              variant: [flavor, size].filter(Boolean).join(" - "),
+              quantity: item.quantity,
+              price: item.unit_price_cents,
+              image: image || null
+            };
           }));
 
           return {
             id: order.id,
             snipcartOrderId: order.stripe_session_id,
+            stripeSessionId: order.stripe_session_id || null,
             total: order.total_cents,
             status: order.status,
             items: formattedItems,
@@ -2677,7 +2870,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get order by Stripe session ID
+  // Get checkout URL for pending order (to resume payment)
+  app.get("/api/orders/:orderId/checkout-url", async (req: Request, res: Response) => {
+    try {
+      const sess = req.session as any;
+      const auth = await getAuthFromToken(req);
+      const user = auth ? { authenticated: true, id: auth.id } : sess?.user;
+
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+
+      const { orderId } = req.params;
+      if (!orderId) {
+        return res.status(400).json({ success: false, message: "Order ID mancante" });
+      }
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      // Recupera l'ordine verificando che appartenga all'utente
+      const { data: order, error } = await (supabaseAdmin as any)
+        .from("orders")
+        .select("id, user_id, status, stripe_session_id, created_at")
+        .eq("id", orderId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (error || !order) {
+        return res.status(404).json({ success: false, message: "Ordine non trovato" });
+      }
+
+      // Verifica che l'ordine sia in attesa di pagamento
+      if (order.status !== "in_attesa_di_pagamento") {
+        return res.status(400).json({ success: false, message: "L'ordine non è in attesa di pagamento" });
+      }
+
+      // Verifica che non siano passati più di 10 minuti
+      const orderCreatedAt = new Date(order.created_at).getTime();
+      const tenMinutesInMs = 10 * 60 * 1000;
+      if (Date.now() - orderCreatedAt > tenMinutesInMs) {
+        // Aggiorna l'ordine a fallito
+        await (supabaseAdmin as any)
+          .from("orders")
+          .update({ status: "fallito", updated_at: new Date().toISOString() })
+          .eq("id", orderId);
+
+        return res.status(400).json({ success: false, message: "Sessione di pagamento scaduta", expired: true });
+      }
+
+      if (!order.stripe_session_id) {
+        return res.status(400).json({ success: false, message: "Sessione Stripe non disponibile" });
+      }
+
+      // Recupera la sessione Stripe per ottenere l'URL
+      const stripeSecret = process.env.STRIPE_SECRET_KEY;
+      if (!stripeSecret) {
+        return res.status(500).json({ success: false, message: "Stripe non configurato" });
+      }
+
+      const stripe = new Stripe(stripeSecret);
+      const stripeSession = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
+
+      if (!stripeSession.url) {
+        return res.status(400).json({ success: false, message: "URL di checkout non disponibile" });
+      }
+
+      // Verifica che la sessione Stripe sia ancora valida
+      if (stripeSession.status === "expired" || stripeSession.status === "complete") {
+        return res.status(400).json({
+          success: false,
+          message: stripeSession.status === "complete" ? "Pagamento già completato" : "Sessione scaduta",
+          expired: stripeSession.status === "expired"
+        });
+      }
+
+      return res.json({ success: true, checkoutUrl: stripeSession.url });
+    } catch (error: any) {
+      console.error("[ORDERS] Errore recupero checkout URL:", error?.message || error);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // Get order by order ID (from checkout success page)
   app.get("/api/orders/by-session/:sessionId", async (req: Request, res: Response) => {
     try {
       const sess = req.session as any;
@@ -2697,10 +2973,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ success: false, message: "Database non configurato" });
       }
 
-      // Cerca l'ordine tramite stripe_session_id, verificando che appartenga all'utente
+      // Cerca l'ordine tramite ID, verificando che appartenga all'utente
       const { data: order, error } = await (supabaseAdmin as any)
         .from("orders")
-        .select("id, user_id, status, currency, total_cents, created_at")
+        .select("id, user_id, status, currency, total_cents, created_at, stripe_session_id")
         .eq("id", sessionId)
         .eq("user_id", user.id)
         .single();
@@ -2708,6 +2984,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error || !order) {
         console.log(`[ORDERS] Ordine non trovato per session: ${sessionId}, user: ${user.id}`);
         return res.json({ success: true, order: null });
+      }
+
+      // Se l'ordine è ancora in_attesa_di_pagamento, verifica con Stripe e aggiorna se pagato
+      if (order.status === "in_attesa_di_pagamento" && order.stripe_session_id) {
+        try {
+          const stripeSecret = process.env.STRIPE_SECRET_KEY;
+          if (stripeSecret) {
+            const stripe = new Stripe(stripeSecret);
+            const stripeSession = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
+
+            if (stripeSession.payment_status === "paid") {
+              // Aggiorna lo stato a "pagato"
+              const { error: updateError } = await (supabaseAdmin as any)
+                .from("orders")
+                .update({
+                  status: "pagato",
+                  updated_at: new Date().toISOString()
+                })
+                .eq("id", order.id);
+
+              if (!updateError) {
+                order.status = "pagato";
+                console.log(`[ORDERS] Ordine ${order.id} aggiornato a 'pagato' (fallback da checkout success)`);
+              }
+            }
+          }
+        } catch (stripeError) {
+          console.error("[ORDERS] Errore verifica Stripe:", stripeError);
+          // Continua comunque a restituire l'ordine
+        }
       }
 
       return res.json({ success: true, order });
@@ -3668,22 +3974,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }));
         const cartItemsJson = JSON.stringify(cartMetadata).slice(0, 500);
 
+        // Calcola totale ordine (con sconto e spedizione)
+        const totalOrderCents = totalAfterDiscount + shippingCents;
+
+        // Crea l'ordine nel database con stato "in_attesa_di_pagamento" prima del checkout
+        let orderId: string | null = null;
+        if (supabaseAdmin) {
+          try {
+            const { data: orderData, error: orderError } = await (supabaseAdmin as any)
+              .from("orders")
+              .insert({
+                user_id: user.id,
+                shipping_address_id: shipping_address_id ? parseInt(shipping_address_id) : null,
+                status: "in_attesa_di_pagamento",
+                currency: "EUR",
+                total_cents: totalOrderCents,
+                notes: notes || null,
+              })
+              .select("id")
+              .single();
+
+            if (!orderError && orderData?.id) {
+              orderId = orderData.id;
+              console.log(`[CHECKOUT] Ordine pending creato: ${orderId} per user: ${user.id}`);
+
+              // Crea le righe dell'ordine (order_items)
+              const orderItems = items.map((item: any) => ({
+                order_id: orderId,
+                product_option_id: item.product_option_id,
+                quantity: item.quantity,
+                unit_price_cents: Math.round((item.price_cents || 0) * 0.90), // Prezzo con sconto
+                line_total_cents: Math.round((item.price_cents || 0) * 0.90 * item.quantity),
+              }));
+
+              await (supabaseAdmin as any)
+                .from("order_items")
+                .insert(orderItems);
+            } else {
+              console.warn("[CHECKOUT] Errore creazione ordine pending:", orderError);
+            }
+          } catch (e) {
+            console.warn("[CHECKOUT] Errore creazione ordine:", e);
+          }
+        }
+
         const sessionStripe = await stripe.checkout.sessions.create({
           mode: "payment",
           payment_method_types: ["card"],
           line_items,
-          success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+          success_url: `${successUrl}?session_id=${orderId || '{CHECKOUT_SESSION_ID}'}`,
           cancel_url: cancelUrl,
           customer_email: user.email || undefined,
           metadata: {
             user_id: user.id,
+            order_id: orderId || "",
             shipping_address_id: shipping_address_id ? String(shipping_address_id) : "",
             cart_items: cartItemsJson,
             notes: notes ? String(notes).slice(0, 500) : "",
           },
         });
 
-        console.log(`Checkout session creata: ${sessionStripe.id} per user: ${user.id}`);
+        // Aggiorna l'ordine con il session_id di Stripe
+        if (orderId && supabaseAdmin) {
+          await (supabaseAdmin as any)
+            .from("orders")
+            .update({ stripe_session_id: sessionStripe.id })
+            .eq("id", orderId);
+        }
+
+        console.log(`Checkout session creata: ${sessionStripe.id} per user: ${user.id}, orderId: ${orderId}`);
         return res.json({ success: true, url: sessionStripe.url });
       } catch (error: any) {
         console.error("Checkout error:", error?.message || error);
@@ -3735,10 +4094,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { orderId } = req.params;
       const { status } = req.body;
 
-      // Valori enum validi per lo status
+      // Valori enum validi per lo status (italiano snake_case)
       const validStatuses = [
-        'shipped', 'pending_payment', 'paid', 'cancelled', 'failed',
-        'refunded', 'awaiting_delivery', 'delivered', 'refund_requested'
+        'pagato', 'in_attesa_di_pagamento', 'spedito', 'in_attesa_di_consegna',
+        'consegnato', 'cancellato', 'fallito', 'richiesta_di_rimborso', 'rimborsato'
       ];
 
       if (!status || !validStatuses.includes(status)) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,6 +56,7 @@ export default function UserProfile({ onClose }: UserProfileProps) {
   const [activeTab, setActiveTab] = useState("profile");
   const [savingProfile, setSavingProfile] = useState(false);
   const [addingAddr, setAddingAddr] = useState(false);
+  const isSubmittingAddress = useRef(false); // Ref sincrona per prevenire doppia chiamata
   const { toast } = useToast();
   const { user, updateProfile } = useAuth();
 
@@ -268,12 +269,22 @@ export default function UserProfile({ onClose }: UserProfileProps) {
   };
 
   const handleAddressSubmit = (data: AddressData) => {
+    // Previeni doppia chiamata usando ref sincrona
+    if (isSubmittingAddress.current) {
+      console.log("[ADDRESSES] Richiesta ignorata - submit già in corso");
+      return;
+    }
+    isSubmittingAddress.current = true;
     setAddingAddr(true);
-    const timer = setTimeout(() => setAddingAddr(false), 2200);
+    const timer = setTimeout(() => {
+      setAddingAddr(false);
+      isSubmittingAddress.current = false;
+    }, 2200);
     addAddressMutation.mutate(data, {
       onSettled: () => {
         clearTimeout(timer);
         setAddingAddr(false);
+        isSubmittingAddress.current = false;
       }
     });
   };

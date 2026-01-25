@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,7 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ShoppingBag, Package, Truck, CheckCircle, Clock, Euro, Filter, X, CreditCard, ExternalLink, MapPin, FileText } from "lucide-react";
+import { ShoppingBag, Package, Truck, CheckCircle, Clock, Euro, Filter, X, CreditCard, ExternalLink, MapPin, FileText, Eye } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { apiRequest } from "@/lib/queryClient";
@@ -26,6 +27,7 @@ interface OrderItem {
   name: string;
   quantity: number;
   price?: number;
+  image?: string | null;
 }
 
 interface ShippingAddress {
@@ -57,86 +59,132 @@ interface Order {
   carrier?: string | null;
 }
 
-// Status enum values e labels
+// Status enum values e labels (italiano snake_case)
 const ORDER_STATUSES = [
-  { value: "shipped", label: "Spedito" },
-  { value: "pending_payment", label: "In attesa di pagamento" },
-  { value: "paid", label: "Pagato" },
-  { value: "cancelled", label: "Cancellato" },
-  { value: "failed", label: "Fallito" },
-  { value: "refunded", label: "Rimborsato" },
-  { value: "awaiting_delivery", label: "In attesa di consegna" },
-  { value: "delivered", label: "Consegnato" },
-  { value: "refund_requested", label: "Richiesta di rimborso" },
+  { value: "pagato", label: "Pagato" },
+  { value: "in_attesa_di_pagamento", label: "In attesa di pagamento" },
+  { value: "spedito", label: "Spedito" },
+  { value: "in_attesa_di_consegna", label: "In attesa di consegna" },
+  { value: "consegnato", label: "Consegnato" },
+  { value: "cancellato", label: "Cancellato" },
+  { value: "fallito", label: "Fallito" },
+  { value: "richiesta_di_rimborso", label: "Richiesta di rimborso" },
+  { value: "rimborsato", label: "Rimborsato" },
 ] as const;
 
 const statusLabels: Record<string, string> = {
-  pending: "In attesa",
-  pending_payment: "In attesa di pagamento",
-  paid: "Pagato",
-  ordered: "Ordinato",
-  processing: "In elaborazione",
-  shipped: "Spedito",
-  completed: "Completato",
-  delivered: "Consegnato",
-  cancelled: "Cancellato",
-  failed: "Fallito",
-  refunded: "Rimborsato",
-  awaiting_delivery: "In attesa di consegna",
-  refund_requested: "Richiesta di rimborso",
+  pagato: "Pagato",
+  in_attesa_di_pagamento: "In attesa di pagamento",
+  spedito: "Spedito",
+  in_attesa_di_consegna: "In attesa di consegna",
+  consegnato: "Consegnato",
+  cancellato: "Cancellato",
+  fallito: "Fallito",
+  richiesta_di_rimborso: "Richiesta di rimborso",
+  rimborsato: "Rimborsato",
 };
 
 const statusColors: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800",
-  pending_payment: "bg-yellow-100 text-yellow-800",
-  paid: "bg-green-100 text-green-800",
-  ordered: "bg-orange-100 text-orange-800",
-  processing: "bg-blue-100 text-blue-800",
-  shipped: "bg-purple-100 text-purple-800",
-  completed: "bg-green-100 text-green-800",
-  delivered: "bg-green-100 text-green-800",
-  cancelled: "bg-red-100 text-red-800",
-  failed: "bg-red-100 text-red-800",
-  refunded: "bg-gray-100 text-gray-800",
-  awaiting_delivery: "bg-blue-100 text-blue-800",
-  refund_requested: "bg-orange-100 text-orange-800",
+  pagato: "bg-green-100 text-green-800",
+  in_attesa_di_pagamento: "bg-yellow-100 text-yellow-800",
+  spedito: "bg-purple-100 text-purple-800",
+  in_attesa_di_consegna: "bg-blue-100 text-blue-800",
+  consegnato: "bg-green-100 text-green-800",
+  cancellato: "bg-red-100 text-red-800",
+  fallito: "bg-red-100 text-red-800",
+  richiesta_di_rimborso: "bg-orange-100 text-orange-800",
+  rimborsato: "bg-gray-100 text-gray-800",
 };
 
 const statusIcons: Record<string, typeof Clock> = {
-  pending: Clock,
-  pending_payment: Clock,
-  paid: CreditCard,
-  ordered: Clock,
-  processing: Package,
-  shipped: Truck,
-  completed: CheckCircle,
-  delivered: CheckCircle,
-  cancelled: Clock,
-  failed: Clock,
-  refunded: CreditCard,
-  awaiting_delivery: Truck,
-  refund_requested: Clock,
+  pagato: CreditCard,
+  in_attesa_di_pagamento: Clock,
+  spedito: Truck,
+  in_attesa_di_consegna: Truck,
+  consegnato: CheckCircle,
+  cancellato: Clock,
+  fallito: Clock,
+  richiesta_di_rimborso: Clock,
+  rimborsato: CreditCard,
 };
 
 // Corrieri supportati con i loro URL di tracciamento
 const carrierOptions = [
-  { value: "bartolini", label: "BRT (Bartolini)", trackingUrl: "https://www.brt.it/it/tracking?spession=" },
-  { value: "gls", label: "GLS", trackingUrl: "https://www.gls-italy.com/it/trova-spedizione?match=" },
+  { value: "bartolini", label: "BRT (Bartolini)", trackingUrl: "https://www.mybrt.it/it/mybrt/my-parcels/search?lang=it&parcelNumber=" },
+  { value: "gls", label: "GLS", trackingUrl: "https://gls-group.com/IT/it/servizi-online/ricerca-spedizioni/?match=", trackingSuffix: "&type=NAT" },
   { value: "dhl", label: "DHL", trackingUrl: "https://www.dhl.com/it-it/home/tracking.html?tracking-id=" },
-  { value: "ups", label: "UPS", trackingUrl: "https://www.ups.com/track?tracknum=" },
-  { value: "sda", label: "SDA", trackingUrl: "https://www.sda.it/wps/portal/Servizi_online/dettaglio-spedizione?locale=it&tression=" },
-  { value: "poste_italiane", label: "Poste Italiane", trackingUrl: "https://www.poste.it/cerca/index.html#/risultati-spedizioni/" },
-  { value: "fedex", label: "FedEx", trackingUrl: "https://www.fedex.com/fedextrack/?trknbr=" },
-  { value: "tnt", label: "TNT", trackingUrl: "https://www.tnt.it/tracking/tracking.do?cons=" },
+  { value: "ups", label: "UPS", trackingUrl: "https://www.ups.com/track?tracknum=", trackingSuffix: "&loc=it_IT&requester=ST/trackdetails" },
+  { value: "sda", label: "SDA", trackingUrl: "https://www.poste.it/cerca/index.html?#/risultati-spedizioni/" },
+  { value: "poste_italiane", label: "Poste Italiane", trackingUrl: "https://www.poste.it/cerca/index.html?#/risultati-spedizioni/" },
+  { value: "fedex", label: "FedEx", trackingUrl: "https://www.fedex.com/fedextrack/no-results-found?trknbr=" },
+  { value: "tnt", label: "TNT", trackingUrl: "https://www.tnt.com/express/it_it/site/shipping-tools/tracking.html?searchType=con&cons=" },
 ];
 
 function getTrackingUrl(carrier: string | null, trackingNumber: string | null): string | null {
   if (!carrier || !trackingNumber) return null;
   const carrierInfo = carrierOptions.find(c => c.value === carrier);
   if (carrierInfo) {
-    return carrierInfo.trackingUrl + trackingNumber;
+    const suffix = (carrierInfo as any).trackingSuffix || '';
+    return carrierInfo.trackingUrl + trackingNumber + suffix;
   }
   return null;
+}
+
+// Componente timer per ordini in attesa di pagamento
+function PendingPaymentTimer({ createdAt }: { createdAt: string }) {
+  const [remainingTime, setRemainingTime] = useState<string | null>(null);
+  const [isExpired, setIsExpired] = useState(false);
+
+  useEffect(() => {
+    const orderCreatedAt = new Date(createdAt).getTime();
+    const tenMinutesInMs = 10 * 60 * 1000;
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const elapsed = now - orderCreatedAt;
+      const remaining = tenMinutesInMs - elapsed;
+
+      if (remaining <= 0) {
+        setRemainingTime(null);
+        setIsExpired(true);
+        return false;
+      }
+
+      const minutes = Math.floor(remaining / 60000);
+      const seconds = Math.floor((remaining % 60000) / 1000);
+      setRemainingTime(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+      setIsExpired(false);
+      return true;
+    };
+
+    const shouldContinue = updateTimer();
+    if (!shouldContinue) return;
+
+    const interval = setInterval(() => {
+      const shouldContinue = updateTimer();
+      if (!shouldContinue) {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [createdAt]);
+
+  if (isExpired) {
+    return (
+      <div className="text-xs text-red-600 mt-1 flex items-center gap-1">
+        <Clock className="h-3 w-3" />
+        Scaduto
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+      <Clock className="h-3 w-3" />
+      {remainingTime}
+    </div>
+  );
 }
 
 export default function AdminOrders() {
@@ -145,6 +193,7 @@ export default function AdminOrders() {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [carrier, setCarrier] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [productsDialogOrder, setProductsDialogOrder] = useState<Order | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -259,8 +308,8 @@ export default function AdminOrders() {
   // Calcolo statistiche (sempre sui dati totali)
   const totalOrders = orders.length;
   const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
-  const paidOrders = orders.filter(order => order.status === 'paid').length;
-  const completedOrders = orders.filter(order => order.status === 'completed').length;
+  const paidOrders = orders.filter(order => order.status === 'pagato').length;
+  const completedOrders = orders.filter(order => order.status === 'consegnato').length;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -295,12 +344,15 @@ export default function AdminOrders() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tutti gli stati</SelectItem>
-                    <SelectItem value="pending">In attesa</SelectItem>
-                    <SelectItem value="paid">Pagato</SelectItem>
-                    <SelectItem value="processing">In elaborazione</SelectItem>
-                    <SelectItem value="shipped">Spedito</SelectItem>
-                    <SelectItem value="completed">Completato</SelectItem>
-                    <SelectItem value="cancelled">Annullato</SelectItem>
+                    <SelectItem value="pagato">Pagato</SelectItem>
+                    <SelectItem value="in_attesa_di_pagamento">In attesa di pagamento</SelectItem>
+                    <SelectItem value="spedito">Spedito</SelectItem>
+                    <SelectItem value="in_attesa_di_consegna">In attesa di consegna</SelectItem>
+                    <SelectItem value="consegnato">Consegnato</SelectItem>
+                    <SelectItem value="cancellato">Cancellato</SelectItem>
+                    <SelectItem value="fallito">Fallito</SelectItem>
+                    <SelectItem value="richiesta_di_rimborso">Richiesta di rimborso</SelectItem>
+                    <SelectItem value="rimborsato">Rimborsato</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -455,25 +507,30 @@ export default function AdminOrders() {
                         </TableCell>
 
                         <TableCell>
-                          <Select
-                            value={order.status}
-                            onValueChange={(value) => handleStatusChange(order.id, value)}
-                            disabled={updateStatusMutation.isPending}
-                          >
-                            <SelectTrigger className={`w-[180px] h-8 text-xs ${statusColors[order.status] || 'bg-gray-100 text-gray-800'} border-0`}>
-                              <div className="flex items-center gap-1">
-                                <StatusIcon className="h-3 w-3" />
-                                <SelectValue>{statusLabels[order.status] || order.status}</SelectValue>
-                              </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ORDER_STATUSES.map((status) => (
-                                <SelectItem key={status.value} value={status.value}>
-                                  {status.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <div>
+                            <Select
+                              value={order.status}
+                              onValueChange={(value) => handleStatusChange(order.id, value)}
+                              disabled={updateStatusMutation.isPending}
+                            >
+                              <SelectTrigger className={`w-[180px] h-8 text-xs ${statusColors[order.status] || 'bg-gray-100 text-gray-800'} border-0`}>
+                                <div className="flex items-center gap-1">
+                                  <StatusIcon className="h-3 w-3" />
+                                  <SelectValue>{statusLabels[order.status] || order.status}</SelectValue>
+                                </div>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ORDER_STATUSES.map((status) => (
+                                  <SelectItem key={status.value} value={status.value}>
+                                    {status.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {order.status === 'in_attesa_di_pagamento' && (
+                              <PendingPaymentTimer createdAt={order.created_at} />
+                            )}
+                          </div>
                         </TableCell>
 
                         <TableCell>
@@ -486,9 +543,15 @@ export default function AdminOrders() {
                                   </div>
                                 ))}
                                 {items.length > 3 && (
-                                  <div className="text-xs text-gray-500">
-                                    +{items.length - 3} altri prodotti
-                                  </div>
+                                  <Button
+                                    variant="link"
+                                    size="sm"
+                                    className="text-xs text-blue-600 hover:text-blue-800 p-0 h-auto"
+                                    onClick={() => setProductsDialogOrder(order)}
+                                  >
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    Visualizza tutti ({items.length})
+                                  </Button>
                                 )}
                               </>
                             ) : (
@@ -549,6 +612,8 @@ export default function AdminOrders() {
                                   Modifica
                                 </Button>
                               </>
+                            ) : ['in_attesa_di_pagamento', 'fallito', 'cancellato'].includes(order.status) ? (
+                              <span className="text-xs text-gray-400">-</span>
                             ) : (
                               <Button
                                 variant="outline"
@@ -630,6 +695,63 @@ export default function AdminOrders() {
               className="bg-[#FFD100] text-black hover:bg-[#e6bc00]"
             >
               {updateTrackingMutation.isPending ? "Salvataggio..." : "Salva"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog per visualizzare tutti i prodotti */}
+      <Dialog open={!!productsDialogOrder} onOpenChange={(open) => !open && setProductsDialogOrder(null)}>
+        <DialogContent className="sm:max-w-2xl max-w-[95vw]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Prodotti Ordine #{productsDialogOrder?.id?.substring(0, 8)}
+            </DialogTitle>
+            <DialogDescription>
+              Elenco completo dei {productsDialogOrder?.items?.length || 0} prodotti ordinati
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] pr-4">
+            <div className="space-y-3">
+              {productsDialogOrder?.items?.map((item, index) => (
+                <div key={index} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                  {/* Immagine prodotto */}
+                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-white border border-gray-200 flex-shrink-0">
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                        <Package className="w-6 h-6 text-gray-300" />
+                      </div>
+                    )}
+                  </div>
+                  {/* Info prodotto */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900">{item.name}</p>
+                    <p className="text-sm text-gray-500">Quantità: {item.quantity}</p>
+                  </div>
+                  {item.price && (
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-semibold text-gray-900">
+                        €{((item.price * item.quantity) / 100).toFixed(2)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        €{(item.price / 100).toFixed(2)} cad.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setProductsDialogOrder(null)}>
+              Chiudi
             </Button>
           </DialogFooter>
         </DialogContent>

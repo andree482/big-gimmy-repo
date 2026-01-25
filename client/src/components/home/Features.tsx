@@ -28,7 +28,7 @@ const Features = () => {
         <div className="rounded-lg p-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-montserrat font-bold mb-4">
-              Benvenuti da <span className="text-[#FFD100]">Big Gimmy Integratori</span>
+              Benvenuti da <span className="text-[#8B6914]">Big Gimmy Integratori</span>
             </h2>
             <p className="max-w-2xl mx-auto">
               Il tuo negozio di fiducia per integratori, accessori e tutto ciò di cui hai bisogno per raggiungere i tuoi obiettivi fitness.

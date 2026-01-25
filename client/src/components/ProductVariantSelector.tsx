@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Star, Package, Palette } from "lucide-react";
 
 
@@ -151,41 +158,49 @@ export default function ProductVariantSelector({
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Selezione Gusti - Solo se ci sono più gusti */}
+      {/* Selezione Gusti - Menu a tendina */}
       {availableFlavors.length > 1 && (
         <div className="space-y-3">
           <label className="text-sm font-semibold flex items-center text-gray-800">
             <Palette className="h-4 w-4 mr-2" />
             Gusto
           </label>
-          <div className="flex flex-wrap gap-2">
-            {availableFlavors.map((flavor) => {
-              const flavorOutOfStock = variants.filter(v => v.flavor === flavor).every(v => !v.inStock);
-              return (
-                <Button
-                  key={flavor}
-                  variant={selectedFlavor === flavor ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedFlavor(flavor)}
-                  className={`relative transition-all duration-200 ${
-                    selectedFlavor === flavor 
-                      ? 'bg-[#FFD100] text-black border-[#FFD100] shadow-md scale-105' 
-                      : 'hover:border-[#FFD100] hover:text-[#FFD100]'
-                  } ${flavorOutOfStock ? 'opacity-50' : ''}`}
-                  style={{
-                    borderLeftColor: selectedFlavor === flavor ? getFlavorColor(flavor) : undefined,
-                    borderLeftWidth: selectedFlavor === flavor ? '4px' : undefined
-                  }}
-                >
-                  <div 
-                    className="w-3 h-3 rounded-full mr-2 border border-gray-300"
-                    style={{ backgroundColor: getFlavorColor(flavor) }}
-                  />
-                  {flavor}
-                </Button>
-              );
-            })}
-          </div>
+          <Select value={selectedFlavor} onValueChange={setSelectedFlavor}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Seleziona un gusto">
+                {selectedFlavor && (
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full border border-gray-300"
+                      style={{ backgroundColor: getFlavorColor(selectedFlavor) }}
+                    />
+                    {selectedFlavor}
+                  </div>
+                )}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {availableFlavors.map((flavor) => {
+                const flavorOutOfStock = variants.filter(v => v.flavor === flavor).every(v => !v.inStock);
+                return (
+                  <SelectItem
+                    key={flavor}
+                    value={flavor}
+                    disabled={flavorOutOfStock}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full border border-gray-300"
+                        style={{ backgroundColor: getFlavorColor(flavor) }}
+                      />
+                      {flavor}
+                      {flavorOutOfStock && <span className="text-xs text-gray-400 ml-2">(Esaurito)</span>}
+                    </div>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
         </div>
       )}
 

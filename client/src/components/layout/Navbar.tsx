@@ -58,22 +58,22 @@ const Navbar = () => {
 
   const shouldHide = useMemo(() => scrollDirection === 'down' && scrollY > 400 && !isNavigating && !mobileMenuOpen, [scrollDirection, scrollY, isNavigating, mobileMenuOpen]);
   
-  // Memoizza gli stili per evitare re-calcoli - ottimizzazione GPU per eliminar lag
+  // Memoizza gli stili per evitare re-calcoli - ottimizzazione GPU per eliminare lag
+  // IMPORTANTE: Usiamo transform invece di padding per evitare layout shift
   const headerStyles = useMemo(() => ({
     transform: shouldHide ? 'translate3d(0, -100%, 0)' : 'translate3d(0, 0, 0)',
     transition: mobileMenuOpen ? 'none' : 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
     backfaceVisibility: 'hidden' as const,
-    perspective: '1000px',
-    contain: 'layout style paint'
+    willChange: 'transform',
+    contain: 'layout style paint',
   }), [shouldHide, mobileMenuOpen]);
 
-
+  // FIXED: Altezza fissa per evitare layout shift - niente padding dinamico
   const containerStyles = useMemo(() => ({
-    paddingTop: isScrolled ? '0.5rem' : '1rem',
-    paddingBottom: isScrolled ? '0.5rem' : '1rem',
-    transition: mobileMenuOpen ? 'none' : 'padding 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-    contain: 'layout style'
-  }), [isScrolled, mobileMenuOpen]);
+    minHeight: '72px',
+    height: '72px',
+    contain: 'layout style',
+  }), []);
 
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
@@ -126,11 +126,11 @@ const Navbar = () => {
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center" style={containerStyles}>
-          {/* Logo */}
-          <div className="flex items-center w-44">
+          {/* Logo - dimensione fissa per evitare layout shift */}
+          <div className="flex items-center w-44" style={{ minWidth: '176px' }}>
             <div className="font-montserrat font-bold">
               <Link href="/" className="flex items-center">
-                <Logo size={isScrolled ? 120 : 150} />
+                <Logo size={140} />
               </Link>
             </div>
           </div>

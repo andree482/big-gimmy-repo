@@ -21,8 +21,8 @@ const registerSchema = z.object({
     .string()
     .optional()
     .refine(
-      (val) => !val || val.length === 0 || /^\+\d{1,3}\s+[\d\s]+$/.test(val),
-      'Numero di telefono non valido'
+      (val) => !val || val.length === 0 || /^(\+?\d{1,4})?[\s.-]?\(?\d{1,4}\)?[\s.-]?\d{1,4}[\s.-]?\d{1,9}$/.test(val.replace(/\s/g, '')),
+      'Numero di telefono non valido (es: +39 333 1234567 o 333-1234567)'
     ),
   address: z
     .string()
@@ -81,6 +81,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
     const safety = setTimeout(() => setSubmitting(false), 3000);
     try {
       const { confirmPassword, ...registerData } = data;
+      console.log('[REGISTER FORM] Dati da inviare:', registerData);
       const result = await register(registerData);
       toast({
         title: 'Registrazione completata',
@@ -236,6 +237,9 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
               placeholder="Via Roma 123"
               {...form.register('address')}
             />
+            {form.formState.errors.address && (
+              <p className="text-sm text-red-600">{form.formState.errors.address.message}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -246,6 +250,9 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
                 placeholder="Milano"
                 {...form.register('city')}
               />
+              {form.formState.errors.city && (
+                <p className="text-sm text-red-600">{form.formState.errors.city.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="postalCode">CAP</Label>
@@ -254,6 +261,9 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
                 placeholder="20100"
                 {...form.register('postalCode')}
               />
+              {form.formState.errors.postalCode && (
+                <p className="text-sm text-red-600">{form.formState.errors.postalCode.message}</p>
+              )}
             </div>
           </div>
 
@@ -264,6 +274,9 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
               placeholder="MI"
               {...form.register('province')}
             />
+            {form.formState.errors.province && (
+              <p className="text-sm text-red-600">{form.formState.errors.province.message}</p>
+            )}
           </div>
 
           <Button

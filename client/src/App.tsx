@@ -1,39 +1,45 @@
 import { Switch, Route } from "wouter";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useEffect, lazy, Suspense } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import CookieConsentBanner from "@/components/CookieConsentBanner";
-import AccessibilityMenu from "@/components/AccessibilityMenu";
 import { CartProvider } from "@/components/cart/CartProvider";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
 import InfoBanner from "@/components/layout/InfoBanner";
-import { AuthModal } from "@/components/auth/AuthModal";
+import { PendingOrderModal } from "@/components/PendingOrderModal";
 
+// Pagine principali caricate subito
 import Home from "@/pages/Home";
-import AboutUs from "@/pages/AboutUs";
 import Products from "@/pages/Products";
 import Stores from "@/pages/Stores";
-import Gallery from "@/pages/Gallery";
-import Contact from "@/pages/Contact";
-import Favorites from "@/pages/Favorites";
-import Cart from "@/pages/Cart";
-import CheckoutSuccess from "@/pages/CheckoutSuccess";
-import CheckoutCancel from "@/pages/CheckoutCancel";
-import PrivacyPolicy from "@/pages/PrivacyPolicy";
-import CookiePolicy from "@/pages/CookiePolicy";
-import NotFound from "@/pages/not-found";
 
-// Importiamo i componenti per le pagine dei prodotti
-import ProductCategory from "@/pages/ProductCategory";
-import ProductCategoryWithVariants from "@/pages/ProductCategoryWithVariants";
-import ProductDetail from "@/pages/ProductDetail";
-import ProductVariants from "@/pages/ProductVariants";
-import AdminOrders from "@/pages/AdminOrders";
-import AdminUsers from "@/pages/AdminUsers";
-import AdminLayout from "@/components/admin/AdminLayout";
-import Profile from "@/pages/Profile";
-import MyOrders from "@/pages/MyOrders";
+// Lazy loading per pagine secondarie (riduce il bundle iniziale)
+const AboutUs = lazy(() => import("@/pages/AboutUs"));
+const Gallery = lazy(() => import("@/pages/Gallery"));
+const Contact = lazy(() => import("@/pages/Contact"));
+const Favorites = lazy(() => import("@/pages/Favorites"));
+const Cart = lazy(() => import("@/pages/Cart"));
+const CheckoutSuccess = lazy(() => import("@/pages/CheckoutSuccess"));
+const CheckoutCancel = lazy(() => import("@/pages/CheckoutCancel"));
+const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
+const CookiePolicy = lazy(() => import("@/pages/CookiePolicy"));
+const DirittoRecesso = lazy(() => import("@/pages/DirittoRecesso"));
+const NotFound = lazy(() => import("@/pages/not-found"));
+const ProductCategory = lazy(() => import("@/pages/ProductCategory"));
+const ProductDetail = lazy(() => import("@/pages/ProductDetail"));
+const ProductVariants = lazy(() => import("@/pages/ProductVariants"));
+const AdminOrders = lazy(() => import("@/pages/AdminOrders"));
+const AdminUsers = lazy(() => import("@/pages/AdminUsers"));
+const AdminLayout = lazy(() => import("@/components/admin/AdminLayout"));
+const Profile = lazy(() => import("@/pages/Profile"));
+const MyOrders = lazy(() => import("@/pages/MyOrders"));
+
+// Componente di fallback per il caricamento
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[400px]">
+    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#FFD100]"></div>
+  </div>
+);
 
 function Router() {
   // Attiva lo scroll automatico verso l'alto ad ogni cambio di pagina
@@ -61,13 +67,13 @@ function Router() {
       <Route path="/ordini" component={MyOrders} />
       <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/cookie-policy" component={CookiePolicy} />
+      <Route path="/diritto-recesso" component={DirittoRecesso} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
 function App() {
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   // Registrazione Service Worker per caching ottimizzato
   useEffect(() => {
     if ('serviceWorker' in navigator && import.meta.env.PROD) {
@@ -102,11 +108,13 @@ function App() {
         <Navbar />
         <InfoBanner />
         <main className="flex-grow">
-          <Router />
+          <Suspense fallback={<PageLoader />}>
+            <Router />
+          </Suspense>
         </main>
         <Footer />
         <CookieConsentBanner />
-        <AccessibilityMenu />
+        <PendingOrderModal />
       </div>
     </CartProvider>
   );

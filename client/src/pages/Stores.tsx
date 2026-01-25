@@ -2,6 +2,7 @@ import { stores } from "@/lib/constants";
 import { MapPin, Phone, Clock, Link as LinkIcon } from "lucide-react";
 import { useState } from "react";
 import Lightbox from "@/components/ui/lightbox";
+import { OptimizedImage } from "@/components/ui/OptimizedImage";
 import sedeTorinoPic from "../assets/sede_torino_nuovo.png";
 import sedeAostaPic from "../assets/sede_aosta_nuovo.png";
 
@@ -88,11 +89,13 @@ const Stores = () => {
                 </div>
                 
                 <div className="mb-6 w-full h-96 bg-gray-200 rounded-lg overflow-hidden shadow-md">
-                  <img 
-                    src={store.name === "Sede di Torino" ? sedeTorinoPic : sedeAostaPic} 
-                    alt={`Negozio BigGimmy - ${store.name}`} 
-                    className="w-full h-full object-cover"
-                    style={store.name === "Sede di Torino" ? {objectPosition: "center 80%"} : {}}
+                  <OptimizedImage
+                    src={store.name === "Sede di Torino" ? sedeTorinoPic : sedeAostaPic}
+                    alt={`Negozio BigGimmy - ${store.name}`}
+                    className="w-full h-full"
+                    objectFit="cover"
+                    objectPosition={store.name === "Sede di Torino" ? "center 80%" : "center center"}
+                    priority={index === 0}
                   />
                 </div>
                 
@@ -150,16 +153,19 @@ const Stores = () => {
                 <div className="mt-8">
                   <h4 className="font-montserrat font-semibold text-xl mb-4 text-gray-800">Galleria del Negozio</h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-                    {storeGalleries[store.name as keyof typeof storeGalleries]?.map((imageSrc, index) => (
-                      <div 
-                        key={index} 
+                    {storeGalleries[store.name as keyof typeof storeGalleries]?.map((imageSrc, imgIndex) => (
+                      <div
+                        key={imgIndex}
                         className="aspect-square bg-gray-100 rounded-lg overflow-hidden shadow-md cursor-pointer hover:shadow-lg transition-shadow group"
-                        onClick={() => openLightbox(storeGalleries[store.name as keyof typeof storeGalleries], index)}
+                        onClick={() => openLightbox(storeGalleries[store.name as keyof typeof storeGalleries], imgIndex)}
                       >
-                        <img 
+                        <OptimizedImage
                           src={imageSrc}
-                          alt={`${store.name} - Foto ${index + 1}`}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          alt={`${store.name} - Foto ${imgIndex + 1}`}
+                          className="w-full h-full group-hover:scale-105 transition-transform duration-300"
+                          objectFit="cover"
+                          width={200}
+                          height={200}
                         />
                       </div>
                     ))}

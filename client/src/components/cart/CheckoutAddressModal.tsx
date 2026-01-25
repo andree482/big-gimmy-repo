@@ -332,7 +332,7 @@ export function CheckoutAddressModal({
                 </div>
 
                 <Button
-                  className="w-full bg-gray-900 hover:bg-gray-800"
+                  className="w-full bg-gray-900 hover:bg-gray-800 text-white"
                   onClick={handleSaveNewAddress}
                   disabled={isSaving}
                 >

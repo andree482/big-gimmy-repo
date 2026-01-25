@@ -1,0 +1,8 @@
+# robots.txt for Big Gimmy Integratori
+# https://big-gimmy-1.onrender.com
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://big-gimmy-1.onrender.com/sitemap.xml

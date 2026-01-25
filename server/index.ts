@@ -64,9 +64,28 @@ app.post("/api/webhook/stripe",
         await handleSuccessfulPayment(session);
         break;
       }
+      case "checkout.session.expired": {
+        // Sessione scaduta senza completare il pagamento
+        const session = event.data.object as Stripe.Checkout.Session;
+        await handleFailedPayment(session, "cancellato");
+        break;
+      }
+      case "checkout.session.async_payment_failed": {
+        // Pagamento asincrono fallito
+        const session = event.data.object as Stripe.Checkout.Session;
+        await handleFailedPayment(session, "fallito");
+        break;
+      }
       case "payment_intent.payment_failed": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         console.error("[STRIPE WEBHOOK] Pagamento fallito:", paymentIntent.id);
+        // Se c'è un order_id nei metadata, aggiorna l'ordine
+        if (paymentIntent.metadata?.order_id && supabaseAdminForWebhook) {
+          await supabaseAdminForWebhook
+            .from("orders")
+            .update({ status: "fallito", updated_at: new Date().toISOString() })
+            .eq("id", paymentIntent.metadata.order_id);
+        }
         break;
       }
       default:
@@ -77,14 +96,50 @@ app.post("/api/webhook/stripe",
   }
 );
 
+// Funzione per gestire pagamenti falliti/annullati
+async function handleFailedPayment(session: Stripe.Checkout.Session, status: "cancellato" | "fallito") {
+  const orderId = session.metadata?.order_id;
+
+  console.log(`[STRIPE WEBHOOK] Pagamento ${status} - Session: ${session.id}, OrderId: ${orderId}`);
+
+  if (!orderId) {
+    console.warn("[STRIPE WEBHOOK] order_id mancante nei metadata per sessione fallita");
+    return;
+  }
+
+  if (!supabaseAdminForWebhook) {
+    console.error("[STRIPE WEBHOOK] Supabase admin client non disponibile");
+    return;
+  }
+
+  try {
+    const { error } = await supabaseAdminForWebhook
+      .from("orders")
+      .update({
+        status: status,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", orderId);
+
+    if (error) {
+      console.error(`[STRIPE WEBHOOK] Errore aggiornamento ordine ${status}:`, error);
+    } else {
+      console.log(`[STRIPE WEBHOOK] Ordine ${orderId} aggiornato a ${status}`);
+    }
+  } catch (error) {
+    console.error("[STRIPE WEBHOOK] Errore handleFailedPayment:", error);
+  }
+}
+
 // Funzione per gestire il pagamento riuscito
 async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
   const userId = session.metadata?.user_id;
+  const orderId = session.metadata?.order_id;
   const shippingAddressId = session.metadata?.shipping_address_id;
   const notes = session.metadata?.notes;
   const stripeSessionId = session.id;
 
-  console.log(`[STRIPE WEBHOOK] Pagamento completato per user: ${userId}`);
+  console.log(`[STRIPE WEBHOOK] Pagamento completato per user: ${userId}, orderId: ${orderId}`);
 
   if (!userId) {
     console.error("[STRIPE WEBHOOK] user_id mancante nei metadata");
@@ -97,77 +152,152 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
   }
 
   try {
-    // Prima recupera il carrello dell'utente dal database (prima di svuotarlo!)
-    const { data: cartItems, error: cartError } = await supabaseAdminForWebhook
-      .from("cart_items")
-      .select(`
-        id,
-        quantity,
-        product_option_id,
-        product_options (
-          id,
-          price_cents
-        )
-      `)
-      .eq("user_id", userId);
+    let order: any = null;
 
-    if (cartError) {
-      console.error("[STRIPE WEBHOOK] Errore recupero carrello:", cartError);
-    }
+    // Se esiste già un ordine (creato durante il checkout), aggiornalo a "pagato"
+    if (orderId) {
+      const { data: existingOrder, error: updateError } = await supabaseAdminForWebhook
+        .from("orders")
+        .update({
+          status: "pagato",
+          stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : null,
+          stripe_session_id: stripeSessionId,
+          total_cents: session.amount_total || 0,
+          currency: session.currency?.toUpperCase() || "EUR",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", orderId)
+        .select()
+        .single();
 
-    console.log(`[STRIPE WEBHOOK] Carrello recuperato: ${cartItems?.length || 0} items`);
-    console.log(`[STRIPE WEBHOOK] Cart items:`, JSON.stringify(cartItems, null, 2));
-
-    // Crea l'ordine nel database (l'ID UUID viene generato automaticamente)
-    const { data: order, error: orderError } = await supabaseAdminForWebhook
-      .from("orders")
-      .insert({
-        user_id: userId,
-        shipping_address_id: shippingAddressId ? parseInt(shippingAddressId) : null,
-        status: "paid",
-        currency: session.currency?.toUpperCase() || "EUR",
-        total_cents: session.amount_total || 0,
-        stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : null,
-        stripe_session_id: stripeSessionId,
-        notes: notes || null,
-      })
-      .select()
-      .single();
-
-    if (orderError) {
-      console.error("[STRIPE WEBHOOK] Errore creazione ordine:", orderError);
-      return;
-    }
-
-    console.log(`[STRIPE WEBHOOK] Ordine creato: ${order.id}`);
-
-    // Crea le righe dell'ordine (order_items) dal carrello
-    if (cartItems && cartItems.length > 0) {
-      const orderItems = cartItems.map((item: any) => {
-        const priceCents = item.product_options?.price_cents || 0;
-        return {
-          order_id: order.id,
-          product_option_id: item.product_option_id,
-          quantity: item.quantity,
-          unit_price_cents: priceCents,
-          line_total_cents: item.quantity * priceCents,
-        };
-      });
-
-      console.log(`[STRIPE WEBHOOK] Inserimento order_items:`, JSON.stringify(orderItems, null, 2));
-
-      // Inserisci in order_items
-      const { error: itemsError } = await supabaseAdminForWebhook
-        .from("order_items")
-        .insert(orderItems);
-
-      if (itemsError) {
-        console.error("[STRIPE WEBHOOK] Errore inserimento order_items:", itemsError.message, itemsError);
+      if (updateError) {
+        console.error("[STRIPE WEBHOOK] Errore aggiornamento ordine esistente:", updateError);
       } else {
-        console.log(`[STRIPE WEBHOOK] Inseriti ${orderItems.length} order_items`);
+        order = existingOrder;
+        console.log(`[STRIPE WEBHOOK] Ordine ${orderId} aggiornato a 'pagato'`);
+
+        // Verifica se esistono già order_items per questo ordine
+        const { data: existingItems } = await supabaseAdminForWebhook
+          .from("order_items")
+          .select("id")
+          .eq("order_id", orderId)
+          .limit(1);
+
+        // Se non ci sono order_items, creali dal carrello
+        if (!existingItems || existingItems.length === 0) {
+          console.log(`[STRIPE WEBHOOK] Nessun order_item trovato per ordine ${orderId}, creo dal carrello`);
+
+          // Recupera il carrello dell'utente
+          const { data: cartItems, error: cartError } = await supabaseAdminForWebhook
+            .from("cart_items")
+            .select(`
+              id,
+              quantity,
+              product_option_id,
+              product_options (
+                id,
+                price_cents
+              )
+            `)
+            .eq("user_id", userId);
+
+          if (cartError) {
+            console.error("[STRIPE WEBHOOK] Errore recupero carrello per ordine esistente:", cartError);
+          } else if (cartItems && cartItems.length > 0) {
+            const orderItemsToInsert = cartItems.map((item: any) => {
+              const priceCents = item.product_options?.price_cents || 0;
+              return {
+                order_id: orderId,
+                product_option_id: item.product_option_id,
+                quantity: item.quantity,
+                unit_price_cents: priceCents,
+                line_total_cents: item.quantity * priceCents,
+              };
+            });
+
+            const { error: itemsError } = await supabaseAdminForWebhook
+              .from("order_items")
+              .insert(orderItemsToInsert);
+
+            if (itemsError) {
+              console.error("[STRIPE WEBHOOK] Errore inserimento order_items per ordine esistente:", itemsError);
+            } else {
+              console.log(`[STRIPE WEBHOOK] Creati ${orderItemsToInsert.length} order_items per ordine ${orderId}`);
+            }
+          } else {
+            console.warn(`[STRIPE WEBHOOK] Carrello vuoto per user ${userId}, impossibile creare order_items`);
+          }
+        }
       }
-    } else {
-      console.warn("[STRIPE WEBHOOK] Carrello vuoto o non trovato per user:", userId);
+    }
+
+    // Fallback: se non c'era un ordine esistente, creane uno nuovo
+    if (!order) {
+      // Prima recupera il carrello dell'utente dal database (prima di svuotarlo!)
+      const { data: cartItems, error: cartError } = await supabaseAdminForWebhook
+        .from("cart_items")
+        .select(`
+          id,
+          quantity,
+          product_option_id,
+          product_options (
+            id,
+            price_cents
+          )
+        `)
+        .eq("user_id", userId);
+
+      if (cartError) {
+        console.error("[STRIPE WEBHOOK] Errore recupero carrello:", cartError);
+      }
+
+      console.log(`[STRIPE WEBHOOK] Carrello recuperato: ${cartItems?.length || 0} items`);
+
+      // Crea l'ordine nel database (fallback per sessioni senza order_id)
+      const { data: newOrder, error: orderError } = await supabaseAdminForWebhook
+        .from("orders")
+        .insert({
+          user_id: userId,
+          shipping_address_id: shippingAddressId ? parseInt(shippingAddressId) : null,
+          status: "pagato",
+          currency: session.currency?.toUpperCase() || "EUR",
+          total_cents: session.amount_total || 0,
+          stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : null,
+          stripe_session_id: stripeSessionId,
+          notes: notes || null,
+        })
+        .select()
+        .single();
+
+      if (orderError) {
+        console.error("[STRIPE WEBHOOK] Errore creazione ordine:", orderError);
+        return;
+      }
+
+      order = newOrder;
+      console.log(`[STRIPE WEBHOOK] Nuovo ordine creato: ${order.id}`);
+
+      // Crea le righe dell'ordine (order_items) dal carrello
+      if (cartItems && cartItems.length > 0) {
+        const orderItems = cartItems.map((item: any) => {
+          const priceCents = item.product_options?.price_cents || 0;
+          return {
+            order_id: order.id,
+            product_option_id: item.product_option_id,
+            quantity: item.quantity,
+            unit_price_cents: priceCents,
+            line_total_cents: item.quantity * priceCents,
+          };
+        });
+
+        const { error: itemsError } = await supabaseAdminForWebhook
+          .from("order_items")
+          .insert(orderItems);
+
+        if (itemsError) {
+          console.error("[STRIPE WEBHOOK] Errore inserimento order_items:", itemsError);
+        }
+      }
     }
 
     // Svuota il carrello dell'utente (DOPO aver salvato gli order_items)
@@ -333,9 +463,6 @@ app.use((req, res, next) => {
       path: req.path
     });
   });
-
-  // Serve static files (including images) in both development and production
-  app.use('/images', express.static('public/images'));
 
 
   // Endpoint per verificare l'autenticazione con credenziali specifiche

@@ -122,7 +122,7 @@ export default function CookieConsentBanner() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4 }}
                       >
-                        <Link href="/cookie-policy" className="inline-flex items-center gap-1 text-yellow-600 hover:text-yellow-700 text-sm font-medium mt-2 hover:underline transition-colors">
+                        <Link href="/cookie-policy" className="inline-flex items-center gap-1 text-amber-700 hover:text-amber-800 text-sm font-medium mt-2 hover:underline transition-colors">
                           <Info className="w-3 h-3" />
                           Scopri di più nella Cookie Policy
                         </Link>

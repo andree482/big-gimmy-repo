@@ -2,29 +2,47 @@
 <html lang="it">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Big Gimmy Integratori - Il tuo negozio di fiducia per integratori, proteine, aminoacidi e accessori fitness di qualità a Torino e in Valle d'Aosta. Scopri la nostra selezione di prodotti premium per potenziare le tue performance." />
     <title>Big Gimmy Integratori</title>
-     <link rel="icon" type="image/png" href="logo_off.png"/>
-    
+    <link rel="icon" type="image/png" href="logo_off.png"/>
+
     <!-- Preconnect per prestazioni migliori -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    
+
+    <!-- Preload font critici per ridurre CLS -->
+    <link rel="preload" href="https://fonts.gstatic.com/s/montserrat/v29/JTUSjIg1_i6t8kCHKm459WlhyyTh89Y.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="https://fonts.gstatic.com/s/opensans/v40/memvYaGs126MiZpBA-UvWbX2vVnXBbObj2OVTS-mu0SC55I.woff2" as="font" type="font/woff2" crossorigin>
+
     <!-- Font ottimizzati con display=swap -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- Resource hints per migliorare le prestazioni -->
+
+    <!-- Resource hints -->
     <link rel="dns-prefetch" href="//fonts.googleapis.com">
-    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+
+    <!-- Critical CSS inline per evitare FOUC sulla navbar -->
+    <style>
+      /* Critical CSS - caricato immediatamente per evitare layout shift */
+      body { margin: 0; background-color: #212121; }
+      #root { min-height: 100vh; display: flex; flex-direction: column; }
+      /* Placeholder per navbar mentre carica - evita CLS */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background-color: #212121;
+        min-height: 72px;
+        contain: layout style paint;
+      }
+      /* Font fallback per evitare FOUT */
+      .font-montserrat { font-family: Montserrat, -apple-system, BlinkMacSystemFont, sans-serif; }
+    </style>
+
     <script type="module" crossorigin src="/src/main.tsx"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-cZXTT5qN.css">
   </head>
   <body>
     <div id="root"></div>
-
-    <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
-    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
   </body>
 </html>

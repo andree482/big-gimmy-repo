@@ -8,18 +8,32 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ size = 90, className = "" }) => {
-  // Utilizziamo l'immagine con sfondo trasparente
+  // Calcola altezza fissa basata sul rapporto del logo (circa 0.5)
+  const height = Math.round(size * 0.5);
+
   return (
-    <div className={`flex items-center ${className}`}>
-      <img 
-        src={logoTransparentSrc} 
-        alt="Big Gimmy Logo" 
+    <div
+      className={`flex items-center ${className}`}
+      style={{
+        width: `${size}px`,
+        height: `${height}px`,
+        minWidth: `${size}px`,
+        minHeight: `${height}px`,
+      }}
+    >
+      <img
+        src={logoTransparentSrc}
+        alt="Big Gimmy Logo"
+        width={size}
+        height={height}
         style={{
           width: `${size}px`,
-          height: 'auto',
-          maxHeight: `${size * 0.6}px`
+          height: `${height}px`,
+          objectFit: 'contain',
         }}
-        className="object-contain"
+        loading="eager"
+        decoding="async"
+        fetchPriority="high"
       />
     </div>
   );

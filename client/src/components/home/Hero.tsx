@@ -1,6 +1,5 @@
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { AnimatedButton } from "@/components/animations/AnimatedCard";
 
 const DumbbellIcon = () => (
   <motion.div
@@ -153,14 +152,22 @@ const Hero = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 1.1 }}
         >
-          <AnimatedButton
-            className="bg-[#FFD100] hover:bg-yellow-500 text-[#212121] font-montserrat font-bold px-6 sm:px-8 py-3 rounded-md transition-all inline-block w-full sm:w-auto max-w-xs mx-auto"
-            variant="primary"
+          <motion.div
+            whileHover={{
+              scale: 1.05,
+              boxShadow: '0 10px 25px rgba(255, 209, 0, 0.3)',
+            }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="inline-block"
           >
-            <Link href="/prodotti">
+            <Link
+              href="/prodotti"
+              className="bg-[#FFD100] hover:bg-yellow-500 text-[#212121] font-montserrat font-bold px-6 sm:px-8 py-3 rounded-md transition-all inline-block w-full sm:w-auto max-w-xs mx-auto"
+            >
               Scopri i Prodotti
             </Link>
-          </AnimatedButton>
+          </motion.div>
         </motion.div>
       </div>
     </section>

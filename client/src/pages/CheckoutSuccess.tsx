@@ -1,14 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, useSearch } from "wouter";
 import { CheckCircle, Package, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useQueryClient } from "@tanstack/react-query";
+import { clearCart } from "@/services/cart";
 
 interface OrderDetails {
   id: string;
   total_cents: number;
   currency: string;
   created_at: string;
+  status?: string;
 }
 
 export default function CheckoutSuccess() {
@@ -17,6 +20,8 @@ export default function CheckoutSuccess() {
   const sessionId = params.get("session_id");
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const cartClearedRef = useRef(false);
 
   useEffect(() => {
     // Recupera dettagli ordine tramite session_id
@@ -25,9 +30,26 @@ export default function CheckoutSuccess() {
         credentials: "include",
       })
         .then((res) => res.json())
-        .then((data) => {
+        .then(async (data) => {
           if (data.success && data.order) {
             setOrderDetails(data.order);
+
+            // Rimuovi il flag di checkout in progress
+            sessionStorage.removeItem('checkout_in_progress');
+
+            // Svuota il carrello solo se l'ordine è stato pagato e non l'abbiamo già fatto
+            if (data.order.status === "pagato" && !cartClearedRef.current) {
+              cartClearedRef.current = true;
+              try {
+                await clearCart();
+                // Invalida le query del carrello per aggiornare l'UI
+                queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+                queryClient.invalidateQueries({ queryKey: ["cart"] });
+                console.log("[CHECKOUT SUCCESS] Carrello svuotato con successo");
+              } catch (error) {
+                console.error("[CHECKOUT SUCCESS] Errore svuotamento carrello:", error);
+              }
+            }
           }
         })
         .catch(console.error)
@@ -35,7 +57,7 @@ export default function CheckoutSuccess() {
     } else {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [sessionId, queryClient]);
 
   const formatPrice = (cents: number) => {
     return new Intl.NumberFormat("it-IT", {
@@ -88,7 +110,7 @@ export default function CheckoutSuccess() {
           )}
 
           <div className="space-y-3">
-            <Link href="/profilo">
+            <Link href="/ordini">
               <Button className="w-full" size="lg">
                 <Package className="w-5 h-5 mr-2" />
                 Vedi i tuoi ordini

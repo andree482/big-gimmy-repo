@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;600&display=swap');
+/* Font già caricati in index.html con preload per evitare CLS */
 @import './styles/snipcart-custom.css';
 
 @tailwind base;
@@ -28,14 +28,15 @@ body {
 .smooth-scroll {
   transform: translateZ(0);
   backface-visibility: hidden;
-  perspective: 1000px;
-  will-change: transform, background-color, backdrop-filter, padding;
-  transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+  will-change: transform;
+  contain: layout style;
 }
 
-/* Transizione specifica per la navbar quando cambia dimensione */
+/* Transizione specifica per la navbar - solo transform per evitare layout shift */
 .navbar-transition {
-  transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.25s ease,
+              box-shadow 0.25s ease !important;
 }
 
 .logo-transparent {
@@ -483,6 +484,39 @@ img.lazy-load.loaded {
   color: #000000 !important;
 }
 
+/* Form elements per alto contrasto chiaro */
+[data-vision="high-contrast-light"] input,
+[data-vision="high-contrast-light"] textarea,
+[data-vision="high-contrast-light"] select {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #000000 !important;
+  border-width: 2px !important;
+}
+
+[data-vision="high-contrast-light"] input::placeholder,
+[data-vision="high-contrast-light"] textarea::placeholder {
+  color: #666666 !important;
+}
+
+/* Dropdown, modali e popover per alto contrasto chiaro */
+[data-vision="high-contrast-light"] [role="dialog"],
+[data-vision="high-contrast-light"] [role="menu"],
+[data-vision="high-contrast-light"] [role="listbox"],
+[data-vision="high-contrast-light"] [data-radix-popper-content-wrapper] *,
+[data-vision="high-contrast-light"] [data-radix-menu-content] {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #000000 !important;
+}
+
+[data-vision="high-contrast-light"] [role="option"]:hover,
+[data-vision="high-contrast-light"] [role="menuitem"]:hover,
+[data-vision="high-contrast-light"] [data-highlighted] {
+  background-color: #e0e0e0 !important;
+  color: #000000 !important;
+}
+
 /* === ALTO CONTRASTO SCURO === */
 [data-vision="high-contrast-dark"] {
   --a11y-bg: #000000;
@@ -570,6 +604,57 @@ img.lazy-load.loaded {
 [data-vision="high-contrast-dark"] .card {
   background-color: #1a1a1a !important;
   border: 2px solid #ffffff !important;
+}
+
+/* Form elements per alto contrasto scuro */
+[data-vision="high-contrast-dark"] input,
+[data-vision="high-contrast-dark"] textarea,
+[data-vision="high-contrast-dark"] select {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+  border-width: 2px !important;
+}
+
+[data-vision="high-contrast-dark"] input::placeholder,
+[data-vision="high-contrast-dark"] textarea::placeholder {
+  color: #cccccc !important;
+}
+
+/* Dropdown, modali e popover per alto contrasto scuro */
+[data-vision="high-contrast-dark"] [role="dialog"],
+[data-vision="high-contrast-dark"] [role="menu"],
+[data-vision="high-contrast-dark"] [role="listbox"],
+[data-vision="high-contrast-dark"] [data-radix-popper-content-wrapper] *,
+[data-vision="high-contrast-dark"] [data-radix-menu-content] {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+[data-vision="high-contrast-dark"] [role="option"],
+[data-vision="high-contrast-dark"] [role="menuitem"] {
+  color: #ffffff !important;
+}
+
+[data-vision="high-contrast-dark"] [role="option"]:hover,
+[data-vision="high-contrast-dark"] [role="menuitem"]:hover,
+[data-vision="high-contrast-dark"] [data-highlighted] {
+  background-color: #333333 !important;
+  color: #FFD100 !important;
+}
+
+/* Bottoni per alto contrasto scuro */
+[data-vision="high-contrast-dark"] button:not(.bg-\[\#FFD100\]) {
+  border-color: #ffffff !important;
+}
+
+/* Header e footer per alto contrasto scuro */
+[data-vision="high-contrast-dark"] header,
+[data-vision="high-contrast-dark"] footer,
+[data-vision="high-contrast-dark"] nav {
+  background-color: #000000 !important;
+  border-color: #ffffff !important;
 }
 
 /* === STILI COMUNI PER TUTTE LE MODALITÀ === */

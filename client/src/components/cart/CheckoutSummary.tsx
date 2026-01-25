@@ -237,6 +237,8 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
               });
               const url = resp?.url;
               if (typeof url === "string" && url.length > 0) {
+                // Imposta flag per mostrare pop-up se l'utente torna senza completare
+                sessionStorage.setItem('checkout_in_progress', 'true');
                 window.location.href = url;
               } else {
                 toast({ title: "Checkout non disponibile", description: "Configurare Stripe lato server" });
