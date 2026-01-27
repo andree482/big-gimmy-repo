@@ -47,6 +47,7 @@ export default function SiteAccessGate({ children }: SiteAccessGateProps) {
             value={code}
             onChange={(e) => { setCode(e.target.value); setError(""); }}
             autoFocus
+            autoComplete="off"
             className="w-full p-3 border rounded mb-3 text-center"
           />
           {error && <p className="text-red-500 text-sm text-center mb-3">{error}</p>}

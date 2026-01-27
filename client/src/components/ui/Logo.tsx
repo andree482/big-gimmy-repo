@@ -33,7 +33,7 @@ const Logo: React.FC<LogoProps> = ({ size = 90, className = "" }) => {
         }}
         loading="eager"
         decoding="async"
-        fetchPriority="high"
+        fetchpriority="high"
       />
     </div>
   );

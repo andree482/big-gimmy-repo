@@ -396,9 +396,13 @@ var pool = new Pool({
   ssl: {
     rejectUnauthorized: false
   },
-  connectionTimeoutMillis: 8080,
-  max: 20,
-  idleTimeoutMillis: 3e4
+  connectionTimeoutMillis: 15e3,
+  // 15 secondi timeout
+  max: 10,
+  // Ridotto per evitare saturazione Supabase
+  idleTimeoutMillis: 3e4,
+  allowExitOnIdle: true
+  // Permette al pool di chiudere connessioni inutilizzate
 });
 pool.on("error", (err) => {
   console.error("Unexpected error on idle client", err);
@@ -776,18 +780,6 @@ var DatabaseStorage = class {
     `);
     const product = result.rows[0];
     if (!product) return void 0;
-    const availabilityResult = await db.execute(`
-      SELECT pa.is_available, pa.stock_quantity, s.name as store_name, s.id as store_id
-      FROM product_availability pa
-      JOIN stores s ON pa.store_id = s.id
-      WHERE pa.product_id = ${product.id}
-    `);
-    const availability = availabilityResult.rows.map((row) => ({
-      storeId: row.store_id,
-      storeName: row.store_name,
-      isAvailable: row.is_available,
-      stockQuantity: row.stock_quantity
-    }));
     console.log(`\u{1F50D} DEBUG: product.primaryimage = "${product.primaryimage}"`);
     const imageUrl = product.primaryimage ? product.primaryimage.startsWith("/images/") || product.primaryimage.startsWith("/attached_assets/") ? product.primaryimage : `/images/products/${product.primaryimage}` : void 0;
     const finalProduct = {
@@ -795,11 +787,10 @@ var DatabaseStorage = class {
       primaryImage: imageUrl,
       image_url: imageUrl,
       // Frontend cerca questo campo
-      availability
-      // Aggiungo i dati di availability dal database
+      availability: []
+      // Empty array since product_availability table doesn't exist yet
     };
     console.log(`\u{1F50D} DEBUG: finalProduct.primaryImage = "${finalProduct.primaryImage}"`);
-    console.log(`\u{1F50D} DEBUG: finalProduct.availability =`, availability);
     return finalProduct;
   }
   async getProductBySlugWithDetails(slug) {
@@ -1120,6 +1111,563 @@ var storage = new DatabaseStorage();
 // server/routes.ts
 import { z } from "zod";
 
+// server/services/email.ts
+import { Resend } from "resend";
+var ADMIN_EMAIL = "lucaandrea264@gmail.com";
+var FROM_EMAIL = "onboarding@resend.dev";
+var SIMULATION_MODE = false;
+var resend = null;
+if (!SIMULATION_MODE) {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn("ATTENZIONE: RESEND_API_KEY non impostata. Il sistema user\xE0 la simulazione forzata.");
+  } else {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+}
+async function sendAdminNotification(formData) {
+  const { name, email, phone, message } = formData;
+  if (SIMULATION_MODE || !resend) {
+    console.log("=== SIMULAZIONE ADMIN EMAIL ===", formData);
+    return true;
+  }
+  try {
+    const emailHTML = `
+      <!DOCTYPE html>
+      <html lang="it">
+      <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%); padding: 30px; text-align: center;">
+            <div style="font-size: 40px; margin-bottom: 10px;">\u{1F4EC}</div>
+            <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 700;">
+              Nuovo Messaggio dal Sito
+            </h1>
+          </div>
+
+          <!-- Content -->
+          <div style="padding: 30px;">
+
+            <!-- Contact Info -->
+            <div style="background: #f8f9fa; border-radius: 10px; padding: 20px; margin-bottom: 25px;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; color: #666; font-size: 13px; width: 100px;">\u{1F464} Nome</td>
+                  <td style="padding: 8px 0; color: #1a1a1a; font-size: 15px; font-weight: 600;">${name}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #666; font-size: 13px;">\u{1F4E7} Email</td>
+                  <td style="padding: 8px 0; color: #1a1a1a; font-size: 15px;">
+                    <a href="mailto:${email}" style="color: #1976d2; text-decoration: none;">${email}</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #666; font-size: 13px;">\u{1F4DE} Telefono</td>
+                  <td style="padding: 8px 0; color: #1a1a1a; font-size: 15px;">${phone || '<span style="color: #999;">Non fornito</span>'}</td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Message -->
+            <h3 style="color: #1a1a1a; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">
+              \u{1F4AC} Messaggio
+            </h3>
+            <div style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border-left: 4px solid #FFD100; padding: 20px; border-radius: 0 10px 10px 0;">
+              <p style="color: #333; font-size: 15px; line-height: 1.7; margin: 0; white-space: pre-wrap;">${message}</p>
+            </div>
+
+            <!-- Quick Reply Button -->
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="mailto:${email}?subject=Re: Richiesta dal sito Big Gimmy"
+                 style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 30px;
+                        text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 15px rgba(255,209,0,0.3);">
+                \u2709\uFE0F Rispondi a ${name}
+              </a>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="background: #1a1a1a; padding: 20px 30px; text-align: center;">
+            <p style="color: #666; font-size: 11px; margin: 0;">
+              \u{1F4C5} Ricevuto il ${(/* @__PURE__ */ new Date()).toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    const { error } = await resend.emails.send({
+      from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [ADMIN_EMAIL],
+      subject: `\u{1F4EC} Nuovo messaggio da ${name}`,
+      html: emailHTML
+    });
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error("Errore invio admin:", err);
+    return false;
+  }
+}
+async function sendUserConfirmation(formData) {
+  const { name, email } = formData;
+  if (SIMULATION_MODE || !resend) {
+    console.log("=== SIMULAZIONE USER CONFIRMATION ===", email);
+    return true;
+  }
+  try {
+    const { error } = await resend.emails.send({
+      from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [email],
+      subject: "Abbiamo ricevuto il tuo messaggio - Big Gimmy",
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); padding: 40px 30px; text-align: center;">
+              <h1 style="color: #1a1a1a; margin: 0; font-size: 26px; font-weight: 700;">
+                \u{1F3CB}\uFE0F Big Gimmy Integratori
+              </h1>
+            </div>
+
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+              <h2 style="color: #1a1a1a; margin: 0 0 20px 0; font-size: 22px;">
+                Ciao ${name}! \u{1F44B}
+              </h2>
+
+              <p style="color: #4a4a4a; font-size: 16px; line-height: 1.7; margin: 0 0 20px 0;">
+                Grazie per averci contattato! Abbiamo ricevuto il tuo messaggio e lo abbiamo preso in carico.
+              </p>
+
+              <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-left: 4px solid #FFD100; padding: 20px; border-radius: 0 8px 8px 0; margin: 25px 0;">
+                <p style="color: #1a1a1a; font-size: 15px; margin: 0; font-weight: 500;">
+                  \u23F0 Ti risponderemo entro <strong>24 ore lavorative</strong>
+                </p>
+              </div>
+
+              <p style="color: #4a4a4a; font-size: 16px; line-height: 1.7; margin: 20px 0 0 0;">
+                Nel frattempo, puoi continuare a esplorare il nostro catalogo di integratori premium!
+              </p>
+
+              <div style="text-align: center; margin: 35px 0 20px 0;">
+                <a href="https://biggimmyintegratori.com/products"
+                   style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 35px;
+                          text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 15px rgba(255,209,0,0.3);">
+                  Scopri i Prodotti
+                </a>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="background: #1a1a1a; padding: 25px 30px; text-align: center;">
+              <p style="color: #888; font-size: 13px; margin: 0 0 8px 0;">
+                \u{1F4AA} Il Team di Big Gimmy Integratori
+              </p>
+              <p style="color: #666; font-size: 11px; margin: 0;">
+                \xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} Big Gimmy Integratori - Tutti i diritti riservati
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    });
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error("Errore invio conferma utente:", err);
+    return false;
+  }
+}
+async function sendOrderConfirmationEmail(orderData) {
+  const { orderId, userEmail, userName, total, items, shippingAddress } = orderData;
+  console.log(`[EMAIL ORDER] Tentativo invio email ordine #${orderId} a ${userEmail}`);
+  console.log(`[EMAIL ORDER] Dati: userName=${userName}, total=${total}, items=${items?.length || 0}`);
+  if (SIMULATION_MODE) {
+    console.log("=== SIMULAZIONE ORDINE (SIMULATION_MODE=true) ===", orderId);
+    return true;
+  }
+  if (!resend) {
+    console.error("[EMAIL ORDER] ERRORE: Resend non inizializzato! Verifica RESEND_API_KEY in .env");
+    console.log("=== SIMULAZIONE ORDINE (resend=null) ===", orderId);
+    return true;
+  }
+  console.log(`[EMAIL ORDER] Resend configurato, invio a: ${userEmail}`);
+  try {
+    const itemsHTML = items.map((item) => `
+      <tr>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; color: #333;">${item.name}</td>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: center; color: #666;">${item.quantity}</td>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: right; color: #333; font-weight: 500;">\u20AC${(item.price / 100).toFixed(2)}</td>
+      </tr>
+    `).join("");
+    const shippingHTML = shippingAddress ? `
+      <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin-top: 25px;">
+        <h3 style="color: #1a1a1a; font-size: 16px; margin: 0 0 12px 0;">\u{1F4E6} Indirizzo di Spedizione</h3>
+        <p style="color: #4a4a4a; font-size: 14px; line-height: 1.6; margin: 0;">
+          ${shippingAddress.street}<br>
+          ${shippingAddress.postalCode} ${shippingAddress.city}${shippingAddress.province ? ` (${shippingAddress.province})` : ""}
+        </p>
+      </div>
+    ` : "";
+    const { error } = await resend.emails.send({
+      from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [userEmail],
+      subject: `\u2705 Ordine Confermato #${orderId.slice(-8).toUpperCase()}`,
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #2e7d32 0%, #388e3c 100%); padding: 40px 30px; text-align: center;">
+              <div style="font-size: 50px; margin-bottom: 15px;">\u2705</div>
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">
+                Ordine Confermato!
+              </h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">
+                Ordine #${orderId.slice(-8).toUpperCase()}
+              </p>
+            </div>
+
+            <!-- Content -->
+            <div style="padding: 35px 30px;">
+              <p style="color: #4a4a4a; font-size: 16px; line-height: 1.7; margin: 0 0 25px 0;">
+                Ciao <strong>${userName}</strong>, grazie per il tuo acquisto! Il tuo ordine \xE8 stato ricevuto ed \xE8 ora in fase di preparazione.
+              </p>
+
+              <!-- Order Items Table -->
+              <h3 style="color: #1a1a1a; font-size: 16px; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #FFD100;">
+                \u{1F6D2} Riepilogo Ordine
+              </h3>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                  <tr style="background: #f8f9fa;">
+                    <th style="padding: 12px 15px; text-align: left; color: #666; font-weight: 600; font-size: 13px;">PRODOTTO</th>
+                    <th style="padding: 12px 15px; text-align: center; color: #666; font-weight: 600; font-size: 13px;">QT\xC0</th>
+                    <th style="padding: 12px 15px; text-align: right; color: #666; font-weight: 600; font-size: 13px;">PREZZO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemsHTML}
+                </tbody>
+              </table>
+
+              <!-- Total -->
+              <div style="background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); border-radius: 8px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #1a1a1a; font-size: 16px; font-weight: 600;">Totale Pagato</span>
+                <span style="color: #1a1a1a; font-size: 22px; font-weight: 700;">\u20AC${(total / 100).toFixed(2)}</span>
+              </div>
+
+              ${shippingHTML}
+
+              <!-- Info Box -->
+              <div style="background: #e8f5e9; border-left: 4px solid #2e7d32; padding: 15px 20px; border-radius: 0 8px 8px 0; margin-top: 25px;">
+                <p style="color: #2e7d32; font-size: 14px; margin: 0;">
+                  \u{1F4E7} Riceverai un'email con il codice di tracciamento non appena il pacco sar\xE0 spedito.
+                </p>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="background: #1a1a1a; padding: 25px 30px; text-align: center;">
+              <p style="color: #FFD100; font-size: 14px; margin: 0 0 8px 0; font-weight: 600;">
+                \u{1F3CB}\uFE0F Big Gimmy Integratori
+              </p>
+              <p style="color: #888; font-size: 12px; margin: 0 0 10px 0;">
+                Grazie per aver scelto noi per i tuoi integratori!
+              </p>
+              <p style="color: #666; font-size: 11px; margin: 0;">
+                \xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} Big Gimmy Integratori - Tutti i diritti riservati
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    });
+    if (error) {
+      console.error(`[EMAIL ORDER] Resend ha restituito errore:`, error);
+      throw error;
+    }
+    console.log(`[EMAIL ORDER] \u2705 Email ordine #${orderId} inviata con successo a ${userEmail}`);
+    return true;
+  } catch (err) {
+    console.error(`[EMAIL ORDER] \u274C ERRORE invio email ordine #${orderId}:`, err?.message || err);
+    if (err?.message?.includes("testing emails")) {
+      console.error("[EMAIL ORDER] NOTA: Con onboarding@resend.dev puoi inviare solo a lucaandrea264@gmail.com");
+    }
+    return false;
+  }
+}
+async function sendWelcomeEmail(userData) {
+  const { email, firstName } = userData;
+  const displayName = firstName || email.split("@")[0];
+  console.log(`[EMAIL WELCOME] Tentativo invio welcome email a ${email} (nome: ${displayName})`);
+  if (SIMULATION_MODE) {
+    console.log("=== SIMULAZIONE WELCOME EMAIL (SIMULATION_MODE=true) ===", { email, firstName });
+    return true;
+  }
+  if (!resend) {
+    console.error("[EMAIL WELCOME] ERRORE: Resend non inizializzato! Verifica RESEND_API_KEY in .env");
+    console.log("=== SIMULAZIONE WELCOME EMAIL (resend=null) ===", { email, firstName });
+    return true;
+  }
+  console.log(`[EMAIL WELCOME] Resend configurato, invio a: ${email}`);
+  try {
+    const { error } = await resend.emails.send({
+      from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [email],
+      subject: "Benvenuto in Big Gimmy! \u{1F4AA}",
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: sans-serif; background-color: #f8f9fa; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(135deg, #FFD100 0%, #E6BC00 100%); padding: 30px; text-align: center;">
+              <h1 style="color: #212121; margin: 0; font-size: 28px;">\u{1F3CB}\uFE0F Big Gimmy Integratori</h1>
+            </div>
+            <div style="padding: 30px;">
+              <h2 style="color: #212121; margin-top: 0;">Ciao ${displayName}! \u{1F44B}</h2>
+              <p style="color: #555; font-size: 16px; line-height: 1.6;">
+                Benvenuto nella famiglia Big Gimmy! Siamo felici di averti con noi.
+              </p>
+              <p style="color: #555; font-size: 16px; line-height: 1.6;">
+                Il tuo account \xE8 stato creato con successo. Ora puoi:
+              </p>
+              <ul style="color: #555; font-size: 16px; line-height: 1.8;">
+                <li>Sfogliare il nostro catalogo di integratori premium</li>
+                <li>Aggiungere prodotti al carrello e completare ordini</li>
+                <li>Seguire lo stato delle tue spedizioni</li>
+                <li>Salvare i tuoi indirizzi per checkout pi\xF9 veloci</li>
+              </ul>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="https://biggimmyintegratori.com/products"
+                   style="display: inline-block; background: #FFD100; color: #212121; padding: 15px 30px;
+                          text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                  Scopri i Nostri Prodotti
+                </a>
+              </div>
+              <p style="color: #888; font-size: 14px; margin-top: 30px;">
+                Hai domande? Rispondi a questa email o contattaci attraverso il sito.
+              </p>
+            </div>
+            <div style="background: #f3f3f3; padding: 20px; text-align: center;">
+              <p style="color: #888; font-size: 12px; margin: 0;">
+                \xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} Big Gimmy Integratori - Tutti i diritti riservati
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    });
+    if (error) {
+      console.error(`[EMAIL WELCOME] Resend ha restituito errore:`, error);
+      throw error;
+    }
+    console.log(`[EMAIL WELCOME] \u2705 Welcome email inviata con successo a ${email}`);
+    return true;
+  } catch (err) {
+    console.error(`[EMAIL WELCOME] \u274C ERRORE invio welcome email a ${email}:`, err?.message || err);
+    if (err?.message?.includes("testing emails")) {
+      console.error("[EMAIL WELCOME] NOTA: Con onboarding@resend.dev puoi inviare solo a lucaandrea264@gmail.com");
+    }
+    return false;
+  }
+}
+async function sendTrackingEmail(trackingData) {
+  const { orderId, userEmail, userName, trackingNumber, carrier, trackingUrl } = trackingData;
+  if (SIMULATION_MODE || !resend) {
+    console.log("=== SIMULAZIONE EMAIL TRACKING ===", { orderId, trackingNumber });
+    return true;
+  }
+  try {
+    const { error } = await resend.emails.send({
+      from: `Spedizioni Big Gimmy <${FROM_EMAIL}>`,
+      to: [userEmail],
+      subject: `\u{1F69A} Il tuo ordine #${orderId.slice(-8).toUpperCase()} \xE8 in viaggio!`,
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%); padding: 40px 30px; text-align: center;">
+              <div style="font-size: 50px; margin-bottom: 15px;">\u{1F69A}</div>
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">
+                Il tuo pacco \xE8 in viaggio!
+              </h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">
+                Ordine #${orderId.slice(-8).toUpperCase()}
+              </p>
+            </div>
+
+            <!-- Content -->
+            <div style="padding: 35px 30px;">
+              <p style="color: #4a4a4a; font-size: 16px; line-height: 1.7; margin: 0 0 25px 0;">
+                Ottime notizie <strong>${userName}</strong>! Il tuo ordine \xE8 stato spedito e sta arrivando da te.
+              </p>
+
+              <!-- Tracking Box -->
+              <div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 12px; padding: 25px; margin-bottom: 25px;">
+                <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                  <span style="font-size: 24px; margin-right: 12px;">\u{1F4E6}</span>
+                  <div>
+                    <p style="color: #666; font-size: 12px; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Corriere</p>
+                    <p style="color: #1a1a1a; font-size: 18px; margin: 4px 0 0 0; font-weight: 600;">${carrier}</p>
+                  </div>
+                </div>
+
+                <div style="background: #ffffff; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                  <p style="color: #666; font-size: 12px; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 0.5px;">Codice Tracking</p>
+                  <p style="color: #1a1a1a; font-size: 20px; margin: 0; font-weight: 700; font-family: monospace; letter-spacing: 1px;">${trackingNumber}</p>
+                </div>
+
+                ${trackingUrl ? `
+                <a href="${trackingUrl}"
+                   style="display: block; background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%); color: #ffffff; padding: 14px 25px;
+                          text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; text-align: center;
+                          box-shadow: 0 4px 15px rgba(25,118,210,0.3);">
+                  \u{1F4CD} Traccia la Spedizione
+                </a>
+                ` : ""}
+              </div>
+
+              <!-- Info -->
+              <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 15px 20px; border-radius: 0 8px 8px 0;">
+                <p style="color: #e65100; font-size: 14px; margin: 0;">
+                  \u{1F4A1} <strong>Consiglio:</strong> Salva il codice tracking per monitorare la consegna in tempo reale.
+                </p>
+              </div>
+
+              <p style="color: #4a4a4a; font-size: 16px; line-height: 1.7; margin: 25px 0 0 0; text-align: center;">
+                Preparati ad allenarti forte! \u{1F4AA}
+              </p>
+            </div>
+
+            <!-- Footer -->
+            <div style="background: #1a1a1a; padding: 25px 30px; text-align: center;">
+              <p style="color: #FFD100; font-size: 14px; margin: 0 0 8px 0; font-weight: 600;">
+                \u{1F3CB}\uFE0F Big Gimmy Integratori
+              </p>
+              <p style="color: #888; font-size: 12px; margin: 0 0 10px 0;">
+                Hai domande sulla spedizione? Contattaci!
+              </p>
+              <p style="color: #666; font-size: 11px; margin: 0;">
+                \xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} Big Gimmy Integratori - Tutti i diritti riservati
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    });
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    console.error("Errore invio email tracking:", err);
+    return false;
+  }
+}
+async function sendPasswordChangedEmail(userData) {
+  const { email, firstName } = userData;
+  const displayName = firstName || "utente";
+  console.log(`[EMAIL PASSWORD] Tentativo invio conferma cambio password a ${email}`);
+  if (SIMULATION_MODE) {
+    console.log("=== SIMULAZIONE PASSWORD CHANGED EMAIL (SIMULATION_MODE=true) ===", { email });
+    return true;
+  }
+  if (!resend) {
+    console.error("[EMAIL PASSWORD] ERRORE: Resend non inizializzato! Verifica RESEND_API_KEY in .env");
+    console.log("=== SIMULAZIONE PASSWORD CHANGED EMAIL (resend=null) ===", { email });
+    return true;
+  }
+  try {
+    const { error } = await resend.emails.send({
+      from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [email],
+      subject: "La tua password \xE8 stata modificata",
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #2e7d32 0%, #388e3c 100%); padding: 40px 30px; text-align: center;">
+              <div style="font-size: 50px; margin-bottom: 15px;">\u2705</div>
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">
+                Password Modificata
+              </h1>
+            </div>
+
+            <!-- Content -->
+            <div style="padding: 40px 30px;">
+              <h2 style="color: #1a1a1a; margin: 0 0 20px 0; font-size: 20px;">
+                Ciao ${displayName}!
+              </h2>
+
+              <p style="color: #4a4a4a; font-size: 16px; line-height: 1.7; margin: 0 0 20px 0;">
+                Ti confermiamo che la password del tuo account <strong>${email}</strong> \xE8 stata modificata con successo.
+              </p>
+
+              <div style="background: #e8f5e9; border-left: 4px solid #2e7d32; padding: 15px 20px; border-radius: 0 8px 8px 0; margin: 25px 0;">
+                <p style="color: #2e7d32; font-size: 14px; margin: 0;">
+                  \u{1F512} Il tuo account \xE8 al sicuro con la nuova password.
+                </p>
+              </div>
+
+              <div style="background: #ffebee; border-left: 4px solid #c62828; padding: 15px 20px; border-radius: 0 8px 8px 0;">
+                <p style="color: #c62828; font-size: 14px; margin: 0;">
+                  \u26A0\uFE0F <strong>Non sei stato tu?</strong> Contattaci immediatamente rispondendo a questa email o scrivendo a supporto@biggimmyintegratori.com
+                </p>
+              </div>
+
+              <div style="text-align: center; margin-top: 35px;">
+                <a href="https://biggimmyintegratori.com"
+                   style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 35px;
+                          text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 15px rgba(255,209,0,0.3);">
+                  Vai al Sito
+                </a>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="background: #1a1a1a; padding: 25px 30px; text-align: center;">
+              <p style="color: #FFD100; font-size: 14px; margin: 0 0 8px 0; font-weight: 600;">
+                \u{1F3CB}\uFE0F Big Gimmy Integratori
+              </p>
+              <p style="color: #666; font-size: 11px; margin: 0;">
+                \xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} Big Gimmy Integratori - Tutti i diritti riservati
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    });
+    if (error) {
+      console.error(`[EMAIL PASSWORD] Resend ha restituito errore:`, error);
+      throw error;
+    }
+    console.log(`[EMAIL PASSWORD] \u2705 Conferma cambio password inviata a ${email}`);
+    return true;
+  } catch (err) {
+    console.error(`[EMAIL PASSWORD] \u274C ERRORE invio email a ${email}:`, err?.message || err);
+    if (err?.message?.includes("testing emails")) {
+      console.error("[EMAIL PASSWORD] NOTA: Con onboarding@resend.dev puoi inviare solo a lucaandrea264@gmail.com");
+    }
+    return false;
+  }
+}
+
 // server/utils/imageSync.ts
 import { promises as fs } from "fs";
 import path from "path";
@@ -1169,10 +1717,29 @@ import Stripe from "stripe";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 var supabaseAdmin = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY ? createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY) : null;
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString("hex");
-  const buf = crypto.scryptSync(password, salt, 64);
-  return `scrypt:${salt}:${buf.toString("hex")}`;
+async function updateExpiredPendingOrders() {
+  if (!supabaseAdmin) return 0;
+  try {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1e3).toISOString();
+    const { data: expiredOrders, error: selectError } = await supabaseAdmin.from("orders").select("id").eq("status", "in_attesa_di_pagamento").lt("created_at", tenMinutesAgo);
+    if (selectError || !expiredOrders || expiredOrders.length === 0) {
+      return 0;
+    }
+    const expiredIds = expiredOrders.map((o) => o.id);
+    const { error: updateError } = await supabaseAdmin.from("orders").update({
+      status: "fallito",
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    }).in("id", expiredIds);
+    if (updateError) {
+      console.error("[ORDERS] Errore aggiornamento ordini scaduti:", updateError);
+      return 0;
+    }
+    console.log(`[ORDERS] ${expiredIds.length} ordini scaduti aggiornati a 'fallito'`);
+    return expiredIds.length;
+  } catch (error) {
+    console.error("[ORDERS] Errore in updateExpiredPendingOrders:", error);
+    return 0;
+  }
 }
 function verifyPassword(password, stored) {
   if (typeof stored !== "string") return false;
@@ -1642,6 +2209,38 @@ async function registerRoutes(app2) {
       return res.json({ success: true, message: "Logout effettuato con successo" });
     });
   });
+  app2.delete("/api/auth/account", ensureAuth, async (req, res) => {
+    try {
+      const { password } = req.body;
+      const userId = req.userId || req.session?.user?.id;
+      const userEmail = req.userEmail || req.session?.user?.email;
+      if (!userId || !userEmail) {
+        return res.status(401).json({ success: false, message: "Utente non autenticato" });
+      }
+      if (!password) {
+        return res.status(400).json({ success: false, message: "Password richiesta per confermare l'eliminazione" });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+      await supabaseAdmin.from("user_addresses").delete().eq("user_id", userId);
+      await supabaseAdmin.from("orders").update({ user_id: null }).eq("user_id", userId);
+      await supabaseAdmin.from("users").delete().eq("id", userId);
+      const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+      if (authError) {
+        console.error("[AUTH] Errore eliminazione utente Supabase Auth:", authError);
+      }
+      req.session.destroy((err) => {
+        if (err) console.error("[AUTH] Errore distruzione sessione:", err);
+      });
+      res.clearCookie("biggimmy-session", { path: "/" });
+      console.log(`[AUTH] Account eliminato: ${userEmail} (ID: ${userId})`);
+      return res.json({ success: true, message: "Account eliminato con successo" });
+    } catch (err) {
+      console.error("[AUTH] Errore eliminazione account:", err);
+      return res.status(500).json({ success: false, message: "Errore durante l'eliminazione dell'account" });
+    }
+  });
   app2.get("/api/auth/diagnostics", async (req, res) => {
     try {
       const tokenAuth = await getAuthFromToken(req);
@@ -1847,12 +2446,17 @@ async function registerRoutes(app2) {
         let dbPhone = user.phone;
         if (supabaseAdmin && user.id) {
           try {
-            const dbUser = await supabaseAdmin.from("users").select("is_admin,first_name,last_name,phone").eq("id", user.id).maybeSingle();
+            const dbUser = await supabaseAdmin.from("users").select("is_admin,first_name,last_name,phone,address,city,postal_code,province,country").eq("id", user.id).maybeSingle();
             if (dbUser?.data) {
               dbIsAdmin = !!dbUser.data.is_admin;
               dbFirstName = dbUser.data.first_name;
               dbLastName = dbUser.data.last_name;
               dbPhone = dbUser.data.phone;
+              user.address = dbUser.data.address || user.address;
+              user.city = dbUser.data.city || user.city;
+              user.postalCode = dbUser.data.postal_code || user.postalCode;
+              user.province = dbUser.data.province || user.province;
+              user.country = dbUser.data.country || user.country;
               console.log(`[AUTH] /me - DB refresh: isAdmin=${dbIsAdmin}, firstName=${dbFirstName}, lastName=${dbLastName}`);
             }
           } catch (e) {
@@ -2202,6 +2806,18 @@ async function registerRoutes(app2) {
   app2.post("/api/auth/register", async (req, res) => {
     try {
       const { email, password, firstName, lastName, phone, address, city, postalCode, province, country } = req.body || {};
+      console.log("[AUTH REGISTER] Dati ricevuti:", {
+        email,
+        firstName,
+        lastName,
+        phone,
+        address,
+        city,
+        postalCode,
+        province,
+        country,
+        hasPassword: !!password
+      });
       if (!email || !password) {
         return res.status(400).json({ success: false, message: "Email e password sono obbligatori" });
       }
@@ -2209,20 +2825,45 @@ async function registerRoutes(app2) {
       const passOk = typeof password === "string" && password.length >= 6;
       const firstOk = !firstName || typeof firstName === "string" && firstName.trim().length >= 2;
       const lastOk = !lastName || typeof lastName === "string" && lastName.trim().length >= 2;
-      const phoneOk = !phone || typeof phone === "string" && /^(\+?\d{1,3}\s?)?(\d[\s-]?){6,}$/.test(phone);
+      const phoneOk = !phone || typeof phone === "string" && /^[\d\s\-\+\(\)\.]{6,20}$/.test(phone);
       const addrOk = !address || typeof address === "string" && address.trim().length >= 2;
       const cityOk = !city || typeof city === "string" && city.trim().length >= 2;
       const capOk = !postalCode || typeof postalCode === "string" && /^\d{5}$/.test(postalCode);
-      const provOk = !province || typeof province === "string" && /^[A-Z]{2}$/.test(province);
-      if (!emailOk || !passOk || !firstOk || !lastOk || !phoneOk || !addrOk || !cityOk || !capOk || !provOk) {
-        return res.status(400).json({ success: false, message: "Dati non validi" });
+      const provOk = !province || typeof province === "string" && /^[A-Z]{2}$/i.test(province);
+      const errors = [];
+      if (!emailOk) errors.push("Email non valida");
+      if (!passOk) errors.push("Password deve essere almeno 6 caratteri");
+      if (!firstOk) errors.push("Nome deve essere almeno 2 caratteri");
+      if (!lastOk) errors.push("Cognome deve essere almeno 2 caratteri");
+      if (!phoneOk) errors.push("Numero di telefono non valido");
+      if (!addrOk) errors.push("Indirizzo deve essere almeno 2 caratteri");
+      if (!cityOk) errors.push("Citt\xE0 deve essere almeno 2 caratteri");
+      if (!capOk) errors.push("CAP deve essere di 5 cifre");
+      if (!provOk) errors.push("Provincia deve essere di 2 lettere");
+      if (errors.length > 0) {
+        console.log("[AUTH] Validazione fallita:", errors);
+        return res.status(400).json({ success: false, message: errors.join(", ") });
       }
       const client = supabaseAdmin || (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY ? createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY) : null);
       const now = (/* @__PURE__ */ new Date()).toISOString();
-      let userId = crypto.randomUUID();
+      let userId = null;
       let persisted = false;
-      if (supabaseAnon) {
+      let isNewUser = false;
+      if (client) {
         try {
+          const { data: existingUser } = await client.from("users").select("id").eq("email", email).limit(1).maybeSingle();
+          if (existingUser?.id) {
+            userId = String(existingUser.id);
+            persisted = true;
+            console.log("[AUTH REGISTER] Utente gi\xE0 esistente (creato da frontend signUp), userId:", userId);
+          }
+        } catch (e) {
+          console.warn("[AUTH REGISTER] Errore ricerca utente esistente:", e);
+        }
+      }
+      if (!userId && supabaseAnon) {
+        try {
+          console.log("[AUTH REGISTER] Utente non trovato, eseguo signUp...");
           const { data, error } = await supabaseAnon.auth.signUp({
             email,
             password,
@@ -2230,87 +2871,70 @@ async function registerRoutes(app2) {
               data: {
                 first_name: firstName,
                 last_name: lastName,
-                phone,
-                address,
-                city,
-                postal_code: postalCode,
-                province,
-                country
+                phone
               }
             }
           });
-          if (!error && data?.user?.id) {
+          if (data?.user?.id) {
             userId = String(data.user.id);
-            if (supabaseAdmin) {
-              try {
-                await supabaseAdmin.auth.admin.updateUserById(userId, { email_confirmed_at: (/* @__PURE__ */ new Date()).toISOString() });
-              } catch {
-              }
-            }
+            console.log("[AUTH REGISTER] Supabase Auth signUp completato, userId:", userId);
+            persisted = true;
+            isNewUser = true;
+          }
+          if (error && !userId) {
+            console.error("[AUTH REGISTER] Supabase Auth signUp errore:", error);
+            return res.status(400).json({ success: false, message: error.message || "Errore durante la registrazione" });
           }
         } catch (e) {
-          console.warn("[AUTH] Supabase Auth signUp fallito:", e);
+          console.error("[AUTH] Supabase Auth signUp exception:", e);
+          return res.status(500).json({ success: false, message: "Errore durante la registrazione" });
         }
       }
-      if (client) {
+      if (!userId) {
+        console.error("[AUTH REGISTER] userId non disponibile");
+        return res.status(500).json({ success: false, message: "Errore durante la registrazione" });
+      }
+      if (client && persisted) {
         try {
-          const existing = await client.from("users").select("id,email").eq("email", email).limit(1).maybeSingle();
-          if (existing?.data?.id) {
-            userId = String(existing.data.id);
-            const { error } = await client.from("users").update({
-              password: hashPassword(password),
-              first_name: firstName,
-              last_name: lastName,
-              phone,
-              address,
-              city,
-              postal_code: postalCode,
-              province,
-              country,
-              updated_at: now
-            }).eq("id", userId);
-            if (!error) persisted = true;
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          console.log("[AUTH REGISTER] Aggiornamento users per userId:", userId);
+          const { error } = await client.from("users").update({
+            first_name: firstName,
+            last_name: lastName,
+            phone,
+            updated_at: now
+          }).eq("id", userId);
+          if (error) {
+            console.warn("[AUTH REGISTER] UPDATE su users fallito (non critico):", error);
           } else {
-            const { error } = await client.from("users").insert({
-              id: userId,
-              email,
-              password: hashPassword(password),
-              first_name: firstName,
-              last_name: lastName,
-              phone,
-              address,
-              city,
-              postal_code: postalCode,
-              province,
-              country,
-              created_at: now,
-              updated_at: now,
-              is_admin: false
-            });
-            if (!error) persisted = true;
-            else {
-              console.warn("[AUTH] Insert su 'users' fallito, ritento su 'users_backup'");
-              const { error: err2 } = await client.from("users_backup").insert({
-                id: userId,
-                email,
-                password: hashPassword(password),
-                first_name: firstName,
-                last_name: lastName,
-                phone,
-                address,
-                city,
-                postal_code: postalCode,
-                province,
-                country,
-                created_at: now,
-                updated_at: now,
-                is_admin: false
-              });
-              if (!err2) persisted = true;
-            }
+            console.log("[AUTH REGISTER] UPDATE su users riuscito per:", { email, firstName, lastName, phone });
           }
         } catch (e) {
-          console.error("[AUTH] Registrazione DB errore:", e);
+          console.warn("[AUTH] Aggiornamento users errore (non critico):", e);
+        }
+        if (persisted && address && city && postalCode) {
+          try {
+            const { error: addrError } = await client.from("user_addresses").insert({
+              user_id: userId,
+              street: address,
+              city,
+              cap: postalCode,
+              province,
+              country: country || "Italia",
+              is_default: true,
+              first_name: firstName,
+              last_name: lastName
+            });
+            if (addrError) {
+              console.error("[AUTH] Errore INSERT user_addresses:", addrError);
+            } else {
+              console.log("[AUTH] Indirizzo default creato durante la registrazione per utente:", userId);
+            }
+          } catch (addrErr) {
+            console.error("[AUTH] Exception creazione indirizzo default durante registrazione:", addrErr);
+          }
+        } else {
+          console.log("[AUTH] Indirizzo non creato:", { persisted, hasAddress: !!address, hasCity: !!city, hasPostalCode: !!postalCode });
         }
       }
       if (req.session) {
@@ -2337,17 +2961,176 @@ async function registerRoutes(app2) {
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
+  app2.post("/api/auth/send-welcome", async (req, res) => {
+    console.log("[AUTH] /api/auth/send-welcome chiamato");
+    try {
+      const authData = await getAuthFromToken(req);
+      console.log("[AUTH] send-welcome authData:", authData ? `id=${authData.id}, email=${authData.email}` : "NULL");
+      if (!authData) {
+        console.warn("[AUTH] send-welcome: Token non valido o mancante");
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const userId = authData.id;
+      const client = supabaseAdmin;
+      if (!client) {
+        console.error("[AUTH] send-welcome: supabaseAdmin non configurato");
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+      const { data: userData, error } = await client.from("users").select("email, first_name").eq("id", userId).single();
+      console.log("[AUTH] send-welcome userData:", userData ? `email=${userData.email}` : "NULL", error ? `errore: ${error.message}` : "");
+      if (error || !userData?.email) {
+        console.error("[AUTH] Errore recupero utente per welcome email:", error);
+        return res.status(404).json({ success: false, message: "Utente non trovato" });
+      }
+      console.log(`[AUTH] send-welcome: Invio email a ${userData.email}...`);
+      const sent = await sendWelcomeEmail({
+        email: userData.email,
+        firstName: userData.first_name
+      });
+      if (sent) {
+        console.log(`[AUTH] \u2705 Welcome email inviata a ${userData.email} dopo verifica`);
+        return res.json({ success: true, message: "Email di benvenuto inviata" });
+      } else {
+        console.error(`[AUTH] \u274C Invio welcome email fallito per ${userData.email}`);
+        return res.status(500).json({ success: false, message: "Errore invio email" });
+      }
+    } catch (err) {
+      console.error("[AUTH] Errore endpoint send-welcome:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  app2.post("/api/auth/password-changed", async (req, res) => {
+    console.log("[AUTH] /api/auth/password-changed chiamato");
+    try {
+      const authData = await getAuthFromToken(req);
+      console.log("[AUTH] password-changed authData:", authData ? `id=${authData.id}, email=${authData.email}` : "NULL");
+      if (!authData) {
+        console.warn("[AUTH] password-changed: Token non valido o mancante");
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const userId = authData.id;
+      const client = supabaseAdmin;
+      if (!client) {
+        console.error("[AUTH] password-changed: supabaseAdmin non configurato");
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+      const { data: userData, error } = await client.from("users").select("email, first_name").eq("id", userId).single();
+      console.log("[AUTH] password-changed userData:", userData ? `email=${userData.email}` : "NULL", error ? `errore: ${error.message}` : "");
+      if (error || !userData?.email) {
+        console.error("[AUTH] Errore recupero utente per password-changed email:", error);
+        return res.status(404).json({ success: false, message: "Utente non trovato" });
+      }
+      console.log(`[AUTH] password-changed: Invio email a ${userData.email}...`);
+      const sent = await sendPasswordChangedEmail({
+        email: userData.email,
+        firstName: userData.first_name
+      });
+      if (sent) {
+        console.log(`[AUTH] \u2705 Password changed email inviata a ${userData.email}`);
+        return res.json({ success: true, message: "Email di conferma inviata" });
+      } else {
+        console.error(`[AUTH] \u274C Invio password changed email fallito per ${userData.email}`);
+        return res.status(500).json({ success: false, message: "Errore invio email" });
+      }
+    } catch (err) {
+      console.error("[AUTH] Errore endpoint password-changed:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
   app2.get("/api/admin/orders", ensureAuth, ensureAdmin, async (req, res) => {
     try {
       if (!supabaseAdmin) {
         return res.status(500).json({ success: false, message: "Database non configurato" });
       }
-      const { data: orders, error } = await supabaseAdmin.from("orders").select("*").order("created_at", { ascending: false });
+      await updateExpiredPendingOrders();
+      const { data: orders, error } = await supabaseAdmin.from("orders").select(`
+          id,
+          user_id,
+          shipping_address_id,
+          status,
+          currency,
+          total_cents,
+          stripe_session_id,
+          notes,
+          created_at,
+          updated_at,
+          tracking_number,
+          carrier,
+          users:user_id (email)
+        `).order("created_at", { ascending: false });
       if (error) {
         console.error("[ADMIN] Errore lettura orders:", error);
         return res.status(500).json({ success: false, message: "Errore lettura ordini" });
       }
-      return res.json(orders || []);
+      const ordersWithItems = await Promise.all(
+        (orders || []).map(async (order) => {
+          const { data: items } = await supabaseAdmin.from("order_items").select(`
+              id,
+              quantity,
+              unit_price_cents,
+              line_total_cents,
+              product_option:product_option_id (
+                id,
+                flavor,
+                size,
+                image,
+                product:product_id (
+                  name
+                )
+              )
+            `).eq("order_id", order.id);
+          let shippingAddress = null;
+          if (order.shipping_address_id) {
+            const { data: addr } = await supabaseAdmin.from("user_addresses").select("id, first_name, last_name, street, city, cap, province, country").eq("id", order.shipping_address_id).single();
+            if (addr) {
+              shippingAddress = {
+                firstName: addr.first_name,
+                lastName: addr.last_name,
+                address: addr.street,
+                city: addr.city,
+                postalCode: addr.cap,
+                province: addr.province,
+                country: addr.country
+              };
+            }
+          }
+          const formattedItems = await Promise.all((items || []).map(async (item) => {
+            let image = item.product_option?.image || null;
+            if (!image && item.product_option?.id) {
+              const { data: poData } = await supabaseAdmin.from("product_options").select("product_id").eq("id", item.product_option.id).single();
+              if (poData?.product_id) {
+                const { data: productImage } = await supabaseAdmin.from("product_images").select("src").eq("product_id", poData.product_id).eq("is_primary", true).single();
+                if (productImage?.src) {
+                  image = productImage.src.startsWith("/images/") || productImage.src.startsWith("/attached_assets/") ? productImage.src : `/images/products/${productImage.src}`;
+                }
+              }
+            }
+            return {
+              id: item.id,
+              quantity: item.quantity,
+              price: item.unit_price_cents,
+              name: item.product_option?.product?.name ? `${item.product_option.product.name}${item.product_option.flavor ? ` - ${item.product_option.flavor}` : ""}${item.product_option.size ? ` (${item.product_option.size})` : ""}` : "Prodotto",
+              image
+            };
+          }));
+          return {
+            id: order.id,
+            user_id: order.user_id,
+            snipcart_order_id: order.id,
+            total: order.total_cents,
+            status: order.status,
+            items: formattedItems,
+            shipping_address: shippingAddress,
+            notes: order.notes || null,
+            created_at: order.created_at,
+            updated_at: order.updated_at,
+            user_email: order.users?.email || null,
+            tracking_number: order.tracking_number || null,
+            carrier: order.carrier || null
+          };
+        })
+      );
+      return res.json(ordersWithItems);
     } catch (err) {
       console.error("[ADMIN] Errore endpoint /api/admin/orders:", err);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
@@ -2358,7 +3141,7 @@ async function registerRoutes(app2) {
       if (!supabaseAdmin) {
         return res.status(500).json({ success: false, message: "Database non configurato" });
       }
-      const { data: users2, error } = await supabaseAdmin.from("users").select("id,email,first_name,last_name,is_admin,created_at,updated_at").order("created_at", { ascending: false });
+      const { data: users2, error } = await supabaseAdmin.from("users").select("id,email,first_name,last_name,phone,is_admin,created_at,updated_at").order("created_at", { ascending: false });
       if (error) {
         console.error("[ADMIN] Errore lettura users:", error);
         return res.status(500).json({ success: false, message: "Errore lettura utenti" });
@@ -2368,6 +3151,7 @@ async function registerRoutes(app2) {
         email: u.email,
         firstName: u.first_name,
         lastName: u.last_name,
+        phone: u.phone || null,
         isAdmin: !!u.is_admin,
         createdAt: u.created_at,
         updatedAt: u.updated_at
@@ -2378,15 +3162,23 @@ async function registerRoutes(app2) {
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
-  app2.get("/api/contacts", async (req, res) => {
+  app2.post("/api/contact", async (req, res) => {
     try {
-      const contacts2 = await storage.getContacts();
-      return res.status(200).json({ contacts: contacts2 });
+      const formData = req.body;
+      const newContact = await storage.createContact(formData);
+      const adminEmailPromise = sendAdminNotification(formData);
+      const userEmailPromise = sendUserConfirmation(formData);
+      await Promise.all([adminEmailPromise, userEmailPromise]);
+      return res.status(201).json({
+        success: true,
+        message: "Messaggio inviato e salvato con successo!",
+        contact: newContact
+      });
     } catch (error) {
-      console.error("Error fetching contacts:", error);
+      console.error("Error in contact form:", error);
       return res.status(500).json({
         success: false,
-        message: "Server error while fetching contacts"
+        message: "Errore durante l'invio del messaggio"
       });
     }
   });
@@ -2811,18 +3603,30 @@ async function registerRoutes(app2) {
                 description,
                 brand_id,
                 category_id,
-                product_images!product_images_product_id_fkey(src, is_primary)
+                brands!products_brand_id_fkey(name, slug),
+                product_categories!products_category_id_fkey(name, slug),
+                product_images!product_images_product_id_fkey(src, is_primary),
+                product_options!product_options_product_id_fkey(price_cents)
               `).in("id", ids);
             if (!prodErr) {
               const favorites = (prods || []).map((p) => {
                 const primaryImg = p.product_images?.find((img) => img.is_primary)?.src;
                 const firstImg = p.product_images?.[0]?.src;
+                const rawImage = primaryImg || firstImg || null;
+                const prices = (p.product_options || []).map((opt) => opt.price_cents).filter((price) => price > 0);
+                const minPriceCents = prices.length > 0 ? Math.min(...prices) : null;
+                const processedImage = rawImage ? rawImage.startsWith("/images/") || rawImage.startsWith("/attached_assets/") ? rawImage : `/images/products/${rawImage}` : void 0;
                 return {
                   id: p.id,
                   slug: p.slug,
                   name: p.name,
                   description: p.description,
-                  primary_image: primaryImg || firstImg || null
+                  primaryImage: processedImage,
+                  // Usa primaryImage come searchProducts
+                  brand_name: p.brands?.name || null,
+                  brand_slug: p.brands?.slug || null,
+                  category_slug: p.product_categories?.slug || null,
+                  min_price_cents: minPriceCents
                 };
               });
               return res.json({ success: true, favorites });
@@ -2954,13 +3758,13 @@ async function registerRoutes(app2) {
         });
         const { data: me } = await client.auth.getUser();
         const userId = me?.user?.id;
+        console.log("[ADDRESSES] GET - userId:", userId);
         if (!userId) return res.status(401).json({ success: false, message: "Non autenticato" });
-        let { data, error } = await client.from("user_addresses").select("id,street,city,cap,province,country,is_default,first_name,last_name").eq("user_id", String(userId));
+        let { data, error } = await supabaseAdmin.from("user_addresses").select("id,street,city,cap,province,country,is_default,first_name,last_name").eq("user_id", userId);
+        console.log("[ADDRESSES] GET - risultato:", { count: data?.length, error, userId });
         if (error) {
-          const fallback = await client.from("user_addresses").select("id,street,city,cap,province,country,is_default").eq("user_id", String(userId));
-          data = fallback.data;
-          error = fallback.error;
-          if (error) return res.status(400).json({ success: false, error });
+          console.error("[ADDRESSES] GET - errore:", error);
+          return res.status(400).json({ success: false, error });
         }
         const normalized = (data || []).map((row) => ({
           id: row.id,
@@ -2985,21 +3789,41 @@ async function registerRoutes(app2) {
     }
   });
   app2.post("/api/addresses", async (req, res) => {
+    console.log("[ADDRESSES] POST - inizio richiesta");
     try {
       const authHdr = req.headers["authorization"] || req.headers["Authorization"];
       const token = typeof authHdr === "string" && authHdr.startsWith("Bearer ") ? authHdr.slice(7) : void 0;
       const { firstName, lastName, address, city, postalCode, province, country, isDefault } = req.body || {};
-      if (token && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+      console.log("[ADDRESSES] POST - dati:", { firstName, lastName, address, city, postalCode });
+      if (token && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY && supabaseAdmin) {
         const client = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
           global: { headers: { Authorization: `Bearer ${token}` } }
         });
         const { data: me } = await client.auth.getUser();
         const userId = me?.user?.id;
         if (!userId) return res.status(401).json({ success: false, message: "Non autenticato" });
-        const { count: addrCount } = await client.from("user_addresses").select("id", { count: "exact", head: true }).eq("user_id", String(userId));
+        const { count: addrCount } = await supabaseAdmin.from("user_addresses").select("id", { count: "exact", head: true }).eq("user_id", userId);
         const willBeDefault = (addrCount ?? 0) === 0 ? true : !!isDefault;
-        let { data, error } = await client.from("user_addresses").insert({
-          user_id: String(userId),
+        const { data: existing } = await supabaseAdmin.from("user_addresses").select("id, first_name, last_name, street, city, cap, province, country, is_default").eq("user_id", userId).eq("street", address).eq("city", city).eq("cap", postalCode).limit(1).maybeSingle();
+        if (existing?.id) {
+          console.log("[ADDRESSES] POST - indirizzo gi\xE0 esistente, id:", existing.id);
+          const normalized2 = {
+            id: existing.id,
+            firstName: existing.first_name,
+            lastName: existing.last_name,
+            address: existing.street,
+            city: existing.city,
+            postalCode: existing.cap,
+            province: existing.province,
+            country: existing.country,
+            isDefault: !!existing.is_default,
+            type: "home"
+          };
+          return res.status(200).json({ success: true, address: normalized2, duplicate: true });
+        }
+        console.log("[ADDRESSES] POST - eseguo insert per userId:", userId);
+        let { data, error } = await supabaseAdmin.from("user_addresses").insert({
+          user_id: userId,
           street: address,
           city,
           cap: postalCode,
@@ -3010,21 +3834,12 @@ async function registerRoutes(app2) {
           last_name: lastName
         }).select("*").maybeSingle();
         if (error) {
-          const retry = await client.from("user_addresses").insert({
-            user_id: String(userId),
-            street: address,
-            city,
-            cap: postalCode,
-            province,
-            country,
-            is_default: willBeDefault
-          }).select("*").maybeSingle();
-          data = retry.data;
-          error = retry.error;
-          if (error) return res.status(400).json({ success: false, error });
+          console.error("[ADDRESSES] POST - errore insert:", error);
+          return res.status(400).json({ success: false, error });
         }
+        console.log("[ADDRESSES] POST - insert riuscito, id:", data?.id);
         if (willBeDefault && data?.id) {
-          await client.from("user_addresses").update({ is_default: false }).eq("user_id", String(userId)).neq("id", data.id);
+          await supabaseAdmin.from("user_addresses").update({ is_default: false }).eq("user_id", userId).neq("id", data.id);
         }
         const normalized = data ? {
           id: data.id,
@@ -3063,15 +3878,15 @@ async function registerRoutes(app2) {
       const authHdr = req.headers["authorization"] || req.headers["Authorization"];
       const token = typeof authHdr === "string" && authHdr.startsWith("Bearer ") ? authHdr.slice(7) : void 0;
       const addrId = Number(req.params.id);
-      if (token && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+      if (token && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY && supabaseAdmin) {
         const client = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
           global: { headers: { Authorization: `Bearer ${token}` } }
         });
         const { data: me } = await client.auth.getUser();
         const userId = me?.user?.id;
         if (!userId) return res.status(401).json({ success: false, message: "Non autenticato" });
-        await client.from("user_addresses").update({ is_default: false }).eq("user_id", String(userId));
-        const { error } = await client.from("user_addresses").update({ is_default: true }).eq("id", addrId).eq("user_id", String(userId));
+        await supabaseAdmin.from("user_addresses").update({ is_default: false }).eq("user_id", userId);
+        const { error } = await supabaseAdmin.from("user_addresses").update({ is_default: true }).eq("id", addrId).eq("user_id", userId);
         if (error) return res.status(400).json({ success: false, error });
         return res.json({ success: true });
       }
@@ -3090,14 +3905,14 @@ async function registerRoutes(app2) {
       const authHdr = req.headers["authorization"] || req.headers["Authorization"];
       const token = typeof authHdr === "string" && authHdr.startsWith("Bearer ") ? authHdr.slice(7) : void 0;
       const addrId = Number(req.params.id);
-      if (token && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+      if (token && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY && supabaseAdmin) {
         const client = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
           global: { headers: { Authorization: `Bearer ${token}` } }
         });
         const { data: me } = await client.auth.getUser();
         const userId = me?.user?.id;
         if (!userId) return res.status(401).json({ success: false, message: "Non autenticato" });
-        const { error } = await client.from("user_addresses").delete().eq("id", addrId).eq("user_id", String(userId));
+        const { error } = await supabaseAdmin.from("user_addresses").delete().eq("id", addrId).eq("user_id", userId);
         if (error) return res.status(400).json({ success: false, error });
         return res.json({ success: true });
       }
@@ -3120,10 +3935,466 @@ async function registerRoutes(app2) {
       if (!user?.authenticated) {
         return res.status(401).json({ success: false, message: "Non autenticato" });
       }
-      const orders = Array.isArray(sess.orders) ? sess.orders : [];
-      return res.json({ orders });
-    } catch {
+      await updateExpiredPendingOrders();
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+      const { data: orders, error } = await supabaseAdmin.from("orders").select(`
+          id,
+          user_id,
+          shipping_address_id,
+          status,
+          currency,
+          total_cents,
+          stripe_session_id,
+          notes,
+          created_at,
+          updated_at,
+          tracking_number,
+          carrier
+        `).eq("user_id", user.id).order("created_at", { ascending: false });
+      if (error) {
+        console.error("[ORDERS] Errore recupero ordini:", error);
+        return res.status(500).json({ success: false, message: "Errore recupero ordini" });
+      }
+      const ordersWithItems = await Promise.all(
+        (orders || []).map(async (order) => {
+          const { data: items, error: itemsError } = await supabaseAdmin.from("order_items").select(`
+              id,
+              quantity,
+              unit_price_cents,
+              line_total_cents,
+              product_option:product_option_id (
+                id,
+                flavor,
+                size,
+                image,
+                product:product_id (
+                  name
+                )
+              )
+            `).eq("order_id", order.id);
+          if (itemsError) {
+            console.error(`[ORDERS] Errore recupero items per ordine ${order.id}:`, itemsError);
+          }
+          if (items && items.length > 0) {
+            console.log(`[ORDERS] Items per ordine ${order.id}:`, items.map((i) => ({
+              id: i.id,
+              product_option_id: i.product_option?.id,
+              product_name: i.product_option?.product?.name,
+              has_product_option: !!i.product_option,
+              has_product: !!i.product_option?.product
+            })));
+          } else {
+            console.log(`[ORDERS] Nessun item trovato per ordine ${order.id}`);
+          }
+          let shippingAddress = null;
+          if (order.shipping_address_id) {
+            const { data: addr } = await supabaseAdmin.from("user_addresses").select("id, first_name, last_name, street, city, cap, province, country").eq("id", order.shipping_address_id).single();
+            if (addr) {
+              shippingAddress = {
+                firstName: addr.first_name,
+                lastName: addr.last_name,
+                address: addr.street,
+                city: addr.city,
+                postalCode: addr.cap,
+                province: addr.province,
+                country: addr.country
+              };
+            }
+          }
+          const formattedItems = await Promise.all((items || []).map(async (item) => {
+            let productName = item.product_option?.product?.name;
+            let flavor = item.product_option?.flavor;
+            let size = item.product_option?.size;
+            let image = item.product_option?.image;
+            if (!item.product_option && item.product_option_id) {
+              console.log(`[ORDERS] Tentativo recupero diretto product_option_id: ${item.product_option_id}`);
+              const { data: po } = await supabaseAdmin.from("product_options").select("flavor, size, image, product:product_id (name)").eq("id", item.product_option_id).single();
+              if (po) {
+                productName = po.product?.name;
+                flavor = po.flavor;
+                size = po.size;
+                image = po.image;
+                console.log(`[ORDERS] Recuperato: ${productName} - ${flavor} ${size}`);
+              }
+            }
+            return {
+              id: item.id,
+              name: productName || "Prodotto sconosciuto",
+              variant: [flavor, size].filter(Boolean).join(" - "),
+              quantity: item.quantity,
+              price: item.unit_price_cents,
+              image: image || null
+            };
+          }));
+          return {
+            id: order.id,
+            snipcartOrderId: order.stripe_session_id,
+            stripeSessionId: order.stripe_session_id || null,
+            total: order.total_cents,
+            status: order.status,
+            items: formattedItems,
+            shippingAddress,
+            notes: order.notes || null,
+            createdAt: order.created_at,
+            updatedAt: order.updated_at,
+            trackingNumber: order.tracking_number || null,
+            carrier: order.carrier || null
+          };
+        })
+      );
+      return res.json({ orders: ordersWithItems });
+    } catch (error) {
+      console.error("[ORDERS] Errore:", error);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  app2.get("/api/orders/:orderId/checkout-url", async (req, res) => {
+    try {
+      const sess = req.session;
+      const auth = await getAuthFromToken(req);
+      const user = auth ? { authenticated: true, id: auth.id } : sess?.user;
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const { orderId } = req.params;
+      if (!orderId) {
+        return res.status(400).json({ success: false, message: "Order ID mancante" });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+      const { data: order, error } = await supabaseAdmin.from("orders").select("id, user_id, status, stripe_session_id, created_at").eq("id", orderId).eq("user_id", user.id).single();
+      if (error || !order) {
+        return res.status(404).json({ success: false, message: "Ordine non trovato" });
+      }
+      if (order.status !== "in_attesa_di_pagamento") {
+        return res.status(400).json({ success: false, message: "L'ordine non \xE8 in attesa di pagamento" });
+      }
+      const orderCreatedAt = new Date(order.created_at).getTime();
+      const tenMinutesInMs = 10 * 60 * 1e3;
+      if (Date.now() - orderCreatedAt > tenMinutesInMs) {
+        await supabaseAdmin.from("orders").update({ status: "fallito", updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", orderId);
+        return res.status(400).json({ success: false, message: "Sessione di pagamento scaduta", expired: true });
+      }
+      if (!order.stripe_session_id) {
+        return res.status(400).json({ success: false, message: "Sessione Stripe non disponibile" });
+      }
+      const stripeSecret = process.env.STRIPE_SECRET_KEY;
+      if (!stripeSecret) {
+        return res.status(500).json({ success: false, message: "Stripe non configurato" });
+      }
+      const stripe = new Stripe(stripeSecret);
+      const stripeSession = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
+      if (!stripeSession.url) {
+        return res.status(400).json({ success: false, message: "URL di checkout non disponibile" });
+      }
+      if (stripeSession.status === "expired" || stripeSession.status === "complete") {
+        return res.status(400).json({
+          success: false,
+          message: stripeSession.status === "complete" ? "Pagamento gi\xE0 completato" : "Sessione scaduta",
+          expired: stripeSession.status === "expired"
+        });
+      }
+      return res.json({ success: true, checkoutUrl: stripeSession.url });
+    } catch (error) {
+      console.error("[ORDERS] Errore recupero checkout URL:", error?.message || error);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  app2.get("/api/orders/by-session/:sessionId", async (req, res) => {
+    try {
+      const sess = req.session;
+      const auth = await getAuthFromToken(req);
+      const user = auth ? { authenticated: true, id: auth.id } : sess?.user;
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const { sessionId } = req.params;
+      if (!sessionId) {
+        return res.status(400).json({ success: false, message: "Session ID mancante" });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+      const { data: order, error } = await supabaseAdmin.from("orders").select("id, user_id, status, currency, total_cents, created_at, stripe_session_id").eq("id", sessionId).eq("user_id", user.id).single();
+      if (error || !order) {
+        console.log(`[ORDERS] Ordine non trovato per session: ${sessionId}, user: ${user.id}`);
+        return res.json({ success: true, order: null });
+      }
+      if (order.status === "in_attesa_di_pagamento" && order.stripe_session_id) {
+        try {
+          const stripeSecret = process.env.STRIPE_SECRET_KEY;
+          if (stripeSecret) {
+            const stripe = new Stripe(stripeSecret);
+            const stripeSession = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
+            if (stripeSession.payment_status === "paid") {
+              const { error: updateError } = await supabaseAdmin.from("orders").update({
+                status: "pagato",
+                updated_at: (/* @__PURE__ */ new Date()).toISOString()
+              }).eq("id", order.id);
+              if (!updateError) {
+                order.status = "pagato";
+                console.log(`[ORDERS] Ordine ${order.id} aggiornato a 'pagato' (fallback da checkout success)`);
+                try {
+                  const { data: userData } = await supabaseAdmin.from("users").select("email, first_name, last_name").eq("id", user.id).single();
+                  const { data: orderItems } = await supabaseAdmin.from("order_items").select(`
+                      quantity,
+                      unit_price_cents,
+                      product_options (
+                        label,
+                        products (
+                          name
+                        )
+                      )
+                    `).eq("order_id", order.id);
+                  let shippingAddr = null;
+                  const { data: orderFull } = await supabaseAdmin.from("orders").select("shipping_address_id").eq("id", order.id).single();
+                  if (orderFull?.shipping_address_id) {
+                    const { data: addrData } = await supabaseAdmin.from("user_addresses").select("street, city, cap, province").eq("id", orderFull.shipping_address_id).single();
+                    if (addrData) {
+                      shippingAddr = {
+                        street: addrData.street,
+                        city: addrData.city,
+                        postalCode: addrData.cap,
+                        province: addrData.province
+                      };
+                    }
+                  }
+                  const customerEmail = userData?.email || stripeSession.customer_email;
+                  const customerName = userData?.first_name || (customerEmail ? customerEmail.split("@")[0] : "Cliente");
+                  if (customerEmail) {
+                    const emailItems = (orderItems || []).map((item) => ({
+                      name: `${item.product_options?.products?.name || "Prodotto"} - ${item.product_options?.label || ""}`,
+                      quantity: item.quantity,
+                      price: item.unit_price_cents
+                    }));
+                    await sendOrderConfirmationEmail({
+                      orderId: order.id,
+                      userEmail: customerEmail,
+                      userName: customerName,
+                      total: order.total_cents,
+                      items: emailItems,
+                      shippingAddress: shippingAddr || void 0
+                    });
+                    console.log(`[ORDERS] \u2705 Email conferma ordine inviata a ${customerEmail} (via fallback)`);
+                  }
+                } catch (emailErr) {
+                  console.error("[ORDERS] Errore invio email conferma (fallback):", emailErr);
+                }
+              }
+            }
+          }
+        } catch (stripeError) {
+          console.error("[ORDERS] Errore verifica Stripe:", stripeError);
+        }
+      }
+      return res.json({ success: true, order });
+    } catch (error) {
+      console.error("[ORDERS] Errore recupero ordine per session:", error?.message || error);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  app2.post("/api/billing-portal", async (req, res) => {
+    try {
+      const sess = req.session;
+      const auth = await getAuthFromToken(req);
+      const user = auth ? { authenticated: true, id: auth.id, email: auth.email } : sess?.user;
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const stripeSecret = process.env.STRIPE_SECRET_KEY;
+      if (!stripeSecret) {
+        return res.status(500).json({ success: false, message: "Stripe non configurato" });
+      }
+      const stripe = new Stripe(stripeSecret);
+      let stripeCustomerId = null;
+      if (supabaseAdmin) {
+        const { data: orderWithCustomer } = await supabaseAdmin.from("orders").select("stripe_customer_id").eq("user_id", user.id).not("stripe_customer_id", "is", null).limit(1).single();
+        if (orderWithCustomer?.stripe_customer_id) {
+          stripeCustomerId = orderWithCustomer.stripe_customer_id;
+        }
+      }
+      if (!stripeCustomerId && user.email) {
+        const customers = await stripe.customers.list({
+          email: user.email,
+          limit: 1
+        });
+        if (customers.data.length > 0) {
+          stripeCustomerId = customers.data[0].id;
+        }
+      }
+      if (!stripeCustomerId) {
+        return res.status(404).json({
+          success: false,
+          message: "Nessun account di fatturazione trovato. Completa un acquisto per accedere alle fatture."
+        });
+      }
+      const returnUrl = process.env.BILLING_PORTAL_RETURN_URL || process.env.CHECKOUT_SUCCESS_URL?.replace("/checkout/success", "/ordini") || "http://localhost:5000/ordini";
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: stripeCustomerId,
+        return_url: returnUrl
+      });
+      return res.json({ success: true, url: portalSession.url });
+    } catch (error) {
+      console.error("[BILLING PORTAL] Errore:", error?.message || error);
+      return res.status(500).json({ success: false, message: "Errore creazione portale fatturazione" });
+    }
+  });
+  app2.get("/api/orders/:orderId/invoice", async (req, res) => {
+    try {
+      const sess = req.session;
+      const auth = await getAuthFromToken(req);
+      const user = auth ? { authenticated: true, id: auth.id } : sess?.user;
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const { orderId } = req.params;
+      if (!orderId) {
+        return res.status(400).json({ success: false, message: "Order ID mancante" });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+      const { data: order, error } = await supabaseAdmin.from("orders").select("id, user_id, stripe_invoice_id, stripe_session_id, stripe_customer_id, created_at, status").eq("id", orderId).eq("user_id", user.id).single();
+      if (error || !order) {
+        return res.status(404).json({ success: false, message: "Ordine non trovato" });
+      }
+      const stripeSecret = process.env.STRIPE_SECRET_KEY;
+      if (!stripeSecret) {
+        return res.status(500).json({ success: false, message: "Stripe non configurato" });
+      }
+      const stripe = new Stripe(stripeSecret);
+      let invoiceId = order.stripe_invoice_id;
+      if (!invoiceId && order.stripe_session_id) {
+        try {
+          const session2 = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
+          if (session2.invoice) {
+            invoiceId = typeof session2.invoice === "string" ? session2.invoice : session2.invoice.id;
+            await supabaseAdmin.from("orders").update({ stripe_invoice_id: invoiceId }).eq("id", orderId);
+            console.log(`[INVOICE] Recuperato invoice_id ${invoiceId} dalla session per ordine ${orderId}`);
+          }
+        } catch (e) {
+          console.log("[INVOICE] Errore recupero session:", e?.message);
+        }
+      }
+      if (!invoiceId && order.stripe_customer_id) {
+        try {
+          const invoices = await stripe.invoices.list({
+            customer: order.stripe_customer_id,
+            limit: 10
+          });
+          const orderDate = new Date(order.created_at).getTime();
+          const matchingInvoice = invoices.data.find(
+            (inv) => inv.status === "paid" && inv.created * 1e3 >= orderDate - 3e5
+            // Entro 5 minuti dalla creazione ordine
+          );
+          if (matchingInvoice) {
+            invoiceId = matchingInvoice.id;
+            await supabaseAdmin.from("orders").update({ stripe_invoice_id: invoiceId }).eq("id", orderId);
+            console.log(`[INVOICE] Recuperato invoice_id ${invoiceId} dal customer per ordine ${orderId}`);
+          }
+        } catch (e) {
+          console.log("[INVOICE] Errore ricerca fatture customer:", e?.message);
+        }
+      }
+      if (!invoiceId) {
+        return res.status(404).json({
+          success: false,
+          message: "Fattura non disponibile. Le fatture automatiche sono attive solo per i nuovi ordini."
+        });
+      }
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+      if (!invoice.invoice_pdf) {
+        return res.status(404).json({
+          success: false,
+          message: "PDF fattura non ancora disponibile"
+        });
+      }
+      return res.json({
+        success: true,
+        invoicePdfUrl: invoice.invoice_pdf,
+        invoiceUrl: invoice.hosted_invoice_url,
+        invoiceNumber: invoice.number
+      });
+    } catch (error) {
+      console.error("[INVOICE] Errore recupero fattura:", error?.message || error);
+      return res.status(500).json({ success: false, message: "Errore recupero fattura" });
+    }
+  });
+  app2.get("/api/admin/orders/:orderId/invoice", ensureAuth, ensureAdmin, async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      if (!orderId) {
+        return res.status(400).json({ success: false, message: "Order ID mancante" });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+      const { data: order, error } = await supabaseAdmin.from("orders").select("id, stripe_invoice_id, stripe_session_id, stripe_customer_id, created_at, status").eq("id", orderId).single();
+      if (error || !order) {
+        return res.status(404).json({ success: false, message: "Ordine non trovato" });
+      }
+      const stripeSecret = process.env.STRIPE_SECRET_KEY;
+      if (!stripeSecret) {
+        return res.status(500).json({ success: false, message: "Stripe non configurato" });
+      }
+      const stripe = new Stripe(stripeSecret);
+      let invoiceId = order.stripe_invoice_id;
+      if (!invoiceId && order.stripe_session_id) {
+        try {
+          const session2 = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
+          if (session2.invoice) {
+            invoiceId = typeof session2.invoice === "string" ? session2.invoice : session2.invoice.id;
+            await supabaseAdmin.from("orders").update({ stripe_invoice_id: invoiceId }).eq("id", orderId);
+            console.log(`[ADMIN INVOICE] Recuperato invoice_id ${invoiceId} dalla session per ordine ${orderId}`);
+          }
+        } catch (e) {
+          console.log("[ADMIN INVOICE] Errore recupero session:", e?.message);
+        }
+      }
+      if (!invoiceId && order.stripe_customer_id) {
+        try {
+          const invoices = await stripe.invoices.list({
+            customer: order.stripe_customer_id,
+            limit: 10
+          });
+          const orderDate = new Date(order.created_at).getTime();
+          const matchingInvoice = invoices.data.find(
+            (inv) => inv.status === "paid" && inv.created * 1e3 >= orderDate - 3e5
+          );
+          if (matchingInvoice) {
+            invoiceId = matchingInvoice.id;
+            await supabaseAdmin.from("orders").update({ stripe_invoice_id: invoiceId }).eq("id", orderId);
+            console.log(`[ADMIN INVOICE] Recuperato invoice_id ${invoiceId} dal customer per ordine ${orderId}`);
+          }
+        } catch (e) {
+          console.log("[ADMIN INVOICE] Errore ricerca fatture customer:", e?.message);
+        }
+      }
+      if (!invoiceId) {
+        return res.status(404).json({
+          success: false,
+          message: "Fattura non disponibile. Le fatture automatiche sono attive solo per i nuovi ordini."
+        });
+      }
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+      if (!invoice.invoice_pdf) {
+        return res.status(404).json({
+          success: false,
+          message: "PDF fattura non ancora disponibile"
+        });
+      }
+      return res.json({
+        success: true,
+        invoicePdfUrl: invoice.invoice_pdf,
+        invoiceUrl: invoice.hosted_invoice_url,
+        invoiceNumber: invoice.number
+      });
+    } catch (error) {
+      console.error("[ADMIN INVOICE] Errore recupero fattura:", error?.message || error);
+      return res.status(500).json({ success: false, message: "Errore recupero fattura" });
     }
   });
   app2.put("/api/product/:id/slug", async (req, res) => {
@@ -3337,9 +4608,34 @@ async function registerRoutes(app2) {
       }
       const { userId } = req.params;
       if (supabaseAdmin) {
-        const { data, error } = await supabaseAdmin.rpc("get_cart", { p_user_id: userId });
+        const { data, error } = await supabaseAdmin.from("cart_items").select(`
+              id,
+              quantity,
+              product_option_id,
+              product_options (
+                id,
+                flavor,
+                size,
+                price_cents,
+                product_id,
+                products (
+                  id,
+                  name,
+                  image_url
+                )
+              )
+            `).eq("user_id", userId);
         if (error) return res.status(400).json({ success: false, error });
-        return res.json({ success: true, items: data });
+        const items = (data || []).map((item) => ({
+          id: item.id,
+          product_option_id: item.product_option_id,
+          quantity: item.quantity,
+          price_cents: item.product_options?.price_cents,
+          name: item.product_options?.products?.name || "Prodotto",
+          variant: `${item.product_options?.flavor || ""} ${item.product_options?.size || ""}`.trim(),
+          image: item.product_options?.products?.image_url
+        }));
+        return res.json({ success: true, items });
       } else {
         const items = sess.cart || [];
         return res.json({ success: true, items });
@@ -3357,9 +4653,34 @@ async function registerRoutes(app2) {
         return res.status(401).json({ success: false, message: "Non autenticato" });
       }
       if (supabaseAdmin && user?.id) {
-        const { data, error } = await supabaseAdmin.rpc("get_cart", { p_user_id: String(user.id) });
+        const { data, error } = await supabaseAdmin.from("cart_items").select(`
+              id,
+              quantity,
+              product_option_id,
+              product_options (
+                id,
+                flavor,
+                size,
+                price_cents,
+                product_id,
+                products (
+                  id,
+                  name,
+                  image_url
+                )
+              )
+            `).eq("user_id", String(user.id));
         if (error) return res.status(400).json({ success: false, error });
-        return res.json({ success: true, items: data });
+        const items2 = (data || []).map((item) => ({
+          id: item.id,
+          product_option_id: item.product_option_id,
+          quantity: item.quantity,
+          price_cents: item.product_options?.price_cents,
+          name: item.product_options?.products?.name || "Prodotto",
+          variant: `${item.product_options?.flavor || ""} ${item.product_options?.size || ""}`.trim(),
+          image: item.product_options?.products?.image_url
+        }));
+        return res.json({ success: true, items: items2 });
       }
       const items = sess.cart || [];
       return res.json({ success: true, items });
@@ -3372,21 +4693,37 @@ async function registerRoutes(app2) {
       const sess = req.session;
       const auth = await getAuthFromToken(req);
       const user = auth ? { authenticated: true, id: auth.id } : sess?.user;
+      console.log("[CART API] POST /api/cart - auth:", auth ? `id=${auth.id}` : "NULL", "sess.user:", sess?.user ? `id=${sess.user.id}, auth=${sess.user.authenticated}` : "NULL");
       if (!user?.authenticated) {
+        console.warn("[CART API] Utente non autenticato - n\xE9 token n\xE9 sessione validi");
         return res.status(401).json({ success: false, message: "Non autenticato" });
       }
-      console.log("DEBUG /api/cart POST body:", req.body);
+      console.log("[CART API] POST body:", req.body, "user.id:", user.id);
       const { product_option_id, quantity, productId, variant, price } = req.body || {};
       if (supabaseAdmin) {
         const poid = Number(product_option_id);
         const qty = Number(quantity);
         if (Number.isFinite(poid) && poid > 0 && Number.isFinite(qty) && qty > 0) {
-          const { error } = await supabaseAdmin.rpc("add_to_cart", {
-            p_product_option_id: poid,
-            p_quantity: qty,
-            p_user_id: String(user.id)
-          });
-          if (error) return res.status(400).json({ success: false, error });
+          const userId = String(user.id);
+          const { data: existing } = await supabaseAdmin.from("cart_items").select("id, quantity").eq("user_id", userId).eq("product_option_id", poid).maybeSingle();
+          if (existing) {
+            const { error } = await supabaseAdmin.from("cart_items").update({ quantity: existing.quantity + qty }).eq("id", existing.id);
+            if (error) {
+              console.error("[CART API] Errore update cart_items:", error);
+              return res.status(400).json({ success: false, error });
+            }
+          } else {
+            const { error } = await supabaseAdmin.from("cart_items").insert({
+              user_id: userId,
+              product_option_id: poid,
+              quantity: qty
+            });
+            if (error) {
+              console.error("[CART API] Errore insert cart_items:", error);
+              return res.status(400).json({ success: false, error });
+            }
+          }
+          console.log("[CART API] \u2705 Carrello aggiornato per user:", userId);
           return res.json({ success: true });
         }
         const pid = Number(productId);
@@ -3403,12 +4740,15 @@ async function registerRoutes(app2) {
             if (!Number.isFinite(resolvedId) || resolvedId <= 0) {
               return res.status(400).json({ success: false, message: "Parametri non validi" });
             }
-            const { error: err2 } = await supabaseAdmin.rpc("add_to_cart", {
-              p_product_option_id: resolvedId,
-              p_quantity: qty,
-              p_user_id: String(user.id)
-            });
-            if (err2) return res.status(400).json({ success: false, error: err2 });
+            const userId = String(user.id);
+            const { data: existingItem } = await supabaseAdmin.from("cart_items").select("id, quantity").eq("user_id", userId).eq("product_option_id", resolvedId).maybeSingle();
+            if (existingItem) {
+              const { error: err2 } = await supabaseAdmin.from("cart_items").update({ quantity: existingItem.quantity + qty }).eq("id", existingItem.id);
+              if (err2) return res.status(400).json({ success: false, error: err2 });
+            } else {
+              const { error: err2 } = await supabaseAdmin.from("cart_items").insert({ user_id: userId, product_option_id: resolvedId, quantity: qty });
+              if (err2) return res.status(400).json({ success: false, error: err2 });
+            }
             return res.json({ success: true });
           } catch (e) {
             return res.status(500).json({ success: false, message: "Errore interno del server" });
@@ -3420,14 +4760,15 @@ async function registerRoutes(app2) {
         const poid = Number(product_option_id);
         const qty = Number(quantity);
         if (Number.isFinite(poid) && poid > 0 && Number.isFinite(qty) && qty > 0) {
-          const rpcRes = await supabaseAnon.rpc("add_to_cart", {
-            p_product_option_id: poid,
-            p_quantity: qty,
-            p_user_id: String(user.id)
-          });
-          if (!rpcRes.error) return res.json({ success: true });
-          const { error: upErr } = await supabaseAnon.from("cart_items").upsert({ user_id: String(user.id), product_option_id: poid, quantity: qty }, { onConflict: "user_id,product_option_id" });
-          if (!upErr) return res.json({ success: true });
+          const userId = String(user.id);
+          const { data: existingAnon } = await supabaseAnon.from("cart_items").select("id, quantity").eq("user_id", userId).eq("product_option_id", poid).maybeSingle();
+          if (existingAnon) {
+            const { error: upErr } = await supabaseAnon.from("cart_items").update({ quantity: existingAnon.quantity + qty }).eq("id", existingAnon.id);
+            if (!upErr) return res.json({ success: true });
+          } else {
+            const { error: upErr } = await supabaseAnon.from("cart_items").insert({ user_id: userId, product_option_id: poid, quantity: qty });
+            if (!upErr) return res.json({ success: true });
+          }
         }
       }
       const poidSess = Number(product_option_id);
@@ -3512,11 +4853,7 @@ async function registerRoutes(app2) {
             return res.status(200).json({ success: true, items: current2 });
           }
         } else {
-          const { error } = await supabaseAdmin.rpc("update_cart_quantity", {
-            p_product_option_id: product_option_id,
-            p_quantity: quantity,
-            p_user_id: String(user.id)
-          });
+          const { error } = await supabaseAdmin.from("cart_items").update({ quantity }).eq("user_id", String(user.id)).eq("product_option_id", Number(product_option_id));
           if (error) {
             console.error("Errore update cart_items su Supabase", error);
             return res.status(500).json({ success: false, message: "Errore aggiornamento carrello (DB)" });
@@ -3560,10 +4897,7 @@ async function registerRoutes(app2) {
       }
       const { product_option_id, productId, variant } = req.body || {};
       if (supabaseAdmin && typeof product_option_id === "number" && product_option_id > 0) {
-        const { error } = await supabaseAdmin.rpc("remove_from_cart", {
-          p_product_option_id: product_option_id,
-          p_user_id: String(user.id)
-        });
+        const { error } = await supabaseAdmin.from("cart_items").delete().eq("user_id", String(user.id)).eq("product_option_id", Number(product_option_id));
         if (error) {
           console.error("Errore remove cart_items su Supabase", error);
           return res.status(500).json({ success: false, message: "Errore rimozione carrello (DB)" });
@@ -3606,7 +4940,7 @@ async function registerRoutes(app2) {
       }
       const { userId } = req.params;
       if (supabaseAdmin) {
-        const { error } = await supabaseAdmin.rpc("clear_cart", { p_user_id: userId });
+        const { error } = await supabaseAdmin.from("cart_items").delete().eq("user_id", String(userId));
         if (error) return res.status(400).json({ success: false, error });
         return res.json({ success: true });
       }
@@ -3622,9 +4956,34 @@ async function registerRoutes(app2) {
         return res.status(500).json({ success: false, message: "Supabase non configurato" });
       }
       const { userId } = req.params;
-      const { data, error } = await supabaseAdmin.rpc("get_cart", { p_user_id: userId });
+      const { data, error } = await supabaseAdmin.from("cart_items").select(`
+            id,
+            quantity,
+            product_option_id,
+            product_options (
+              id,
+              flavor,
+              size,
+              price_cents,
+              product_id,
+              products (
+                id,
+                name,
+                image_url
+              )
+            )
+          `).eq("user_id", userId);
       if (error) return res.status(400).json({ success: false, error });
-      return res.json({ success: true, items: data });
+      const items = (data || []).map((item) => ({
+        id: item.id,
+        product_option_id: item.product_option_id,
+        quantity: item.quantity,
+        price_cents: item.product_options?.price_cents,
+        name: item.product_options?.products?.name || "Prodotto",
+        variant: `${item.product_options?.flavor || ""} ${item.product_options?.size || ""}`.trim(),
+        image: item.product_options?.products?.image_url
+      }));
+      return res.json({ success: true, items });
     } catch (error) {
       return res.status(500).json({ success: false, message: "Errore caricamento carrello" });
     }
@@ -3640,12 +4999,19 @@ async function registerRoutes(app2) {
       }
       const sess = req.session;
       const userId = sess?.user?.id;
-      const { error } = await supabaseAdmin.rpc("add_to_cart", {
-        p_product_option_id: product_option_id,
-        p_quantity: quantity,
-        ...userId ? { p_user_id: userId } : {}
-      });
-      if (error) return res.status(400).json({ success: false, error });
+      if (!userId) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const poid = Number(product_option_id);
+      const qty = Number(quantity);
+      const { data: existingItem } = await supabaseAdmin.from("cart_items").select("id, quantity").eq("user_id", String(userId)).eq("product_option_id", poid).maybeSingle();
+      if (existingItem) {
+        const { error } = await supabaseAdmin.from("cart_items").update({ quantity: existingItem.quantity + qty }).eq("id", existingItem.id);
+        if (error) return res.status(400).json({ success: false, error });
+      } else {
+        const { error } = await supabaseAdmin.from("cart_items").insert({ user_id: String(userId), product_option_id: poid, quantity: qty });
+        if (error) return res.status(400).json({ success: false, error });
+      }
       return res.json({ success: true });
     } catch (error) {
       return res.status(500).json({ success: false, message: "Errore aggiunta carrello" });
@@ -3662,11 +5028,10 @@ async function registerRoutes(app2) {
       }
       const sess = req.session;
       const userId = sess?.user?.id;
-      const { error } = await supabaseAdmin.rpc("update_cart_quantity", {
-        p_product_option_id: product_option_id,
-        p_quantity: quantity,
-        ...userId ? { p_user_id: userId } : {}
-      });
+      if (!userId) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const { error } = await supabaseAdmin.from("cart_items").update({ quantity }).eq("user_id", String(userId)).eq("product_option_id", Number(product_option_id));
       if (error) return res.status(400).json({ success: false, error });
       return res.json({ success: true });
     } catch (error) {
@@ -3684,10 +5049,10 @@ async function registerRoutes(app2) {
       }
       const sess = req.session;
       const userId = sess?.user?.id;
-      const { error } = await supabaseAdmin.rpc("remove_from_cart", {
-        p_product_option_id: product_option_id,
-        ...userId ? { p_user_id: userId } : {}
-      });
+      if (!userId) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+      const { error } = await supabaseAdmin.from("cart_items").delete().eq("user_id", String(userId)).eq("product_option_id", Number(product_option_id));
       if (error) return res.status(400).json({ success: false, error });
       return res.json({ success: true });
     } catch (error) {
@@ -3700,7 +5065,7 @@ async function registerRoutes(app2) {
         return res.status(500).json({ success: false, message: "Supabase non configurato" });
       }
       const { userId } = req.params;
-      const { error } = await supabaseAdmin.rpc("clear_cart", { p_user_id: userId });
+      const { error } = await supabaseAdmin.from("cart_items").delete().eq("user_id", String(userId));
       if (error) return res.status(400).json({ success: false, error });
       return res.json({ success: true });
     } catch (error) {
@@ -3714,11 +5079,38 @@ async function registerRoutes(app2) {
       if (!user?.authenticated) {
         return res.status(401).json({ success: false, message: "Non autenticato" });
       }
+      const { shipping_address_id, notes } = req.body || {};
       let items = [];
       if (supabaseAdmin && user?.id) {
-        const { data, error } = await supabaseAdmin.rpc("get_cart", { p_user_id: String(user.id) });
-        if (error) return res.status(400).json({ success: false, error });
-        items = Array.isArray(data) ? data : [];
+        const { data, error } = await supabaseAdmin.from("cart_items").select(`
+              id,
+              quantity,
+              product_option_id,
+              product_options (
+                id,
+                flavor,
+                size,
+                price_cents,
+                product_id,
+                products (
+                  id,
+                  name
+                )
+              )
+            `).eq("user_id", user.id);
+        if (error) {
+          console.error("Checkout cart query error:", error);
+          return res.status(400).json({ success: false, error });
+        }
+        items = (data || []).map((item) => ({
+          product_option_id: item.product_option_id,
+          quantity: item.quantity,
+          price_cents: item.product_options?.price_cents,
+          name: item.product_options?.products?.name || "Prodotto",
+          variant: `${item.product_options?.flavor || ""} ${item.product_options?.size || ""}`.trim(),
+          image: null
+          // Le immagini verranno gestite separatamente se necessario
+        }));
       } else {
         items = Array.isArray(sess.cart) ? sess.cart : [];
       }
@@ -3726,38 +5118,225 @@ async function registerRoutes(app2) {
         return res.status(400).json({ success: false, message: "Carrello vuoto" });
       }
       const secret = process.env.STRIPE_SECRET_KEY;
-      const successUrl = process.env.CHECKOUT_SUCCESS_URL || "http://localhost:8080/success";
-      const cancelUrl = process.env.CHECKOUT_CANCEL_URL || "http://localhost:8080/cancel";
+      const successUrl = process.env.CHECKOUT_SUCCESS_URL || "http://localhost:5000/checkout/success";
+      const cancelUrl = process.env.CHECKOUT_CANCEL_URL || "http://localhost:5000/checkout/cancel";
       if (!secret) {
         console.error("Checkout error: STRIPE_SECRET_KEY mancante");
         return res.status(500).json({ success: false, message: "Stripe non configurato" });
       }
-      console.log("Checkout env check:", { hasSecret: !!secret, successUrl, cancelUrl });
+      console.log("Checkout env check:", { hasSecret: !!secret, successUrl, cancelUrl, userId: user.id });
       const stripe = new Stripe(secret);
+      let stripeCustomerId = null;
+      if (user.email) {
+        try {
+          const existingCustomers = await stripe.customers.list({
+            email: user.email,
+            limit: 1
+          });
+          if (existingCustomers.data.length > 0) {
+            stripeCustomerId = existingCustomers.data[0].id;
+            console.log(`[CHECKOUT] Customer Stripe esistente trovato: ${stripeCustomerId}`);
+          } else {
+            const newCustomer = await stripe.customers.create({
+              email: user.email,
+              metadata: {
+                user_id: user.id
+              }
+            });
+            stripeCustomerId = newCustomer.id;
+            console.log(`[CHECKOUT] Nuovo Customer Stripe creato: ${stripeCustomerId}`);
+          }
+        } catch (customerError) {
+          console.warn("[CHECKOUT] Errore gestione Stripe Customer:", customerError);
+        }
+      }
+      const subtotalCents = items.reduce((sum, i) => {
+        const priceCents = typeof i.price_cents === "number" ? i.price_cents : Math.round(Number(i.price) * 100);
+        return sum + priceCents * Number(i.quantity);
+      }, 0);
+      const totalAfterDiscount = Math.round(subtotalCents * 0.9);
+      const shippingCents = totalAfterDiscount >= 16e3 ? 0 : 1200;
       const line_items = items.map((i) => {
         const priceCents = typeof i.price_cents === "number" ? i.price_cents : Math.round(Number(i.price) * 100);
+        const discountedPrice = Math.round(priceCents * 0.9);
         return {
           price_data: {
             currency: "eur",
             product_data: {
-              name: `${String(i.name ?? "")} \u2014 ${String(i.variant ?? "")}`.trim(),
-              images: i.image ? [i.image] : []
+              name: `${String(i.name ?? "")} - ${String(i.variant ?? "")}`.trim(),
+              images: i.image && i.image.startsWith("http") ? [i.image] : []
             },
-            unit_amount: priceCents
+            unit_amount: discountedPrice
           },
           quantity: Number(i.quantity)
         };
       });
+      if (shippingCents > 0) {
+        line_items.push({
+          price_data: {
+            currency: "eur",
+            product_data: {
+              name: "Spedizione"
+            },
+            unit_amount: shippingCents
+          },
+          quantity: 1
+        });
+      }
+      const cartMetadata = items.map((i) => ({
+        product_option_id: i.product_option_id,
+        quantity: i.quantity,
+        price_cents: i.price_cents
+      }));
+      const cartItemsJson = JSON.stringify(cartMetadata).slice(0, 500);
+      const totalOrderCents = totalAfterDiscount + shippingCents;
+      let orderId = null;
+      if (supabaseAdmin) {
+        try {
+          const { data: orderData, error: orderError } = await supabaseAdmin.from("orders").insert({
+            user_id: user.id,
+            shipping_address_id: shipping_address_id ? parseInt(shipping_address_id) : null,
+            status: "in_attesa_di_pagamento",
+            currency: "EUR",
+            total_cents: totalOrderCents,
+            notes: notes || null
+          }).select("id").single();
+          if (!orderError && orderData?.id) {
+            orderId = orderData.id;
+            console.log(`[CHECKOUT] Ordine pending creato: ${orderId} per user: ${user.id}`);
+            const orderItems = items.map((item) => ({
+              order_id: orderId,
+              product_option_id: item.product_option_id,
+              quantity: item.quantity,
+              unit_price_cents: Math.round((item.price_cents || 0) * 0.9),
+              // Prezzo con sconto
+              line_total_cents: Math.round((item.price_cents || 0) * 0.9 * item.quantity)
+            }));
+            await supabaseAdmin.from("order_items").insert(orderItems);
+          } else {
+            console.warn("[CHECKOUT] Errore creazione ordine pending:", orderError);
+          }
+        } catch (e) {
+          console.warn("[CHECKOUT] Errore creazione ordine:", e);
+        }
+      }
       const sessionStripe = await stripe.checkout.sessions.create({
         mode: "payment",
         payment_method_types: ["card"],
         line_items,
-        success_url: successUrl,
-        cancel_url: cancelUrl
+        success_url: `${successUrl}?session_id=${orderId || "{CHECKOUT_SESSION_ID}"}`,
+        cancel_url: cancelUrl,
+        // Usa customer esistente o passa email per crearne uno nuovo
+        ...stripeCustomerId ? { customer: stripeCustomerId } : { customer_email: user.email || void 0 },
+        // Abilita emissione automatica fattura dopo il pagamento
+        invoice_creation: {
+          enabled: true,
+          invoice_data: {
+            metadata: {
+              order_id: orderId || "",
+              user_id: user.id
+            }
+          }
+        },
+        metadata: {
+          user_id: user.id,
+          order_id: orderId || "",
+          shipping_address_id: shipping_address_id ? String(shipping_address_id) : "",
+          cart_items: cartItemsJson,
+          notes: notes ? String(notes).slice(0, 500) : ""
+        }
       });
+      if (orderId && supabaseAdmin) {
+        await supabaseAdmin.from("orders").update({
+          stripe_session_id: sessionStripe.id,
+          stripe_customer_id: stripeCustomerId || null
+        }).eq("id", orderId);
+      }
+      console.log(`Checkout session creata: ${sessionStripe.id} per user: ${user.id}, orderId: ${orderId}`);
       return res.json({ success: true, url: sessionStripe.url });
     } catch (error) {
+      console.error("Checkout error:", error?.message || error);
       return res.status(500).json({ success: false, message: "Errore creazione checkout" });
+    }
+  });
+  app2.put("/api/admin/orders/:orderId/tracking", ensureAuth, ensureAdmin, async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      const { tracking_number, carrier } = req.body;
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+      const { data: existingOrder } = await supabaseAdmin.from("orders").select("tracking_number, user_id").eq("id", orderId).single();
+      const hadNoTracking = !existingOrder?.tracking_number;
+      const updates = {
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      if (tracking_number !== void 0) updates.tracking_number = tracking_number;
+      if (carrier !== void 0) updates.carrier = carrier;
+      const { error } = await supabaseAdmin.from("orders").update(updates).eq("id", orderId);
+      if (error) {
+        console.error("[TRACKING] Errore aggiornamento tracking:", error);
+        return res.status(500).json({ success: false, message: "Errore aggiornamento tracciamento" });
+      }
+      if (hadNoTracking && tracking_number && carrier && existingOrder?.user_id) {
+        try {
+          const { data: userData } = await supabaseAdmin.from("users").select("email, first_name, last_name").eq("id", existingOrder.user_id).single();
+          if (userData?.email) {
+            await sendTrackingEmail({
+              orderId,
+              userEmail: userData.email,
+              userName: userData.first_name || userData.email.split("@")[0],
+              trackingNumber: tracking_number,
+              carrier
+            });
+            console.log(`[TRACKING] Email tracciamento inviata a ${userData.email} per ordine ${orderId}`);
+          }
+        } catch (emailError) {
+          console.error("[TRACKING] Errore invio email tracciamento:", emailError);
+        }
+      }
+      return res.json({ success: true, message: "Tracciamento aggiornato" });
+    } catch (err) {
+      console.error("[TRACKING] Errore PUT /api/admin/orders/:orderId/tracking:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+  app2.put("/api/admin/orders/:orderId/status", ensureAuth, ensureAdmin, async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      const { status } = req.body;
+      const validStatuses = [
+        "pagato",
+        "in_attesa_di_pagamento",
+        "spedito",
+        "in_attesa_di_consegna",
+        "consegnato",
+        "cancellato",
+        "fallito",
+        "richiesta_di_rimborso",
+        "rimborsato"
+      ];
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: "Stato non valido. Valori ammessi: " + validStatuses.join(", ")
+        });
+      }
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+      const { error } = await supabaseAdmin.from("orders").update({
+        status,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }).eq("id", orderId);
+      if (error) {
+        console.error("[STATUS] Errore aggiornamento stato:", error);
+        return res.status(500).json({ success: false, message: "Errore aggiornamento stato" });
+      }
+      return res.json({ success: true, message: "Stato ordine aggiornato" });
+    } catch (err) {
+      console.error("[STATUS] Errore PUT /api/admin/orders/:orderId/status:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
   const httpServer = createServer(app2);
@@ -3785,6 +5364,7 @@ async function setupVite(app2, server) {
 import { createClient } from "@supabase/supabase-js";
 import compression from "compression";
 import cors from "cors";
+import Stripe2 from "stripe";
 var app = express2();
 app.set("trust proxy", 1);
 app.use(compression());
@@ -3792,6 +5372,270 @@ app.use("/sw.js", (req, res) => {
   res.setHeader("Content-Type", "application/javascript");
   res.sendFile(path3.resolve(process.cwd(), "client/dist", "sw.js"));
 });
+var supabaseAdminForWebhook = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY) : null;
+app.post(
+  "/api/webhook/stripe",
+  express2.raw({ type: "application/json" }),
+  async (req, res) => {
+    const secret = process.env.STRIPE_SECRET_KEY;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!secret) {
+      console.error("[STRIPE WEBHOOK] STRIPE_SECRET_KEY mancante");
+      return res.status(500).send("Stripe non configurato");
+    }
+    const stripe = new Stripe2(secret);
+    const sig = req.headers["stripe-signature"];
+    let event;
+    try {
+      if (webhookSecret && webhookSecret !== "whsec_XXXXXXXX") {
+        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      } else {
+        console.warn("[STRIPE WEBHOOK] Webhook secret non configurato - parsing diretto (solo per sviluppo!)");
+        event = JSON.parse(req.body.toString());
+      }
+    } catch (err) {
+      console.error("[STRIPE WEBHOOK] Errore verifica firma:", err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+    console.log(`[STRIPE WEBHOOK] Evento ricevuto: ${event.type}`);
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session2 = event.data.object;
+        await handleSuccessfulPayment(session2);
+        break;
+      }
+      case "checkout.session.expired": {
+        const session2 = event.data.object;
+        await handleFailedPayment(session2, "cancellato");
+        break;
+      }
+      case "checkout.session.async_payment_failed": {
+        const session2 = event.data.object;
+        await handleFailedPayment(session2, "fallito");
+        break;
+      }
+      case "payment_intent.payment_failed": {
+        const paymentIntent = event.data.object;
+        console.error("[STRIPE WEBHOOK] Pagamento fallito:", paymentIntent.id);
+        if (paymentIntent.metadata?.order_id && supabaseAdminForWebhook) {
+          await supabaseAdminForWebhook.from("orders").update({ status: "fallito", updated_at: (/* @__PURE__ */ new Date()).toISOString() }).eq("id", paymentIntent.metadata.order_id);
+        }
+        break;
+      }
+      default:
+        console.log(`[STRIPE WEBHOOK] Evento non gestito: ${event.type}`);
+    }
+    res.json({ received: true });
+  }
+);
+async function handleFailedPayment(session2, status) {
+  const orderId = session2.metadata?.order_id;
+  console.log(`[STRIPE WEBHOOK] Pagamento ${status} - Session: ${session2.id}, OrderId: ${orderId}`);
+  if (!orderId) {
+    console.warn("[STRIPE WEBHOOK] order_id mancante nei metadata per sessione fallita");
+    return;
+  }
+  if (!supabaseAdminForWebhook) {
+    console.error("[STRIPE WEBHOOK] Supabase admin client non disponibile");
+    return;
+  }
+  try {
+    const { error } = await supabaseAdminForWebhook.from("orders").update({
+      status,
+      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+    }).eq("id", orderId);
+    if (error) {
+      console.error(`[STRIPE WEBHOOK] Errore aggiornamento ordine ${status}:`, error);
+    } else {
+      console.log(`[STRIPE WEBHOOK] Ordine ${orderId} aggiornato a ${status}`);
+    }
+  } catch (error) {
+    console.error("[STRIPE WEBHOOK] Errore handleFailedPayment:", error);
+  }
+}
+async function handleSuccessfulPayment(session2) {
+  const userId = session2.metadata?.user_id;
+  const orderId = session2.metadata?.order_id;
+  const shippingAddressId = session2.metadata?.shipping_address_id;
+  const notes = session2.metadata?.notes;
+  const stripeSessionId = session2.id;
+  const stripeInvoiceId = typeof session2.invoice === "string" ? session2.invoice : null;
+  const stripeCustomerId = typeof session2.customer === "string" ? session2.customer : null;
+  console.log(`[STRIPE WEBHOOK] Pagamento completato per user: ${userId}, orderId: ${orderId}, invoiceId: ${stripeInvoiceId}`);
+  if (!userId) {
+    console.error("[STRIPE WEBHOOK] user_id mancante nei metadata");
+    return;
+  }
+  if (!supabaseAdminForWebhook) {
+    console.error("[STRIPE WEBHOOK] Supabase admin client non disponibile");
+    return;
+  }
+  try {
+    let order = null;
+    if (orderId) {
+      const { data: existingOrder, error: updateError } = await supabaseAdminForWebhook.from("orders").update({
+        status: "pagato",
+        stripe_payment_intent_id: typeof session2.payment_intent === "string" ? session2.payment_intent : null,
+        stripe_session_id: stripeSessionId,
+        stripe_invoice_id: stripeInvoiceId,
+        stripe_customer_id: stripeCustomerId,
+        total_cents: session2.amount_total || 0,
+        currency: session2.currency?.toUpperCase() || "EUR",
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }).eq("id", orderId).select().single();
+      if (updateError) {
+        console.error("[STRIPE WEBHOOK] Errore aggiornamento ordine esistente:", updateError);
+      } else {
+        order = existingOrder;
+        console.log(`[STRIPE WEBHOOK] Ordine ${orderId} aggiornato a 'pagato'`);
+        const { data: existingItems } = await supabaseAdminForWebhook.from("order_items").select("id").eq("order_id", orderId).limit(1);
+        if (!existingItems || existingItems.length === 0) {
+          console.log(`[STRIPE WEBHOOK] Nessun order_item trovato per ordine ${orderId}, creo dal carrello`);
+          const { data: cartItems, error: cartError } = await supabaseAdminForWebhook.from("cart_items").select(`
+              id,
+              quantity,
+              product_option_id,
+              product_options (
+                id,
+                price_cents
+              )
+            `).eq("user_id", userId);
+          if (cartError) {
+            console.error("[STRIPE WEBHOOK] Errore recupero carrello per ordine esistente:", cartError);
+          } else if (cartItems && cartItems.length > 0) {
+            const orderItemsToInsert = cartItems.map((item) => {
+              const priceCents = item.product_options?.price_cents || 0;
+              return {
+                order_id: orderId,
+                product_option_id: item.product_option_id,
+                quantity: item.quantity,
+                unit_price_cents: priceCents,
+                line_total_cents: item.quantity * priceCents
+              };
+            });
+            const { error: itemsError } = await supabaseAdminForWebhook.from("order_items").insert(orderItemsToInsert);
+            if (itemsError) {
+              console.error("[STRIPE WEBHOOK] Errore inserimento order_items per ordine esistente:", itemsError);
+            } else {
+              console.log(`[STRIPE WEBHOOK] Creati ${orderItemsToInsert.length} order_items per ordine ${orderId}`);
+            }
+          } else {
+            console.warn(`[STRIPE WEBHOOK] Carrello vuoto per user ${userId}, impossibile creare order_items`);
+          }
+        }
+      }
+    }
+    if (!order) {
+      const { data: cartItems, error: cartError } = await supabaseAdminForWebhook.from("cart_items").select(`
+          id,
+          quantity,
+          product_option_id,
+          product_options (
+            id,
+            price_cents
+          )
+        `).eq("user_id", userId);
+      if (cartError) {
+        console.error("[STRIPE WEBHOOK] Errore recupero carrello:", cartError);
+      }
+      console.log(`[STRIPE WEBHOOK] Carrello recuperato: ${cartItems?.length || 0} items`);
+      const { data: newOrder, error: orderError } = await supabaseAdminForWebhook.from("orders").insert({
+        user_id: userId,
+        shipping_address_id: shippingAddressId ? parseInt(shippingAddressId) : null,
+        status: "pagato",
+        currency: session2.currency?.toUpperCase() || "EUR",
+        total_cents: session2.amount_total || 0,
+        stripe_payment_intent_id: typeof session2.payment_intent === "string" ? session2.payment_intent : null,
+        stripe_session_id: stripeSessionId,
+        stripe_invoice_id: stripeInvoiceId,
+        stripe_customer_id: stripeCustomerId,
+        notes: notes || null
+      }).select().single();
+      if (orderError) {
+        console.error("[STRIPE WEBHOOK] Errore creazione ordine:", orderError);
+        return;
+      }
+      order = newOrder;
+      console.log(`[STRIPE WEBHOOK] Nuovo ordine creato: ${order.id}`);
+      if (cartItems && cartItems.length > 0) {
+        const orderItems = cartItems.map((item) => {
+          const priceCents = item.product_options?.price_cents || 0;
+          return {
+            order_id: order.id,
+            product_option_id: item.product_option_id,
+            quantity: item.quantity,
+            unit_price_cents: priceCents,
+            line_total_cents: item.quantity * priceCents
+          };
+        });
+        const { error: itemsError } = await supabaseAdminForWebhook.from("order_items").insert(orderItems);
+        if (itemsError) {
+          console.error("[STRIPE WEBHOOK] Errore inserimento order_items:", itemsError);
+        }
+      }
+    }
+    const { error: clearError } = await supabaseAdminForWebhook.from("cart_items").delete().eq("user_id", userId);
+    if (clearError) {
+      console.warn("[STRIPE WEBHOOK] Errore svuotamento carrello:", clearError.message);
+    } else {
+      console.log(`[STRIPE WEBHOOK] Carrello svuotato per user: ${userId}`);
+    }
+    if (order) {
+      console.log(`[STRIPE WEBHOOK] Preparazione email conferma per ordine ${order.id}...`);
+      try {
+        const { data: userData, error: userError } = await supabaseAdminForWebhook.from("users").select("email, first_name, last_name").eq("id", userId).single();
+        console.log(`[STRIPE WEBHOOK] userData:`, userData ? `email=${userData.email}` : "NULL", userError ? `errore: ${userError.message}` : "");
+        const { data: orderItems, error: itemsError } = await supabaseAdminForWebhook.from("order_items").select(`
+            quantity,
+            unit_price_cents,
+            product_options (
+              label,
+              products (
+                name
+              )
+            )
+          `).eq("order_id", order.id);
+        console.log(`[STRIPE WEBHOOK] orderItems: ${orderItems?.length || 0} items`, itemsError ? `errore: ${itemsError.message}` : "");
+        let shippingAddr = null;
+        if (order.shipping_address_id) {
+          const { data: addrData } = await supabaseAdminForWebhook.from("user_addresses").select("street, city, cap, province").eq("id", order.shipping_address_id).single();
+          if (addrData) {
+            shippingAddr = {
+              street: addrData.street,
+              city: addrData.city,
+              postalCode: addrData.cap,
+              province: addrData.province
+            };
+          }
+        }
+        const customerEmail = userData?.email || session2.customer_email;
+        const customerName = userData?.first_name || (customerEmail ? customerEmail.split("@")[0] : "Cliente");
+        if (customerEmail) {
+          const emailItems = (orderItems || []).map((item) => ({
+            name: `${item.product_options?.products?.name || "Prodotto"} - ${item.product_options?.label || ""}`,
+            quantity: item.quantity,
+            price: item.unit_price_cents
+          }));
+          await sendOrderConfirmationEmail({
+            orderId: order.id,
+            userEmail: customerEmail,
+            userName: customerName,
+            total: order.total_cents,
+            items: emailItems,
+            shippingAddress: shippingAddr || void 0
+          });
+          console.log(`[STRIPE WEBHOOK] Email conferma ordine inviata a ${customerEmail}`);
+        } else {
+          console.warn(`[STRIPE WEBHOOK] Nessuna email disponibile per ordine ${order.id}`);
+        }
+      } catch (emailError) {
+        console.error("[STRIPE WEBHOOK] Errore invio email conferma ordine:", emailError);
+      }
+    }
+  } catch (error) {
+    console.error("[STRIPE WEBHOOK] Errore handleSuccessfulPayment:", error);
+  }
+}
 app.use(express2.json());
 app.use(express2.urlencoded({ extended: false }));
 var PORT = parseInt(process.env.PORT || "8080", 10);
@@ -3902,7 +5746,6 @@ app.use((req, res, next) => {
       path: req.path
     });
   });
-  app.use("/images", express2.static("public/images"));
   app.get("/api/auth/check", (req, res) => {
     const session2 = req.session;
     const user = session2?.user;
