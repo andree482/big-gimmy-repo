@@ -209,6 +209,25 @@ img.lazy-load.loaded {
   @apply block sm:hidden;
 }
 
+/* Fix per navbar responsive - forza display corretto */
+@media (min-width: 1024px) {
+  .navbar-desktop {
+    display: flex !important;
+  }
+  .navbar-mobile {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .navbar-desktop {
+    display: none !important;
+  }
+  .navbar-mobile {
+    display: block !important;
+  }
+}
+
 /* ============================ */
 /* SISTEMA ACCESSIBILITÀ BASATO SU data-vision */
 /* ============================ */

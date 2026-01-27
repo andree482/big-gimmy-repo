@@ -140,7 +140,7 @@ const Navbar = () => {
           </div>
 
           {/* Navigation Menu */}
-          <div className="hidden lg:flex space-x-4 xl:space-x-6 text-white font-montserrat font-semibold justify-center flex-1 pl-20 xl:pl-32">
+          <div className="navbar-desktop hidden lg:flex space-x-4 xl:space-x-6 text-white font-montserrat font-semibold justify-center flex-1 pl-20 xl:pl-32">
             {navLinks.map((link) => (
               <div key={link.href}>
                 <Link
@@ -160,7 +160,7 @@ const Navbar = () => {
           </div>
 
           {/* Auth, Favorites, Cart */}
-          <div className="hidden lg:flex items-center gap-1 xl:gap-2 justify-end flex-shrink-0">
+          <div className="navbar-desktop hidden lg:flex items-center gap-1 xl:gap-2 justify-end flex-shrink-0">
             {/* Authentication */}
             {isLoading ? (
               <div className="flex items-center gap-2 px-2 py-2 rounded-full text-white/80">
@@ -263,7 +263,7 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Toggle */}
-          <div className="lg:hidden ml-auto">
+          <div className="navbar-mobile lg:hidden ml-auto">
             <button
               onClick={toggleMobileMenu}
               className="text-white hover:text-[#FFD100] transition-colors duration-200"
