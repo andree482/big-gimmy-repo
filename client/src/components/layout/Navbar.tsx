@@ -56,6 +56,9 @@ const Navbar = () => {
     return scrollY > 130 ? true : scrollY < 110 ? false : currentIsScrolled;
   }, [scrollY, mobileMenuOpen]);
 
+  // Navbar grande quando siamo in cima alla pagina
+  const isAtTop = useMemo(() => scrollY < 20, [scrollY]);
+
   const shouldHide = useMemo(() => scrollDirection === 'down' && scrollY > 400 && !isNavigating && !mobileMenuOpen, [scrollDirection, scrollY, isNavigating, mobileMenuOpen]);
   
   // Memoizza gli stili per evitare re-calcoli - ottimizzazione GPU per eliminare lag
@@ -68,12 +71,13 @@ const Navbar = () => {
     contain: 'layout style paint',
   }), [shouldHide, mobileMenuOpen]);
 
-  // FIXED: Altezza fissa per evitare layout shift - niente padding dinamico
+  // Altezza dinamica: più grande in cima, si riduce quando si scrolla
   const containerStyles = useMemo(() => ({
-    minHeight: '72px',
-    height: '72px',
+    minHeight: isAtTop ? '96px' : '72px',
+    height: isAtTop ? '96px' : '72px',
+    transition: mobileMenuOpen ? 'none' : 'height 0.3s ease, min-height 0.3s ease',
     contain: 'layout style',
-  }), []);
+  }), [isAtTop, mobileMenuOpen]);
 
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
@@ -126,23 +130,23 @@ const Navbar = () => {
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center" style={containerStyles}>
-          {/* Logo - dimensione fissa per evitare layout shift */}
+          {/* Logo - dimensione dinamica basata sullo scroll */}
           <div className="flex items-center w-44" style={{ minWidth: '176px' }}>
-            <div className="font-montserrat font-bold">
+            <div className="font-montserrat font-bold" style={{ transition: 'transform 0.3s ease' }}>
               <Link href="/" className="flex items-center">
-                <Logo size={140} />
+                <Logo size={isAtTop ? 160 : 140} />
               </Link>
             </div>
           </div>
 
           {/* Navigation Menu */}
-          <div className="hidden md:flex space-x-8 text-white font-montserrat font-semibold justify-center flex-1">
+          <div className="hidden lg:flex space-x-4 xl:space-x-6 text-white font-montserrat font-semibold justify-center flex-1 pl-20 xl:pl-32">
             {navLinks.map((link) => (
               <div key={link.href}>
                 <Link
                   href={link.href}
                   onClick={handleNavClick}
-                  className={`relative hover:text-[#FFD100] transition-colors duration-200 py-2 block ${
+                  className={`relative hover:text-[#FFD100] transition-colors duration-200 py-2 block whitespace-nowrap ${
                     location === link.href ? "text-[#FFD100]" : ""
                   }`}
                 >
@@ -156,19 +160,18 @@ const Navbar = () => {
           </div>
 
           {/* Auth, Favorites, Cart */}
-          <div className="hidden md:flex items-center gap-3 w-44 justify-end">
+          <div className="hidden lg:flex items-center gap-1 xl:gap-2 justify-end flex-shrink-0">
             {/* Authentication */}
             {isLoading ? (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-full text-white/80">
+              <div className="flex items-center gap-2 px-2 py-2 rounded-full text-white/80">
                 <User className="w-5 h-5 animate-pulse" />
               </div>
             ) : isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 px-3 py-2 rounded-full transition-colors duration-200 text-white hover:text-[#FFD100] hover:bg-white/5">
+                  <button className="flex items-center gap-1 xl:gap-2 px-2 xl:px-3 py-2 rounded-full transition-colors duration-200 text-white hover:text-[#FFD100] hover:bg-white/5">
                     <User className="w-5 h-5" />
-                    <span className="text-sm font-medium">{user?.firstName || user?.email}</span>
-                    <Badge className="ml-1 bg-[#FFD100] text-black">Autenticato</Badge>
+                    <span className="text-sm font-medium hidden xl:inline max-w-[100px] truncate">{user?.firstName || user?.email}</span>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
@@ -214,58 +217,53 @@ const Navbar = () => {
             ) : (
               <button
                 onClick={handleLoginClick}
-                className="flex items-center gap-2 px-3 py-2 rounded-full transition-colors duration-200 text-white hover:text-[#FFD100] hover:bg-white/5"
+                className="flex items-center gap-1 xl:gap-2 px-2 xl:px-3 py-2 rounded-full transition-colors duration-200 text-white hover:text-[#FFD100] hover:bg-white/5"
               >
                 <User className="w-5 h-5" />
-                <span className="text-sm font-medium">Accedi</span>
-                <Badge variant="secondary" className="ml-1">Non autenticato</Badge>
+                <span className="text-sm font-medium hidden xl:inline">Accedi</span>
               </button>
             )}
 
             {/* Favorites */}
-            <div>
-              <Link
-                href="/preferiti"
-                onClick={handleNavClick}
-                className={`flex items-center gap-2 px-3 py-2 rounded-full transition-colors duration-200 ${
-                  location === "/preferiti"
-                    ? "text-[#FFD100] bg-white/10"
-                    : "text-white hover:text-[#FFD100] hover:bg-white/5"
-                }`}
-                aria-label="I tuoi preferiti"
-              >
-                <Heart className={`w-5 h-5 ${location === "/preferiti" ? "fill-current" : ""}`} />
-                <span className="text-sm font-medium">Preferiti</span>
-              </Link>
-            </div>
+            <Link
+              href="/preferiti"
+              onClick={handleNavClick}
+              className={`flex items-center gap-1 xl:gap-2 px-2 xl:px-3 py-2 rounded-full transition-colors duration-200 ${
+                location === "/preferiti"
+                  ? "text-[#FFD100] bg-white/10"
+                  : "text-white hover:text-[#FFD100] hover:bg-white/5"
+              }`}
+              aria-label="I tuoi preferiti"
+            >
+              <Heart className={`w-5 h-5 ${location === "/preferiti" ? "fill-current" : ""}`} />
+              <span className="text-sm font-medium hidden xl:inline">Preferiti</span>
+            </Link>
 
             {/* Cart */}
-            <div>
-              <Link
-                href="/carrello"
-                onClick={handleNavClick}
-                className={`flex items-center gap-2 px-3 py-2 rounded-full transition-colors duration-200 relative ${
-                  location === "/carrello"
-                    ? "text-[#FFD100] bg-white/10"
-                    : "text-white hover:text-[#FFD100] hover:bg-white/5"
-                }`}
-                aria-label="Carrello"
-              >
-                <div className="relative">
-                  <ShoppingCart className="w-5 h-5" />
-                  {totalItems > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-[#FFD100] text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {totalItems}
-                    </span>
-                  )}
-                </div>
-                <span className="text-sm font-medium">Carrello</span>
-              </Link>
-            </div>
+            <Link
+              href="/carrello"
+              onClick={handleNavClick}
+              className={`flex items-center gap-1 xl:gap-2 px-2 xl:px-3 py-2 rounded-full transition-colors duration-200 relative ${
+                location === "/carrello"
+                  ? "text-[#FFD100] bg-white/10"
+                  : "text-white hover:text-[#FFD100] hover:bg-white/5"
+              }`}
+              aria-label="Carrello"
+            >
+              <div className="relative">
+                <ShoppingCart className="w-5 h-5" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-[#FFD100] text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {totalItems}
+                  </span>
+                )}
+              </div>
+              <span className="text-sm font-medium hidden xl:inline">Carrello</span>
+            </Link>
           </div>
 
           {/* Mobile Toggle */}
-          <div className="md:hidden">
+          <div className="lg:hidden ml-auto">
             <button
               onClick={toggleMobileMenu}
               className="text-white hover:text-[#FFD100] transition-colors duration-200"
@@ -285,7 +283,7 @@ const Navbar = () => {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3 }}
-            className="md:hidden bg-[#212121]/95 backdrop-blur-md border-t border-white/10"
+            className="lg:hidden bg-[#212121]/95 backdrop-blur-md border-t border-white/10"
           >
             <div className="container mx-auto px-4 py-4">
               <div className="flex flex-col space-y-3">
@@ -312,7 +310,6 @@ const Navbar = () => {
                     <div className="flex items-center gap-2 py-2 font-montserrat font-semibold text-[#FFD100]">
                       <User className="w-5 h-5" />
                       {user?.firstName || user?.email}
-                      <Badge className="ml-2 bg-[#FFD100] text-black">Autenticato</Badge>
                     </div>
                     {user?.isAdmin && (
                       <Link
@@ -347,7 +344,6 @@ const Navbar = () => {
                     >
                       <User className="w-5 h-5" />
                       Accedi
-                      <Badge variant="secondary" className="ml-2">Non autenticato</Badge>
                     </button>
                   </>
                 )}

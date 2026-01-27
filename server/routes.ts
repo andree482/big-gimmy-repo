@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage.ts";
 import { insertContactSchema } from "@shared/schema";
 import { z } from "zod";
-import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply } from './services/email.ts';
+import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply, sendTrackingEmail, sendWelcomeEmail, sendOrderConfirmationEmail, sendPasswordChangedEmail } from './services/email.ts';
 import { syncAllImages } from "./utils/imageSync.ts";
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
@@ -1412,11 +1412,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const now = new Date().toISOString();
       let userId: string | null = null;
       let persisted = false;
+      let isNewUser = false;
 
-      // Create Supabase Auth user (ANON key supports signUp)
-      // Il trigger handle_new_user creerà automaticamente la riga in public.users
-      if (supabaseAnon) {
+      // FIX DOPPIO INVIO EMAIL: Il frontend ha già fatto signUp con Supabase Auth.
+      // Qui cerchiamo prima l'utente esistente invece di fare un altro signUp.
+      // Se l'utente non esiste (caso legacy), solo allora facciamo signUp.
+
+      if (client) {
+        // Prima cerca l'utente già creato dal frontend
         try {
+          const { data: existingUser } = await (client as any)
+            .from("users")
+            .select("id")
+            .eq("email", email)
+            .limit(1)
+            .maybeSingle();
+
+          if (existingUser?.id) {
+            userId = String(existingUser.id);
+            persisted = true;
+            console.log("[AUTH REGISTER] Utente già esistente (creato da frontend signUp), userId:", userId);
+          }
+        } catch (e) {
+          console.warn("[AUTH REGISTER] Errore ricerca utente esistente:", e);
+        }
+      }
+
+      // Solo se l'utente NON esiste, facciamo signUp (caso legacy o fallback)
+      if (!userId && supabaseAnon) {
+        try {
+          console.log("[AUTH REGISTER] Utente non trovato, eseguo signUp...");
           const { data, error } = await (supabaseAnon as any).auth.signUp({
             email,
             password,
@@ -1429,38 +1454,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           });
 
-          // Prima controlla se abbiamo l'utente (anche se c'è errore)
           if (data?.user?.id) {
             userId = String(data.user.id);
-            console.log("[AUTH REGISTER] Supabase Auth signUp, userId:", userId);
+            console.log("[AUTH REGISTER] Supabase Auth signUp completato, userId:", userId);
             persisted = true;
+            isNewUser = true;
           }
 
-          // Se c'è errore E non abbiamo l'utente
           if (error && !userId) {
-            // Se l'utente esiste già, prova a cercarlo nel DB per continuare il flusso
-            if ((error as any).code === 'user_already_exists' && client) {
-              console.log("[AUTH REGISTER] Utente già esistente, cerco nel DB...");
-              const { data: existingUser } = await (client as any)
-                .from("users")
-                .select("id")
-                .eq("email", email)
-                .limit(1)
-                .maybeSingle();
-              if (existingUser?.id) {
-                userId = String(existingUser.id);
-                persisted = true;
-                console.log("[AUTH REGISTER] Utente esistente trovato, userId:", userId);
-              } else {
-                return res.status(400).json({ success: false, message: "Un account con questa email esiste già. Prova ad accedere." });
-              }
-            } else {
-              console.error("[AUTH REGISTER] Supabase Auth signUp errore:", error);
-              return res.status(400).json({ success: false, message: error.message || "Errore durante la registrazione" });
-            }
-          } else if (error && userId) {
-            // Errore ma utente creato - logga warning ma continua
-            console.warn("[AUTH REGISTER] Warning durante signUp (utente creato):", error.message);
+            console.error("[AUTH REGISTER] Supabase Auth signUp errore:", error);
+            return res.status(400).json({ success: false, message: error.message || "Errore durante la registrazione" });
           }
         } catch (e: any) {
           console.error("[AUTH] Supabase Auth signUp exception:", e);
@@ -1468,9 +1471,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Se il signUp non ha funzionato, non possiamo procedere
+      // Se non abbiamo userId, non possiamo procedere
       if (!userId) {
-        console.error("[AUTH REGISTER] userId non disponibile dopo signUp");
+        console.error("[AUTH REGISTER] userId non disponibile");
         return res.status(500).json({ success: false, message: "Errore durante la registrazione" });
       }
 
@@ -1547,8 +1550,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         await new Promise<void>((resolve) => req.session.save(() => resolve()));
       }
+
+      // L'email di benvenuto viene inviata DOPO la verifica email (vedi /api/auth/send-welcome)
       return res.json({ success: true, persisted, user: { id: userId, email } });
     } catch {
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // ================================
+  // SEND WELCOME EMAIL - chiamato dopo verifica email
+  // ================================
+  app.post("/api/auth/send-welcome", async (req: Request, res: Response) => {
+    console.log("[AUTH] /api/auth/send-welcome chiamato");
+    try {
+      // Verifica che l'utente sia autenticato
+      const authData = await getAuthFromToken(req);
+      console.log("[AUTH] send-welcome authData:", authData ? `id=${authData.id}, email=${authData.email}` : 'NULL');
+
+      if (!authData) {
+        console.warn("[AUTH] send-welcome: Token non valido o mancante");
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+
+      // FIX: getAuthFromToken restituisce 'id', non 'userId'
+      const userId = authData.id;
+
+      // Recupera i dati dell'utente
+      const client = supabaseAdmin;
+      if (!client) {
+        console.error("[AUTH] send-welcome: supabaseAdmin non configurato");
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      const { data: userData, error } = await (client as any)
+        .from("users")
+        .select("email, first_name")
+        .eq("id", userId)
+        .single();
+
+      console.log("[AUTH] send-welcome userData:", userData ? `email=${userData.email}` : 'NULL', error ? `errore: ${error.message}` : '');
+
+      if (error || !userData?.email) {
+        console.error("[AUTH] Errore recupero utente per welcome email:", error);
+        return res.status(404).json({ success: false, message: "Utente non trovato" });
+      }
+
+      // Invia email di benvenuto
+      console.log(`[AUTH] send-welcome: Invio email a ${userData.email}...`);
+      const sent = await sendWelcomeEmail({
+        email: userData.email,
+        firstName: userData.first_name
+      });
+
+      if (sent) {
+        console.log(`[AUTH] ✅ Welcome email inviata a ${userData.email} dopo verifica`);
+        return res.json({ success: true, message: "Email di benvenuto inviata" });
+      } else {
+        console.error(`[AUTH] ❌ Invio welcome email fallito per ${userData.email}`);
+        return res.status(500).json({ success: false, message: "Errore invio email" });
+      }
+    } catch (err) {
+      console.error("[AUTH] Errore endpoint send-welcome:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // ================================
+  // PASSWORD CHANGED - invia email di conferma cambio password
+  // ================================
+  app.post("/api/auth/password-changed", async (req: Request, res: Response) => {
+    console.log("[AUTH] /api/auth/password-changed chiamato");
+    try {
+      // Verifica che l'utente sia autenticato
+      const authData = await getAuthFromToken(req);
+      console.log("[AUTH] password-changed authData:", authData ? `id=${authData.id}, email=${authData.email}` : 'NULL');
+
+      if (!authData) {
+        console.warn("[AUTH] password-changed: Token non valido o mancante");
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+
+      const userId = authData.id;
+
+      // Recupera i dati dell'utente
+      const client = supabaseAdmin;
+      if (!client) {
+        console.error("[AUTH] password-changed: supabaseAdmin non configurato");
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      const { data: userData, error } = await (client as any)
+        .from("users")
+        .select("email, first_name")
+        .eq("id", userId)
+        .single();
+
+      console.log("[AUTH] password-changed userData:", userData ? `email=${userData.email}` : 'NULL', error ? `errore: ${error.message}` : '');
+
+      if (error || !userData?.email) {
+        console.error("[AUTH] Errore recupero utente per password-changed email:", error);
+        return res.status(404).json({ success: false, message: "Utente non trovato" });
+      }
+
+      // Invia email di conferma cambio password
+      console.log(`[AUTH] password-changed: Invio email a ${userData.email}...`);
+      const sent = await sendPasswordChangedEmail({
+        email: userData.email,
+        firstName: userData.first_name
+      });
+
+      if (sent) {
+        console.log(`[AUTH] ✅ Password changed email inviata a ${userData.email}`);
+        return res.json({ success: true, message: "Email di conferma inviata" });
+      } else {
+        console.error(`[AUTH] ❌ Invio password changed email fallito per ${userData.email}`);
+        return res.status(500).json({ success: false, message: "Errore invio email" });
+      }
+    } catch (err) {
+      console.error("[AUTH] Errore endpoint password-changed:", err);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });
@@ -1739,18 +1859,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all contacts endpoint (for admin purposes)
-  app.get("/api/contacts", async (req: Request, res: Response) => {
-    try {
-      const contacts = await storage.getContacts();
-      return res.status(200).json({ contacts });
-    } catch (error) {
-      console.error("Error fetching contacts:", error);
-      return res.status(500).json({ 
-        success: false, 
-        message: "Server error while fetching contacts" 
-      });
-    }
-  });
+  // ROTTA PER RICEVERE IL MESSAGGIO DAL FORM (POST)
+app.post("/api/contact", async (req: Request, res: Response) => {
+  try {
+    const formData = req.body; // Riceve nome, email, messaggio dal frontend
+
+    // 1. Salviamo il contatto nel database (se il tuo storage lo prevede)
+    const newContact = await storage.createContact(formData);
+
+    // 2. INVIO EMAIL (Usando le funzioni che abbiamo sistemato in email.ts)
+    // Inviamo la notifica a te (Admin) e la conferma al cliente
+    const adminEmailPromise = sendAdminNotification(formData);
+    const userEmailPromise = sendUserConfirmation(formData);
+
+    // Aspettiamo che le email vengano inviate
+    await Promise.all([adminEmailPromise, userEmailPromise]);
+
+    return res.status(201).json({ 
+      success: true, 
+      message: "Messaggio inviato e salvato con successo!",
+      contact: newContact 
+    });
+
+  } catch (error) {
+    console.error("Error in contact form:", error);
+    return res.status(500).json({ 
+      success: false, 
+      message: "Errore durante l'invio del messaggio" 
+    });
+  }
+});
 
   // Get all products endpoint (for main /prodotti page)
   app.get("/api/products", async (req: Request, res: Response) => {
@@ -3007,6 +3145,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (!updateError) {
                 order.status = "pagato";
                 console.log(`[ORDERS] Ordine ${order.id} aggiornato a 'pagato' (fallback da checkout success)`);
+
+                // Invia email conferma ordine (fallback quando webhook non arriva)
+                try {
+                  // Recupera dati utente
+                  const { data: userData } = await (supabaseAdmin as any)
+                    .from("users")
+                    .select("email, first_name, last_name")
+                    .eq("id", user.id)
+                    .single();
+
+                  // Recupera order_items
+                  const { data: orderItems } = await (supabaseAdmin as any)
+                    .from("order_items")
+                    .select(`
+                      quantity,
+                      unit_price_cents,
+                      product_options (
+                        label,
+                        products (
+                          name
+                        )
+                      )
+                    `)
+                    .eq("order_id", order.id);
+
+                  // Recupera indirizzo spedizione
+                  let shippingAddr = null;
+                  const { data: orderFull } = await (supabaseAdmin as any)
+                    .from("orders")
+                    .select("shipping_address_id")
+                    .eq("id", order.id)
+                    .single();
+
+                  if (orderFull?.shipping_address_id) {
+                    const { data: addrData } = await (supabaseAdmin as any)
+                      .from("user_addresses")
+                      .select("street, city, cap, province")
+                      .eq("id", orderFull.shipping_address_id)
+                      .single();
+                    if (addrData) {
+                      shippingAddr = {
+                        street: addrData.street,
+                        city: addrData.city,
+                        postalCode: addrData.cap,
+                        province: addrData.province
+                      };
+                    }
+                  }
+
+                  const customerEmail = userData?.email || stripeSession.customer_email;
+                  const customerName = userData?.first_name || (customerEmail ? customerEmail.split('@')[0] : 'Cliente');
+
+                  if (customerEmail) {
+                    const emailItems = (orderItems || []).map((item: any) => ({
+                      name: `${item.product_options?.products?.name || 'Prodotto'} - ${item.product_options?.label || ''}`,
+                      quantity: item.quantity,
+                      price: item.unit_price_cents
+                    }));
+
+                    await sendOrderConfirmationEmail({
+                      orderId: order.id,
+                      userEmail: customerEmail,
+                      userName: customerName,
+                      total: order.total_cents,
+                      items: emailItems,
+                      shippingAddress: shippingAddr || undefined
+                    });
+                    console.log(`[ORDERS] ✅ Email conferma ordine inviata a ${customerEmail} (via fallback)`);
+                  }
+                } catch (emailErr) {
+                  console.error("[ORDERS] Errore invio email conferma (fallback):", emailErr);
+                }
               }
             }
           }
@@ -3020,6 +3230,297 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("[ORDERS] Errore recupero ordine per session:", error?.message || error);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // ========== STRIPE BILLING / INVOICE API ROUTES ==========
+
+  // Genera URL per il Billing Portal Stripe (gestione fatture utente)
+  app.post("/api/billing-portal", async (req: Request, res: Response) => {
+    try {
+      const sess = req.session as any;
+      const auth = await getAuthFromToken(req);
+      const user = auth ? { authenticated: true, id: auth.id, email: auth.email } : sess?.user;
+
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+
+      const stripeSecret = process.env.STRIPE_SECRET_KEY;
+      if (!stripeSecret) {
+        return res.status(500).json({ success: false, message: "Stripe non configurato" });
+      }
+
+      const stripe = new Stripe(stripeSecret);
+
+      // Cerca il customer Stripe associato all'utente (tramite email o ordini precedenti)
+      let stripeCustomerId: string | null = null;
+
+      // Prima prova a recuperare da un ordine esistente
+      if (supabaseAdmin) {
+        const { data: orderWithCustomer } = await (supabaseAdmin as any)
+          .from("orders")
+          .select("stripe_customer_id")
+          .eq("user_id", user.id)
+          .not("stripe_customer_id", "is", null)
+          .limit(1)
+          .single();
+
+        if (orderWithCustomer?.stripe_customer_id) {
+          stripeCustomerId = orderWithCustomer.stripe_customer_id;
+        }
+      }
+
+      // Se non trovato, cerca per email su Stripe
+      if (!stripeCustomerId && user.email) {
+        const customers = await stripe.customers.list({
+          email: user.email,
+          limit: 1,
+        });
+        if (customers.data.length > 0) {
+          stripeCustomerId = customers.data[0].id;
+        }
+      }
+
+      if (!stripeCustomerId) {
+        return res.status(404).json({
+          success: false,
+          message: "Nessun account di fatturazione trovato. Completa un acquisto per accedere alle fatture.",
+        });
+      }
+
+      // Crea la sessione del Billing Portal
+      const returnUrl = process.env.BILLING_PORTAL_RETURN_URL ||
+                       process.env.CHECKOUT_SUCCESS_URL?.replace('/checkout/success', '/ordini') ||
+                       "http://localhost:5000/ordini";
+
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: stripeCustomerId,
+        return_url: returnUrl,
+      });
+
+      return res.json({ success: true, url: portalSession.url });
+    } catch (error: any) {
+      console.error("[BILLING PORTAL] Errore:", error?.message || error);
+      return res.status(500).json({ success: false, message: "Errore creazione portale fatturazione" });
+    }
+  });
+
+  // Recupera il link PDF della fattura per un ordine specifico
+  app.get("/api/orders/:orderId/invoice", async (req: Request, res: Response) => {
+    try {
+      const sess = req.session as any;
+      const auth = await getAuthFromToken(req);
+      const user = auth ? { authenticated: true, id: auth.id } : sess?.user;
+
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+
+      const { orderId } = req.params;
+      if (!orderId) {
+        return res.status(400).json({ success: false, message: "Order ID mancante" });
+      }
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      // Recupera l'ordine verificando che appartenga all'utente
+      const { data: order, error } = await (supabaseAdmin as any)
+        .from("orders")
+        .select("id, user_id, stripe_invoice_id, stripe_session_id, stripe_customer_id, created_at, status")
+        .eq("id", orderId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (error || !order) {
+        return res.status(404).json({ success: false, message: "Ordine non trovato" });
+      }
+
+      const stripeSecret = process.env.STRIPE_SECRET_KEY;
+      if (!stripeSecret) {
+        return res.status(500).json({ success: false, message: "Stripe non configurato" });
+      }
+
+      const stripe = new Stripe(stripeSecret);
+
+      let invoiceId = order.stripe_invoice_id;
+
+      // Se non abbiamo l'invoice_id, proviamo a recuperarlo dalla session
+      if (!invoiceId && order.stripe_session_id) {
+        try {
+          const session = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
+          if (session.invoice) {
+            invoiceId = typeof session.invoice === 'string' ? session.invoice : (session.invoice as any).id;
+            // Salva l'invoice_id per le prossime richieste
+            await (supabaseAdmin as any)
+              .from("orders")
+              .update({ stripe_invoice_id: invoiceId })
+              .eq("id", orderId);
+            console.log(`[INVOICE] Recuperato invoice_id ${invoiceId} dalla session per ordine ${orderId}`);
+          }
+        } catch (e: any) {
+          console.log("[INVOICE] Errore recupero session:", e?.message);
+        }
+      }
+
+      // Se ancora non abbiamo l'invoice, cerca tra le fatture del customer
+      if (!invoiceId && order.stripe_customer_id) {
+        try {
+          const invoices = await stripe.invoices.list({
+            customer: order.stripe_customer_id,
+            limit: 10,
+          });
+          // Cerca la fattura pagata più recente
+          const orderDate = new Date(order.created_at).getTime();
+          const matchingInvoice = invoices.data.find(inv =>
+            inv.status === 'paid' &&
+            (inv.created * 1000) >= orderDate - 300000 // Entro 5 minuti dalla creazione ordine
+          );
+          if (matchingInvoice) {
+            invoiceId = matchingInvoice.id;
+            // Salva l'invoice_id per le prossime richieste
+            await (supabaseAdmin as any)
+              .from("orders")
+              .update({ stripe_invoice_id: invoiceId })
+              .eq("id", orderId);
+            console.log(`[INVOICE] Recuperato invoice_id ${invoiceId} dal customer per ordine ${orderId}`);
+          }
+        } catch (e: any) {
+          console.log("[INVOICE] Errore ricerca fatture customer:", e?.message);
+        }
+      }
+
+      if (!invoiceId) {
+        return res.status(404).json({
+          success: false,
+          message: "Fattura non disponibile. Le fatture automatiche sono attive solo per i nuovi ordini.",
+        });
+      }
+
+      // Recupera la fattura da Stripe
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+
+      if (!invoice.invoice_pdf) {
+        return res.status(404).json({
+          success: false,
+          message: "PDF fattura non ancora disponibile",
+        });
+      }
+
+      return res.json({
+        success: true,
+        invoicePdfUrl: invoice.invoice_pdf,
+        invoiceUrl: invoice.hosted_invoice_url,
+        invoiceNumber: invoice.number,
+      });
+    } catch (error: any) {
+      console.error("[INVOICE] Errore recupero fattura:", error?.message || error);
+      return res.status(500).json({ success: false, message: "Errore recupero fattura" });
+    }
+  });
+
+  // Recupera il link PDF della fattura per un ordine (versione ADMIN - non verifica user_id)
+  app.get("/api/admin/orders/:orderId/invoice", ensureAuth, ensureAdmin, async (req: Request, res: Response) => {
+    try {
+      const { orderId } = req.params;
+      if (!orderId) {
+        return res.status(400).json({ success: false, message: "Order ID mancante" });
+      }
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      // Admin può accedere a qualsiasi ordine
+      const { data: order, error } = await (supabaseAdmin as any)
+        .from("orders")
+        .select("id, stripe_invoice_id, stripe_session_id, stripe_customer_id, created_at, status")
+        .eq("id", orderId)
+        .single();
+
+      if (error || !order) {
+        return res.status(404).json({ success: false, message: "Ordine non trovato" });
+      }
+
+      const stripeSecret = process.env.STRIPE_SECRET_KEY;
+      if (!stripeSecret) {
+        return res.status(500).json({ success: false, message: "Stripe non configurato" });
+      }
+
+      const stripe = new Stripe(stripeSecret);
+
+      let invoiceId = order.stripe_invoice_id;
+
+      // Se non abbiamo l'invoice_id, proviamo a recuperarlo dalla session
+      if (!invoiceId && order.stripe_session_id) {
+        try {
+          const session = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
+          if (session.invoice) {
+            invoiceId = typeof session.invoice === 'string' ? session.invoice : (session.invoice as any).id;
+            await (supabaseAdmin as any)
+              .from("orders")
+              .update({ stripe_invoice_id: invoiceId })
+              .eq("id", orderId);
+            console.log(`[ADMIN INVOICE] Recuperato invoice_id ${invoiceId} dalla session per ordine ${orderId}`);
+          }
+        } catch (e: any) {
+          console.log("[ADMIN INVOICE] Errore recupero session:", e?.message);
+        }
+      }
+
+      // Se ancora non abbiamo l'invoice, cerca tra le fatture del customer
+      if (!invoiceId && order.stripe_customer_id) {
+        try {
+          const invoices = await stripe.invoices.list({
+            customer: order.stripe_customer_id,
+            limit: 10,
+          });
+          const orderDate = new Date(order.created_at).getTime();
+          const matchingInvoice = invoices.data.find(inv =>
+            inv.status === 'paid' &&
+            (inv.created * 1000) >= orderDate - 300000
+          );
+          if (matchingInvoice) {
+            invoiceId = matchingInvoice.id;
+            await (supabaseAdmin as any)
+              .from("orders")
+              .update({ stripe_invoice_id: invoiceId })
+              .eq("id", orderId);
+            console.log(`[ADMIN INVOICE] Recuperato invoice_id ${invoiceId} dal customer per ordine ${orderId}`);
+          }
+        } catch (e: any) {
+          console.log("[ADMIN INVOICE] Errore ricerca fatture customer:", e?.message);
+        }
+      }
+
+      if (!invoiceId) {
+        return res.status(404).json({
+          success: false,
+          message: "Fattura non disponibile. Le fatture automatiche sono attive solo per i nuovi ordini.",
+        });
+      }
+
+      // Recupera la fattura da Stripe
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+
+      if (!invoice.invoice_pdf) {
+        return res.status(404).json({
+          success: false,
+          message: "PDF fattura non ancora disponibile",
+        });
+      }
+
+      return res.json({
+        success: true,
+        invoicePdfUrl: invoice.invoice_pdf,
+        invoiceUrl: invoice.hosted_invoice_url,
+        invoiceNumber: invoice.number,
+      });
+    } catch (error: any) {
+      console.error("[ADMIN INVOICE] Errore recupero fattura:", error?.message || error);
+      return res.status(500).json({ success: false, message: "Errore recupero fattura" });
     }
   });
 
@@ -3428,23 +3929,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const sess = req.session as any;
         const auth = await getAuthFromToken(req);
         const user = auth ? { authenticated: true, id: auth.id } : sess?.user;
+
+        console.log("[CART API] POST /api/cart - auth:", auth ? `id=${auth.id}` : 'NULL', "sess.user:", sess?.user ? `id=${sess.user.id}, auth=${sess.user.authenticated}` : 'NULL');
+
         if (!user?.authenticated) {
+          console.warn("[CART API] Utente non autenticato - né token né sessione validi");
           return res.status(401).json({ success: false, message: "Non autenticato" });
         }
 
-        console.log("DEBUG /api/cart POST body:", req.body);
+        console.log("[CART API] POST body:", req.body, "user.id:", user.id);
         const { product_option_id, quantity, productId, variant, price } = req.body || {};
 
         if (supabaseAdmin) {
           const poid = Number(product_option_id);
           const qty = Number(quantity);
           if (Number.isFinite(poid) && poid > 0 && Number.isFinite(qty) && qty > 0) {
-            const { error } = await (supabaseAdmin as any).rpc("add_to_cart", {
-              p_product_option_id: poid,
-              p_quantity: qty,
-              p_user_id: String(user.id),
-            });
-            if (error) return res.status(400).json({ success: false, error });
+            // Usa INSERT/UPSERT diretto invece della RPC (la RPC non supporta p_user_id)
+            const userId = String(user.id);
+
+            // Cerca se esiste già un item nel carrello
+            const { data: existing } = await (supabaseAdmin as any)
+              .from("cart_items")
+              .select("id, quantity")
+              .eq("user_id", userId)
+              .eq("product_option_id", poid)
+              .maybeSingle();
+
+            if (existing) {
+              // Aggiorna la quantità
+              const { error } = await (supabaseAdmin as any)
+                .from("cart_items")
+                .update({ quantity: existing.quantity + qty })
+                .eq("id", existing.id);
+              if (error) {
+                console.error("[CART API] Errore update cart_items:", error);
+                return res.status(400).json({ success: false, error });
+              }
+            } else {
+              // Inserisci nuovo item
+              const { error } = await (supabaseAdmin as any)
+                .from("cart_items")
+                .insert({
+                  user_id: userId,
+                  product_option_id: poid,
+                  quantity: qty
+                });
+              if (error) {
+                console.error("[CART API] Errore insert cart_items:", error);
+                return res.status(400).json({ success: false, error });
+              }
+            }
+
+            console.log("[CART API] ✅ Carrello aggiornato per user:", userId);
             return res.json({ success: true });
           }
 
@@ -3465,12 +4001,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (!Number.isFinite(resolvedId) || resolvedId <= 0) {
                 return res.status(400).json({ success: false, message: "Parametri non validi" });
               }
-              const { error: err2 } = await (supabaseAdmin as any).rpc("add_to_cart", {
-                p_product_option_id: resolvedId,
-                p_quantity: qty,
-                p_user_id: String(user.id),
-              });
-              if (err2) return res.status(400).json({ success: false, error: err2 });
+              // Usa INSERT/UPSERT diretto invece della RPC
+              const userId = String(user.id);
+              const { data: existingItem } = await (supabaseAdmin as any)
+                .from("cart_items")
+                .select("id, quantity")
+                .eq("user_id", userId)
+                .eq("product_option_id", resolvedId)
+                .maybeSingle();
+
+              if (existingItem) {
+                const { error: err2 } = await (supabaseAdmin as any)
+                  .from("cart_items")
+                  .update({ quantity: existingItem.quantity + qty })
+                  .eq("id", existingItem.id);
+                if (err2) return res.status(400).json({ success: false, error: err2 });
+              } else {
+                const { error: err2 } = await (supabaseAdmin as any)
+                  .from("cart_items")
+                  .insert({ user_id: userId, product_option_id: resolvedId, quantity: qty });
+                if (err2) return res.status(400).json({ success: false, error: err2 });
+              }
               return res.json({ success: true });
             } catch (e) {
               return res.status(500).json({ success: false, message: "Errore interno del server" });
@@ -3483,19 +4034,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const poid = Number(product_option_id);
           const qty = Number(quantity);
           if (Number.isFinite(poid) && poid > 0 && Number.isFinite(qty) && qty > 0) {
-            // Try RPC with anon
-            const rpcRes = await (supabaseAnon as any).rpc("add_to_cart", {
-              p_product_option_id: poid,
-              p_quantity: qty,
-              p_user_id: String(user.id),
-            });
-            if (!rpcRes.error) return res.json({ success: true });
-
-            // Fallback: direct upsert into cart_items if policies allow
-            const { error: upErr } = await (supabaseAnon as any)
+            // Usa INSERT/UPSERT diretto invece della RPC
+            const userId = String(user.id);
+            const { data: existingAnon } = await (supabaseAnon as any)
               .from("cart_items")
-              .upsert({ user_id: String(user.id), product_option_id: poid, quantity: qty }, { onConflict: "user_id,product_option_id" });
-            if (!upErr) return res.json({ success: true });
+              .select("id, quantity")
+              .eq("user_id", userId)
+              .eq("product_option_id", poid)
+              .maybeSingle();
+
+            if (existingAnon) {
+              const { error: upErr } = await (supabaseAnon as any)
+                .from("cart_items")
+                .update({ quantity: existingAnon.quantity + qty })
+                .eq("id", existingAnon.id);
+              if (!upErr) return res.json({ success: true });
+            } else {
+              const { error: upErr } = await (supabaseAnon as any)
+                .from("cart_items")
+                .insert({ user_id: userId, product_option_id: poid, quantity: qty });
+              if (!upErr) return res.json({ success: true });
+            }
           }
         }
 
@@ -3601,11 +4160,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             // Not found → proceed a productId+variant path sotto
           } else {
-            const { error } = await (supabaseAdmin as any).rpc("update_cart_quantity", {
-              p_product_option_id: product_option_id,
-              p_quantity: quantity,
-              p_user_id: String(user.id),
-            });
+            // Aggiornamento diretto invece della RPC
+            const { error } = await (supabaseAdmin as any)
+              .from("cart_items")
+              .update({ quantity: quantity })
+              .eq("user_id", String(user.id))
+              .eq("product_option_id", Number(product_option_id));
             if (error) {
               console.error("Errore update cart_items su Supabase", error);
               return res.status(500).json({ success: false, message: "Errore aggiornamento carrello (DB)" });
@@ -3656,10 +4216,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Supabase path: rimozione per product_option_id
         if (supabaseAdmin && typeof product_option_id === "number" && product_option_id > 0) {
-          const { error } = await (supabaseAdmin as any).rpc("remove_from_cart", {
-            p_product_option_id: product_option_id,
-            p_user_id: String(user.id),
-          });
+          // Eliminazione diretta invece della RPC
+          const { error } = await (supabaseAdmin as any)
+            .from("cart_items")
+            .delete()
+            .eq("user_id", String(user.id))
+            .eq("product_option_id", Number(product_option_id));
           if (error) {
             console.error("Errore remove cart_items su Supabase", error);
             return res.status(500).json({ success: false, message: "Errore rimozione carrello (DB)" });
@@ -3714,7 +4276,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         const { userId } = req.params;
         if (supabaseAdmin) {
-          const { error } = await (supabaseAdmin as any).rpc("clear_cart", { p_user_id: userId });
+          // Eliminazione diretta di tutti gli item del carrello invece della RPC
+          const { error } = await (supabaseAdmin as any)
+            .from("cart_items")
+            .delete()
+            .eq("user_id", String(userId));
           if (error) return res.status(400).json({ success: false, error });
           return res.json({ success: true });
         }
@@ -3785,12 +4351,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         const sess = req.session as any;
         const userId = sess?.user?.id;
-        const { error } = await (supabaseAdmin as any).rpc("add_to_cart", {
-          p_product_option_id: product_option_id,
-          p_quantity: quantity,
-          ...(userId ? { p_user_id: userId } : {}),
-        });
-        if (error) return res.status(400).json({ success: false, error });
+        if (!userId) {
+          return res.status(401).json({ success: false, message: "Non autenticato" });
+        }
+
+        // Usa INSERT/UPSERT diretto invece della RPC
+        const poid = Number(product_option_id);
+        const qty = Number(quantity);
+        const { data: existingItem } = await (supabaseAdmin as any)
+          .from("cart_items")
+          .select("id, quantity")
+          .eq("user_id", String(userId))
+          .eq("product_option_id", poid)
+          .maybeSingle();
+
+        if (existingItem) {
+          const { error } = await (supabaseAdmin as any)
+            .from("cart_items")
+            .update({ quantity: existingItem.quantity + qty })
+            .eq("id", existingItem.id);
+          if (error) return res.status(400).json({ success: false, error });
+        } else {
+          const { error } = await (supabaseAdmin as any)
+            .from("cart_items")
+            .insert({ user_id: String(userId), product_option_id: poid, quantity: qty });
+          if (error) return res.status(400).json({ success: false, error });
+        }
         return res.json({ success: true });
       } catch (error) {
         return res.status(500).json({ success: false, message: "Errore aggiunta carrello" });
@@ -3808,11 +4394,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         const sess = req.session as any;
         const userId = sess?.user?.id;
-        const { error } = await (supabaseAdmin as any).rpc("update_cart_quantity", {
-          p_product_option_id: product_option_id,
-          p_quantity: quantity,
-          ...(userId ? { p_user_id: userId } : {}),
-        });
+        if (!userId) {
+          return res.status(401).json({ success: false, message: "Non autenticato" });
+        }
+
+        // Aggiornamento diretto invece della RPC
+        const { error } = await (supabaseAdmin as any)
+          .from("cart_items")
+          .update({ quantity: quantity })
+          .eq("user_id", String(userId))
+          .eq("product_option_id", Number(product_option_id));
         if (error) return res.status(400).json({ success: false, error });
         return res.json({ success: true });
       } catch (error) {
@@ -3831,10 +4422,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         const sess = req.session as any;
         const userId = sess?.user?.id;
-        const { error } = await (supabaseAdmin as any).rpc("remove_from_cart", {
-          p_product_option_id: product_option_id,
-          ...(userId ? { p_user_id: userId } : {}),
-        });
+        if (!userId) {
+          return res.status(401).json({ success: false, message: "Non autenticato" });
+        }
+
+        // Eliminazione diretta invece della RPC
+        const { error } = await (supabaseAdmin as any)
+          .from("cart_items")
+          .delete()
+          .eq("user_id", String(userId))
+          .eq("product_option_id", Number(product_option_id));
         if (error) return res.status(400).json({ success: false, error });
         return res.json({ success: true });
       } catch (error) {
@@ -3848,7 +4445,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(500).json({ success: false, message: "Supabase non configurato" });
         }
         const { userId } = req.params;
-        const { error } = await (supabaseAdmin as any).rpc("clear_cart", { p_user_id: userId });
+        // Eliminazione diretta di tutti gli item del carrello invece della RPC
+        const { error } = await (supabaseAdmin as any)
+          .from("cart_items")
+          .delete()
+          .eq("user_id", String(userId));
         if (error) return res.status(400).json({ success: false, error });
         return res.json({ success: true });
       } catch (error) {
@@ -3922,6 +4523,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Checkout env check:", { hasSecret: !!secret, successUrl, cancelUrl, userId: user.id });
 
         const stripe = new Stripe(secret as string);
+
+        // Crea o recupera un Stripe Customer per abilitare fatturazione automatica
+        let stripeCustomerId: string | null = null;
+        if (user.email) {
+          try {
+            // Cerca customer esistente per email
+            const existingCustomers = await stripe.customers.list({
+              email: user.email,
+              limit: 1,
+            });
+
+            if (existingCustomers.data.length > 0) {
+              stripeCustomerId = existingCustomers.data[0].id;
+              console.log(`[CHECKOUT] Customer Stripe esistente trovato: ${stripeCustomerId}`);
+            } else {
+              // Crea nuovo customer
+              const newCustomer = await stripe.customers.create({
+                email: user.email,
+                metadata: {
+                  user_id: user.id,
+                },
+              });
+              stripeCustomerId = newCustomer.id;
+              console.log(`[CHECKOUT] Nuovo Customer Stripe creato: ${stripeCustomerId}`);
+            }
+          } catch (customerError) {
+            console.warn("[CHECKOUT] Errore gestione Stripe Customer:", customerError);
+            // Continua senza customer - la fatturazione automatica non funzionerà
+          }
+        }
 
         // Calcola il totale per applicare lo sconto
         const subtotalCents = items.reduce((sum, i) => {
@@ -4024,7 +4655,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           line_items,
           success_url: `${successUrl}?session_id=${orderId || '{CHECKOUT_SESSION_ID}'}`,
           cancel_url: cancelUrl,
-          customer_email: user.email || undefined,
+          // Usa customer esistente o passa email per crearne uno nuovo
+          ...(stripeCustomerId
+            ? { customer: stripeCustomerId }
+            : { customer_email: user.email || undefined }
+          ),
+          // Abilita emissione automatica fattura dopo il pagamento
+          invoice_creation: {
+            enabled: true,
+            invoice_data: {
+              metadata: {
+                order_id: orderId || "",
+                user_id: user.id,
+              },
+            },
+          },
           metadata: {
             user_id: user.id,
             order_id: orderId || "",
@@ -4034,11 +4679,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
         });
 
-        // Aggiorna l'ordine con il session_id di Stripe
+        // Aggiorna l'ordine con il session_id e customer_id di Stripe
         if (orderId && supabaseAdmin) {
           await (supabaseAdmin as any)
             .from("orders")
-            .update({ stripe_session_id: sessionStripe.id })
+            .update({
+              stripe_session_id: sessionStripe.id,
+              stripe_customer_id: stripeCustomerId || null,
+            })
             .eq("id", orderId);
         }
 
@@ -4064,6 +4712,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ success: false, message: "Database non configurato" });
       }
 
+      // Recupera l'ordine prima dell'aggiornamento per verificare se il tracking è nuovo
+      const { data: existingOrder } = await (supabaseAdmin as any)
+        .from("orders")
+        .select("tracking_number, user_id")
+        .eq("id", orderId)
+        .single();
+
+      const hadNoTracking = !existingOrder?.tracking_number;
+
       const updates: any = {
         updated_at: new Date().toISOString()
       };
@@ -4079,6 +4736,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error) {
         console.error("[TRACKING] Errore aggiornamento tracking:", error);
         return res.status(500).json({ success: false, message: "Errore aggiornamento tracciamento" });
+      }
+
+      // Invia email solo se il tracking è stato appena inserito (non era presente prima)
+      if (hadNoTracking && tracking_number && carrier && existingOrder?.user_id) {
+        try {
+          // Recupera i dati dell'utente
+          const { data: userData } = await (supabaseAdmin as any)
+            .from("users")
+            .select("email, first_name, last_name")
+            .eq("id", existingOrder.user_id)
+            .single();
+
+          if (userData?.email) {
+            await sendTrackingEmail({
+              orderId: orderId,
+              userEmail: userData.email,
+              userName: userData.first_name || userData.email.split('@')[0],
+              trackingNumber: tracking_number,
+              carrier: carrier
+            });
+            console.log(`[TRACKING] Email tracciamento inviata a ${userData.email} per ordine ${orderId}`);
+          }
+        } catch (emailError) {
+          console.error("[TRACKING] Errore invio email tracciamento:", emailError);
+          // Non blocchiamo il flusso se l'email fallisce
+        }
       }
 
       return res.json({ success: true, message: "Tracciamento aggiornato" });

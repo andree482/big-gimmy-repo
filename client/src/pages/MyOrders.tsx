@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Package, Clock, CheckCircle, AlertCircle, ChevronDown, ShoppingBag, ArrowLeft, ExternalLink, Truck, MapPin, FileText, CreditCard, Loader2 } from "lucide-react";
+import { Package, Clock, CheckCircle, AlertCircle, ChevronDown, ShoppingBag, ArrowLeft, ExternalLink, Truck, MapPin, FileText, CreditCard, Loader2, Download } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -184,10 +184,15 @@ function OrderCard({ order }: { order: Order }) {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [remainingTime, setRemainingTime] = useState<string | null>(null);
   const [isTimerExpired, setIsTimerExpired] = useState(false);
+  const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const statusInfo = getStatusInfo(order.status);
   const StatusIcon = statusInfo.icon;
   const trackingUrl = getTrackingUrl(order.carrier, order.trackingNumber);
   const carrierLabel = order.carrier ? carrierOptions[order.carrier]?.label || order.carrier : null;
+
+  // Verifica se l'ordine ha una fattura scaricabile (ordini pagati)
+  const canDownloadInvoice = ['pagato', 'spedito', 'in_attesa_di_consegna', 'consegnato'].includes(order.status);
 
   // Verifica se l'ordine è in attesa di pagamento
   const isPendingPayment = order.status === 'in_attesa_di_pagamento';
@@ -250,6 +255,25 @@ function OrderCard({ order }: { order: Order }) {
       setCheckoutError(error.message || "Errore durante il recupero del link di pagamento");
     } finally {
       setIsLoadingCheckout(false);
+    }
+  };
+
+  const handleDownloadInvoice = async () => {
+    setIsLoadingInvoice(true);
+    setInvoiceError(null);
+
+    try {
+      const response = await apiRequest("GET", `/api/orders/${order.id}/invoice`);
+      if (response.success && response.invoicePdfUrl) {
+        // Apri il PDF in una nuova tab
+        window.open(response.invoicePdfUrl, '_blank');
+      } else {
+        setInvoiceError(response.message || "Fattura non disponibile");
+      }
+    } catch (error: any) {
+      setInvoiceError(error.message || "Errore durante il recupero della fattura");
+    } finally {
+      setIsLoadingInvoice(false);
     }
   };
 
@@ -443,6 +467,33 @@ function OrderCard({ order }: { order: Order }) {
                   <AlertCircle className="w-4 h-4 inline mr-1" />
                   Sessione di pagamento scaduta
                 </p>
+              </div>
+            )}
+
+            {/* Tasto Scarica Fattura - solo per ordini pagati */}
+            {canDownloadInvoice && (
+              <div className="space-y-2">
+                <Button
+                  onClick={handleDownloadInvoice}
+                  disabled={isLoadingInvoice}
+                  variant="outline"
+                  className="w-full flex items-center justify-center gap-2 border-green-500 text-green-700 hover:bg-green-50"
+                >
+                  {isLoadingInvoice ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Caricamento...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Scarica Fattura
+                    </>
+                  )}
+                </Button>
+                {invoiceError && (
+                  <p className="text-center text-xs text-red-600">{invoiceError}</p>
+                )}
               </div>
             )}
 

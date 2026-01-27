@@ -21,9 +21,10 @@ export const pool = new Pool({
   ssl: {
     rejectUnauthorized: false
   },
-  connectionTimeoutMillis: 8080,
-  max: 20,
-  idleTimeoutMillis: 30000
+  connectionTimeoutMillis: 15000,  // 15 secondi timeout
+  max: 10,                          // Ridotto per evitare saturazione Supabase
+  idleTimeoutMillis: 30000,
+  allowExitOnIdle: true             // Permette al pool di chiudere connessioni inutilizzate
 });
 
 // ✅ Gestisce errori del pool

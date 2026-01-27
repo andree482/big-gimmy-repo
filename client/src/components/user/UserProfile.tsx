@@ -67,12 +67,8 @@ export default function UserProfile({ onClose }: UserProfileProps) {
 
   // Change password modal state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [changingPassword, setChangingPassword] = useState(false);
+  const [sendingResetEmail, setSendingResetEmail] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   // Delete account modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -349,53 +345,30 @@ export default function UserProfile({ onClose }: UserProfileProps) {
     });
   };
 
-  // Change password handler
-  const handleChangePassword = async () => {
-    if (!currentPassword || !newPassword || !confirmNewPassword) {
-      toast({ title: "Errore", description: "Compila tutti i campi", variant: "destructive" });
-      return;
-    }
-    if (newPassword !== confirmNewPassword) {
-      toast({ title: "Errore", description: "Le password non corrispondono", variant: "destructive" });
-      return;
-    }
-    if (newPassword.length < 6) {
-      toast({ title: "Errore", description: "La nuova password deve essere di almeno 6 caratteri", variant: "destructive" });
+  // Change password handler - invia email di reset
+  const handleSendResetEmail = async () => {
+    if (!user?.email) {
+      toast({ title: "Errore", description: "Email non disponibile", variant: "destructive" });
       return;
     }
 
-    setChangingPassword(true);
+    setSendingResetEmail(true);
     try {
-      // First verify current password by signing in
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user?.email || '',
-        password: currentPassword,
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/reset-password`,
       });
 
-      if (signInError) {
-        toast({ title: "Errore", description: "Password attuale non corretta", variant: "destructive" });
+      if (error) {
+        toast({ title: "Errore", description: error.message, variant: "destructive" });
         return;
       }
 
-      // Update password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
-      if (updateError) {
-        toast({ title: "Errore", description: updateError.message, variant: "destructive" });
-        return;
-      }
-
-      toast({ title: "Successo", description: "Password aggiornata con successo" });
-      setShowPasswordModal(false);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmNewPassword("");
+      setResetEmailSent(true);
+      toast({ title: "Email inviata", description: "Controlla la tua casella di posta per reimpostare la password" });
     } catch (error: any) {
-      toast({ title: "Errore", description: error?.message || "Errore durante il cambio password", variant: "destructive" });
+      toast({ title: "Errore", description: error?.message || "Errore durante l'invio dell'email", variant: "destructive" });
     } finally {
-      setChangingPassword(false);
+      setSendingResetEmail(false);
     }
   };
 
@@ -767,82 +740,77 @@ export default function UserProfile({ onClose }: UserProfileProps) {
       </Tabs>
 
       {/* Modal Cambio Password */}
-      <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+      <Dialog open={showPasswordModal} onOpenChange={(open) => {
+        setShowPasswordModal(open);
+        if (!open) setResetEmailSent(false);
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Cambia password</DialogTitle>
             <DialogDescription>
-              Inserisci la password attuale e la nuova password
+              {resetEmailSent
+                ? "Controlla la tua casella di posta"
+                : "Ti invieremo un'email per reimpostare la password"
+              }
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">Password attuale</Label>
-              <div className="relative">
-                <Input
-                  id="currentPassword"
-                  type={showCurrentPassword ? "text" : "password"}
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="••••••••"
-                />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                >
-                  {showCurrentPassword ? <EyeOff className="h-4 w-4 text-gray-500" /> : <Eye className="h-4 w-4 text-gray-500" />}
-                </button>
+          <div className="py-4">
+            {resetEmailSent ? (
+              <div className="text-center space-y-4">
+                <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-gray-700 font-medium">Email inviata!</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Abbiamo inviato un link a <strong>{user?.email}</strong>
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Clicca sul link nell'email per reimpostare la tua password.
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">Nuova password</Label>
-              <div className="relative">
-                <Input
-                  id="newPassword"
-                  type={showNewPassword ? "text" : "password"}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••"
-                />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                >
-                  {showNewPassword ? <EyeOff className="h-4 w-4 text-gray-500" /> : <Eye className="h-4 w-4 text-gray-500" />}
-                </button>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <p className="text-sm text-gray-700">
+                    Invieremo un'email a <strong>{user?.email}</strong> con un link per reimpostare la password.
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmNewPassword">Conferma nuova password</Label>
-              <Input
-                id="confirmNewPassword"
-                type="password"
-                value={confirmNewPassword}
-                onChange={(e) => setConfirmNewPassword(e.target.value)}
-                placeholder="••••••••"
-              />
-            </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPasswordModal(false)}>
-              Annulla
-            </Button>
-            <Button
-              onClick={handleChangePassword}
-              disabled={changingPassword}
-              className="bg-[#FFD100] text-black hover:bg-[#e6bc00]"
-            >
-              {changingPassword ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Aggiornamento...
-                </>
-              ) : (
-                "Cambia password"
-              )}
-            </Button>
+            {resetEmailSent ? (
+              <Button
+                onClick={() => setShowPasswordModal(false)}
+                className="bg-[#FFD100] text-black hover:bg-[#e6bc00]"
+              >
+                Chiudi
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setShowPasswordModal(false)}>
+                  Annulla
+                </Button>
+                <Button
+                  onClick={handleSendResetEmail}
+                  disabled={sendingResetEmail}
+                  className="bg-[#FFD100] text-black hover:bg-[#e6bc00]"
+                >
+                  {sendingResetEmail ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Invio in corso...
+                    </>
+                  ) : (
+                    "Invia email"
+                  )}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

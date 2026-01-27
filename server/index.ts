@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import compression from "compression";
 import cors from "cors";
 import Stripe from "stripe";
+import { sendOrderConfirmationEmail } from "./services/email";
 
 const app = express();
 app.set('trust proxy', 1);
@@ -138,8 +139,11 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
   const shippingAddressId = session.metadata?.shipping_address_id;
   const notes = session.metadata?.notes;
   const stripeSessionId = session.id;
+  // Recupera l'ID fattura dalla sessione (disponibile se invoice_creation.enabled: true)
+  const stripeInvoiceId = typeof session.invoice === 'string' ? session.invoice : null;
+  const stripeCustomerId = typeof session.customer === 'string' ? session.customer : null;
 
-  console.log(`[STRIPE WEBHOOK] Pagamento completato per user: ${userId}, orderId: ${orderId}`);
+  console.log(`[STRIPE WEBHOOK] Pagamento completato per user: ${userId}, orderId: ${orderId}, invoiceId: ${stripeInvoiceId}`);
 
   if (!userId) {
     console.error("[STRIPE WEBHOOK] user_id mancante nei metadata");
@@ -162,6 +166,8 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
           status: "pagato",
           stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : null,
           stripe_session_id: stripeSessionId,
+          stripe_invoice_id: stripeInvoiceId,
+          stripe_customer_id: stripeCustomerId,
           total_cents: session.amount_total || 0,
           currency: session.currency?.toUpperCase() || "EUR",
           updated_at: new Date().toISOString()
@@ -264,6 +270,8 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
           total_cents: session.amount_total || 0,
           stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : null,
           stripe_session_id: stripeSessionId,
+          stripe_invoice_id: stripeInvoiceId,
+          stripe_customer_id: stripeCustomerId,
           notes: notes || null,
         })
         .select()
@@ -310,6 +318,83 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
       console.warn("[STRIPE WEBHOOK] Errore svuotamento carrello:", clearError.message);
     } else {
       console.log(`[STRIPE WEBHOOK] Carrello svuotato per user: ${userId}`);
+    }
+
+    // Invia email di conferma ordine
+    if (order) {
+      console.log(`[STRIPE WEBHOOK] Preparazione email conferma per ordine ${order.id}...`);
+      try {
+        // Recupera i dati dell'utente
+        const { data: userData, error: userError } = await supabaseAdminForWebhook
+          .from("users")
+          .select("email, first_name, last_name")
+          .eq("id", userId)
+          .single();
+
+        console.log(`[STRIPE WEBHOOK] userData:`, userData ? `email=${userData.email}` : 'NULL', userError ? `errore: ${userError.message}` : '');
+
+        // Recupera gli order_items con i dettagli del prodotto
+        const { data: orderItems, error: itemsError } = await supabaseAdminForWebhook
+          .from("order_items")
+          .select(`
+            quantity,
+            unit_price_cents,
+            product_options (
+              label,
+              products (
+                name
+              )
+            )
+          `)
+          .eq("order_id", order.id);
+
+        console.log(`[STRIPE WEBHOOK] orderItems: ${orderItems?.length || 0} items`, itemsError ? `errore: ${itemsError.message}` : '');
+
+        // Recupera indirizzo di spedizione se presente
+        let shippingAddr = null;
+        if (order.shipping_address_id) {
+          const { data: addrData } = await supabaseAdminForWebhook
+            .from("user_addresses")
+            .select("street, city, cap, province")
+            .eq("id", order.shipping_address_id)
+            .single();
+          if (addrData) {
+            shippingAddr = {
+              street: addrData.street,
+              city: addrData.city,
+              postalCode: addrData.cap,
+              province: addrData.province
+            };
+          }
+        }
+
+        // Usa email da DB o fallback da sessione Stripe
+        const customerEmail = userData?.email || session.customer_email;
+        const customerName = userData?.first_name || (customerEmail ? customerEmail.split('@')[0] : 'Cliente');
+
+        if (customerEmail) {
+          const emailItems = (orderItems || []).map((item: any) => ({
+            name: `${item.product_options?.products?.name || 'Prodotto'} - ${item.product_options?.label || ''}`,
+            quantity: item.quantity,
+            price: item.unit_price_cents
+          }));
+
+          await sendOrderConfirmationEmail({
+            orderId: order.id,
+            userEmail: customerEmail,
+            userName: customerName,
+            total: order.total_cents,
+            items: emailItems,
+            shippingAddress: shippingAddr || undefined
+          });
+          console.log(`[STRIPE WEBHOOK] Email conferma ordine inviata a ${customerEmail}`);
+        } else {
+          console.warn(`[STRIPE WEBHOOK] Nessuna email disponibile per ordine ${order.id}`);
+        }
+      } catch (emailError) {
+        console.error("[STRIPE WEBHOOK] Errore invio email conferma ordine:", emailError);
+        // Non blocchiamo il flusso se l'email fallisce
+      }
     }
 
   } catch (error) {

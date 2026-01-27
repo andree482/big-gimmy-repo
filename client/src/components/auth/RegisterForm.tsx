@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { PhoneInput } from '@/components/ui/phone-input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Mail, CheckCircle } from 'lucide-react';
 
 const registerSchema = z.object({
   email: z.string().email('Email non valida'),
@@ -56,6 +56,8 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [registered, setRegistered] = useState(false);
+  const [emailConfirmationRequired, setEmailConfirmationRequired] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
   const { register } = useAuth();
@@ -83,22 +85,25 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
       const { confirmPassword, ...registerData } = data;
       console.log('[REGISTER FORM] Dati da inviare:', registerData);
       const result = await register(registerData);
-      toast({
-        title: 'Registrazione completata',
-        description: 'Benvenuto in BigGimmy! Il tuo account è stato creato con successo.',
-      });
       setRegistered(true);
+      setRegisteredEmail(data.email);
 
       // Se l'utente è stato auto-loggato, ricarica la pagina
       if (result?.autoLoggedIn) {
+        toast({
+          title: 'Registrazione completata',
+          description: 'Benvenuto in BigGimmy! Il tuo account è stato creato con successo.',
+        });
         setTimeout(() => {
           window.location.reload();
         }, 800);
       } else {
-        // Se richiede conferma email, chiama onSuccess dopo un breve delay
-        setTimeout(() => {
-          onSuccess?.();
-        }, 1200);
+        // Richiede conferma email - mostra messaggio speciale
+        setEmailConfirmationRequired(true);
+        toast({
+          title: 'Registrazione completata',
+          description: 'Controlla la tua email per confermare l\'account.',
+        });
       }
     } catch (error: any) {
       toast({
@@ -294,13 +299,32 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
             )}
           </Button>
 
-          {registered && (
-            <div className="text-center text-green-600 text-sm">
-              Utente registrato!
+          {emailConfirmationRequired && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+              <Mail className="h-10 w-10 text-blue-500 mx-auto mb-3" />
+              <h3 className="font-semibold text-blue-800 mb-2">Conferma la tua email</h3>
+              <p className="text-blue-700 text-sm mb-2">
+                Abbiamo inviato un'email di conferma a:
+              </p>
+              <p className="font-medium text-blue-900 mb-3">{registeredEmail}</p>
+              <p className="text-blue-600 text-xs">
+                Clicca sul link nell'email per attivare il tuo account.
+                Controlla anche la cartella spam.
+              </p>
             </div>
           )}
 
-          {onSwitchToLogin && (
+          {registered && !emailConfirmationRequired && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <CheckCircle className="h-10 w-10 text-green-500 mx-auto mb-3" />
+              <h3 className="font-semibold text-green-800 mb-2">Registrazione completata!</h3>
+              <p className="text-green-700 text-sm">
+                Benvenuto in BigGimmy! Stai per essere reindirizzato...
+              </p>
+            </div>
+          )}
+
+          {onSwitchToLogin && !emailConfirmationRequired && (
             <div className="text-center text-sm">
               <span className="text-gray-600">Hai già un account? </span>
               <button
@@ -309,6 +333,19 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
                 className="text-[#FFD100] hover:underline font-medium"
               >
                 Accedi
+              </button>
+            </div>
+          )}
+
+          {emailConfirmationRequired && onSwitchToLogin && (
+            <div className="text-center text-sm mt-4">
+              <span className="text-gray-600">Email confermata? </span>
+              <button
+                type="button"
+                onClick={onSwitchToLogin}
+                className="text-[#FFD100] hover:underline font-medium"
+              >
+                Accedi ora
               </button>
             </div>
           )}

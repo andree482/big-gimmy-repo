@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ShoppingBag, Package, Truck, CheckCircle, Clock, Euro, Filter, X, CreditCard, ExternalLink, MapPin, FileText, Eye } from "lucide-react";
+import { ShoppingBag, Package, Truck, CheckCircle, Clock, Euro, Filter, X, CreditCard, ExternalLink, MapPin, FileText, Eye, Download, Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -194,6 +194,7 @@ export default function AdminOrders() {
   const [carrier, setCarrier] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [productsDialogOrder, setProductsDialogOrder] = useState<Order | null>(null);
+  const [loadingInvoiceOrderId, setLoadingInvoiceOrderId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -243,6 +244,22 @@ export default function AdminOrders() {
       tracking_number: trackingNumber,
       carrier: carrier,
     });
+  };
+
+  const handleDownloadInvoice = async (orderId: string) => {
+    setLoadingInvoiceOrderId(orderId);
+    try {
+      const response = await apiRequest("GET", `/api/admin/orders/${orderId}/invoice`);
+      if (response.success && response.invoicePdfUrl) {
+        window.open(response.invoicePdfUrl, '_blank');
+      } else {
+        alert(response.message || "Fattura non disponibile per questo ordine");
+      }
+    } catch (error: any) {
+      alert(error.message || "Errore durante il recupero della fattura");
+    } finally {
+      setLoadingInvoiceOrderId(null);
+    }
   };
 
   const filteredOrders = orders.filter((order: Order) =>
@@ -467,6 +484,7 @@ export default function AdminOrders() {
                     <TableHead>Prodotti</TableHead>
                     <TableHead>Indirizzo</TableHead>
                     <TableHead className="text-right">Totale</TableHead>
+                    <TableHead className="text-center">Fattura</TableHead>
                     <TableHead className="text-center">Tracciamento</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -588,6 +606,29 @@ export default function AdminOrders() {
                           <div className="font-semibold text-gray-900">
                             €{((order.total || 0) / 100).toFixed(2)}
                           </div>
+                        </TableCell>
+
+                        <TableCell className="text-center">
+                          {['pagato', 'spedito', 'in_attesa_di_consegna', 'consegnato'].includes(order.status) ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs text-green-600 hover:text-green-800 hover:bg-green-50"
+                              onClick={() => handleDownloadInvoice(order.id)}
+                              disabled={loadingInvoiceOrderId === order.id}
+                            >
+                              {loadingInvoiceOrderId === order.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Download className="h-3 w-3 mr-1" />
+                                  PDF
+                                </>
+                              )}
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-gray-400">-</span>
+                          )}
                         </TableCell>
 
                         <TableCell className="text-center">

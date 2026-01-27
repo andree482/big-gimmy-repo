@@ -33,6 +33,8 @@ const AdminUsers = lazy(() => import("@/pages/AdminUsers"));
 const AdminLayout = lazy(() => import("@/components/admin/AdminLayout"));
 const Profile = lazy(() => import("@/pages/Profile"));
 const MyOrders = lazy(() => import("@/pages/MyOrders"));
+const AuthCallback = lazy(() => import("@/pages/AuthCallback"));
+const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 
 // Componente di fallback per il caricamento
 const PageLoader = () => (
@@ -65,6 +67,8 @@ function Router() {
       <Route path="/admin/ordini" component={() => <AdminLayout><AdminOrders /></AdminLayout>} />
       <Route path="/profilo" component={Profile} />
       <Route path="/ordini" component={MyOrders} />
+      <Route path="/auth/callback" component={AuthCallback} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/privacy-policy" component={PrivacyPolicy} />
       <Route path="/cookie-policy" component={CookiePolicy} />
       <Route path="/diritto-recesso" component={DirittoRecesso} />

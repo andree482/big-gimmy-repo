@@ -32,7 +32,6 @@
     "test:session:expiry": "cross-env PORT=8099 SESSION_MAX_AGE_MS=1500 tsx scripts/testSessionExpiryShort.ts"
   },
   "dependencies": {
-    "cors": "^2.8.5",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",
@@ -75,6 +74,7 @@
     "cmdk": "^1.1.1",
     "compression": "^1.8.1",
     "connect-pg-simple": "^10.0.0",
+    "cors": "^2.8.5",
     "date-fns": "^3.6.0",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.39.1",
@@ -101,6 +101,7 @@
     "react-icons": "^5.4.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.2",
+    "resend": "^6.8.0",
     "stripe": "^18.5.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
