@@ -32,7 +32,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 bg-primary rounded-full flex items-center justify-center animate-pulse">
-            <span className="text-xl font-bold text-black font-montserrat">BG</span>
           </div>
           <p className="text-gray-600 font-open-sans">Verifica permessi amministratore...</p>
         </div>

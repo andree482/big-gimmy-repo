@@ -552,30 +552,19 @@ export default function AdminOrders() {
                         </TableCell>
 
                         <TableCell>
-                          <div className="space-y-1">
-                            {items.length > 0 ? (
-                              <>
-                                {items.slice(0, 3).map((item, index) => (
-                                  <div key={index} className="text-sm">
-                                    {item.quantity} x {item.name}
-                                  </div>
-                                ))}
-                                {items.length > 3 && (
-                                  <Button
-                                    variant="link"
-                                    size="sm"
-                                    className="text-xs text-blue-600 hover:text-blue-800 p-0 h-auto"
-                                    onClick={() => setProductsDialogOrder(order)}
-                                  >
-                                    <Eye className="h-3 w-3 mr-1" />
-                                    Visualizza tutti ({items.length})
-                                  </Button>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-gray-400 text-sm">-</span>
-                            )}
-                          </div>
+                          {items.length > 0 ? (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="text-sm text-blue-600 hover:text-blue-800 p-0 h-auto"
+                              onClick={() => setProductsDialogOrder(order)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Visualizza prodotti ({items.length})
+                            </Button>
+                          ) : (
+                            <span className="text-gray-400 text-sm">-</span>
+                          )}
                         </TableCell>
 
                         <TableCell>
