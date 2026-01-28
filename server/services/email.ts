@@ -360,6 +360,145 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
 }
 
 /**
+ * Invia notifica all'admin quando arriva un nuovo ordine pagato
+ */
+export async function sendAdminOrderNotification(orderData: OrderEmailData): Promise<boolean> {
+  const { orderId, userEmail, userName, total, items, shippingAddress } = orderData;
+
+  console.log(`[EMAIL ADMIN ORDER] Tentativo invio notifica nuovo ordine #${orderId} a ${ADMIN_EMAIL}`);
+
+  if (SIMULATION_MODE) {
+    console.log('=== SIMULAZIONE ADMIN ORDER NOTIFICATION (SIMULATION_MODE=true) ===', orderId);
+    return true;
+  }
+
+  if (!resend) {
+    console.error('[EMAIL ADMIN ORDER] ERRORE: Resend non inizializzato! Verifica RESEND_API_KEY in .env');
+    console.log('=== SIMULAZIONE ADMIN ORDER NOTIFICATION (resend=null) ===', orderId);
+    return true;
+  }
+
+  try {
+    const itemsHTML = items.map(item => `
+      <tr>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; color: #333;">${item.name}</td>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: center; color: #666;">${item.quantity}</td>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: right; color: #333; font-weight: 500;">€${(item.price / 100).toFixed(2)}</td>
+      </tr>
+    `).join('');
+
+    const shippingHTML = shippingAddress ? `
+      <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin-top: 25px;">
+        <h3 style="color: #1a1a1a; font-size: 16px; margin: 0 0 12px 0;">📦 Indirizzo di Spedizione</h3>
+        <p style="color: #4a4a4a; font-size: 14px; line-height: 1.6; margin: 0;">
+          ${shippingAddress.street}<br>
+          ${shippingAddress.postalCode} ${shippingAddress.city}${shippingAddress.province ? ` (${shippingAddress.province})` : ''}
+        </p>
+      </div>
+    ` : '';
+
+    const { error } = await resend.emails.send({
+      from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [ADMIN_EMAIL],
+      subject: `🛒 Nuovo Ordine #${orderId.slice(-8).toUpperCase()} - €${(total / 100).toFixed(2)}`,
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); padding: 40px 30px; text-align: center;">
+              <div style="font-size: 50px; margin-bottom: 15px;">🛒</div>
+              <h1 style="color: #1a1a1a; margin: 0; font-size: 24px; font-weight: 700;">
+                Nuovo Ordine Ricevuto!
+              </h1>
+              <p style="color: #333; margin: 10px 0 0 0; font-size: 14px;">
+                Ordine #${orderId.slice(-8).toUpperCase()}
+              </p>
+            </div>
+
+            <!-- Content -->
+            <div style="padding: 35px 30px;">
+
+              <!-- Customer Info -->
+              <div style="background: #e3f2fd; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+                <h3 style="color: #1565c0; font-size: 16px; margin: 0 0 12px 0;">👤 Dati Cliente</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 5px 0; color: #666; font-size: 13px; width: 80px;">Nome:</td>
+                    <td style="padding: 5px 0; color: #1a1a1a; font-size: 15px; font-weight: 600;">${userName}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 5px 0; color: #666; font-size: 13px;">Email:</td>
+                    <td style="padding: 5px 0; color: #1a1a1a; font-size: 15px;">
+                      <a href="mailto:${userEmail}" style="color: #1976d2; text-decoration: none;">${userEmail}</a>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Order Items Table -->
+              <h3 style="color: #1a1a1a; font-size: 16px; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #FFD100;">
+                📋 Prodotti Ordinati
+              </h3>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                  <tr style="background: #f8f9fa;">
+                    <th style="padding: 12px 15px; text-align: left; color: #666; font-weight: 600; font-size: 13px;">PRODOTTO</th>
+                    <th style="padding: 12px 15px; text-align: center; color: #666; font-weight: 600; font-size: 13px;">QTA</th>
+                    <th style="padding: 12px 15px; text-align: right; color: #666; font-weight: 600; font-size: 13px;">PREZZO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemsHTML}
+                </tbody>
+              </table>
+
+              <!-- Total -->
+              <div style="background: linear-gradient(135deg, #2e7d32 0%, #388e3c 100%); border-radius: 8px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #ffffff; font-size: 16px; font-weight: 600;">Totale Incassato</span>
+                <span style="color: #ffffff; font-size: 22px; font-weight: 700;">€${(total / 100).toFixed(2)}</span>
+              </div>
+
+              ${shippingHTML}
+
+              <!-- Action -->
+              <div style="text-align: center; margin-top: 30px;">
+                <p style="color: #666; font-size: 14px; margin: 0 0 15px 0;">
+                  Ricordati di preparare e spedire l'ordine!
+                </p>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="background: #1a1a1a; padding: 20px 30px; text-align: center;">
+              <p style="color: #888; font-size: 12px; margin: 0;">
+                📅 Ordine ricevuto il ${new Date().toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error(`[EMAIL ADMIN ORDER] Resend ha restituito errore:`, error);
+      throw error;
+    }
+    console.log(`[EMAIL ADMIN ORDER] ✅ Notifica nuovo ordine #${orderId} inviata a ${ADMIN_EMAIL}`);
+    return true;
+  } catch (err: any) {
+    console.error(`[EMAIL ADMIN ORDER] ❌ ERRORE invio notifica ordine #${orderId}:`, err?.message || err);
+    if (err?.message?.includes('testing emails')) {
+      console.error('[EMAIL ADMIN ORDER] NOTA: Con onboarding@resend.dev puoi inviare solo a lucaandrea264@gmail.com');
+    }
+    return false;
+  }
+}
+
+/**
  * Invia email di benvenuto dopo registrazione
  */
 export async function sendWelcomeEmail(userData: { email: string; firstName?: string }): Promise<boolean> {

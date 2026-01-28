@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import compression from "compression";
 import cors from "cors";
 import Stripe from "stripe";
-import { sendOrderConfirmationEmail } from "./services/email";
+import { sendOrderConfirmationEmail, sendAdminOrderNotification } from "./services/email";
 
 const app = express();
 app.set('trust proxy', 1);
@@ -388,6 +388,17 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
             shippingAddress: shippingAddr || undefined
           });
           console.log(`[STRIPE WEBHOOK] Email conferma ordine inviata a ${customerEmail}`);
+
+          // Notifica all'admin del nuovo ordine
+          await sendAdminOrderNotification({
+            orderId: order.id,
+            userEmail: customerEmail,
+            userName: customerName,
+            total: order.total_cents,
+            items: emailItems,
+            shippingAddress: shippingAddr || undefined
+          });
+          console.log(`[STRIPE WEBHOOK] Email notifica admin inviata`);
         } else {
           console.warn(`[STRIPE WEBHOOK] Nessuna email disponibile per ordine ${order.id}`);
         }

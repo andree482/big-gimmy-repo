@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage.ts";
 import { insertContactSchema } from "@shared/schema";
 import { z } from "zod";
-import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply, sendTrackingEmail, sendWelcomeEmail, sendOrderConfirmationEmail, sendPasswordChangedEmail } from './services/email.ts';
+import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply, sendTrackingEmail, sendWelcomeEmail, sendOrderConfirmationEmail, sendAdminOrderNotification, sendPasswordChangedEmail } from './services/email.ts';
 import { syncAllImages } from "./utils/imageSync.ts";
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
@@ -3213,6 +3213,17 @@ app.post("/api/contact", async (req: Request, res: Response) => {
                       shippingAddress: shippingAddr || undefined
                     });
                     console.log(`[ORDERS] ✅ Email conferma ordine inviata a ${customerEmail} (via fallback)`);
+
+                    // Notifica all'admin del nuovo ordine
+                    await sendAdminOrderNotification({
+                      orderId: order.id,
+                      userEmail: customerEmail,
+                      userName: customerName,
+                      total: order.total_cents,
+                      items: emailItems,
+                      shippingAddress: shippingAddr || undefined
+                    });
+                    console.log(`[ORDERS] ✅ Email notifica admin inviata (via fallback)`);
                   }
                 } catch (emailErr) {
                   console.error("[ORDERS] Errore invio email conferma (fallback):", emailErr);
