@@ -3214,16 +3214,21 @@ app.post("/api/contact", async (req: Request, res: Response) => {
                     });
                     console.log(`[ORDERS] ✅ Email conferma ordine inviata a ${customerEmail} (via fallback)`);
 
-                    // Notifica all'admin del nuovo ordine
-                    await sendAdminOrderNotification({
-                      orderId: order.id,
-                      userEmail: customerEmail,
-                      userName: customerName,
-                      total: order.total_cents,
-                      items: emailItems,
-                      shippingAddress: shippingAddr || undefined
-                    });
-                    console.log(`[ORDERS] ✅ Email notifica admin inviata (via fallback)`);
+                    // Notifica all'admin del nuovo ordine (in try-catch separato)
+                    try {
+                      console.log(`[ORDERS] Tentativo invio email admin...`);
+                      const adminEmailResult = await sendAdminOrderNotification({
+                        orderId: order.id,
+                        userEmail: customerEmail,
+                        userName: customerName,
+                        total: order.total_cents,
+                        items: emailItems,
+                        shippingAddress: shippingAddr || undefined
+                      });
+                      console.log(`[ORDERS] ✅ Email notifica admin inviata (via fallback), risultato: ${adminEmailResult}`);
+                    } catch (adminEmailError) {
+                      console.error(`[ORDERS] ❌ ERRORE specifico invio email admin:`, adminEmailError);
+                    }
                   }
                 } catch (emailErr) {
                   console.error("[ORDERS] Errore invio email conferma (fallback):", emailErr);
