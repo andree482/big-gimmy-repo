@@ -193,6 +193,11 @@ export async function clearCart() {
 export async function getCart() {
   const user = (await supabase.auth.getUser()).data.user;
 
+  if (!user) {
+    console.warn('[CART] Nessun utente Supabase in getCart, ritorno vuoto');
+    return { data: [], error: null };
+  }
+
   return await supabase
     .from('cart_items')
     .select(`

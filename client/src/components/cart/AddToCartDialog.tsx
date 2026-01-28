@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatEuropeanPrice, getProductVariants } from "@/lib/productVariants";
 import { resolveOptionId, normalizeDisplay } from "@/utils/variantResolver";
@@ -157,6 +157,7 @@ const availableVariants = variantsState.map((v: any) => {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{product.name}</DialogTitle>
+          <DialogDescription className="sr-only">Seleziona variante e aggiungi al carrello</DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6">

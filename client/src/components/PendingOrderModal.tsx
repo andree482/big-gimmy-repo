@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Clock, ShoppingBag, X } from 'lucide-react';
 import { Link } from 'wouter';
@@ -116,6 +116,7 @@ export function PendingOrderModal() {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="sr-only">Ordine in sospeso</DialogTitle>
+          <DialogDescription className="sr-only">Hai un ordine in sospeso da completare</DialogDescription>
         </DialogHeader>
 
         <div className="text-center py-4">

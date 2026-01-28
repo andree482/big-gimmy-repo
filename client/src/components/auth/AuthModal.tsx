@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
 import { ForgotPasswordForm } from './ForgotPasswordForm';
@@ -24,6 +24,9 @@ export function AuthModal({ isOpen, onClose, defaultTab = 'login' }: AuthModalPr
           <DialogTitle className="sr-only">
             {currentTab === 'login' ? 'Accedi' : 'Registrati'}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {currentTab === 'login' ? 'Inserisci le tue credenziali per accedere' : 'Crea un nuovo account'}
+          </DialogDescription>
         </DialogHeader>
         
         {currentTab === 'login' ? (

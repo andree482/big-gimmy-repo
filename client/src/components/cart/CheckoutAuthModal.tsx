@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Lock, User, UserPlus } from "lucide-react";
 import { useState } from "react";
@@ -43,6 +43,7 @@ export function CheckoutAuthModal({ isOpen, onClose, cartTotal, itemCount }: Che
             <DialogTitle className="text-xl font-bold text-gray-900">
               Accesso Richiesto
             </DialogTitle>
+            <DialogDescription className="sr-only">Accedi o registrati per completare l'acquisto</DialogDescription>
           </DialogHeader>
           
           <div className="py-4 space-y-4">
