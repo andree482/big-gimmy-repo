@@ -6,4 +6,9 @@ vite.config.ts.*
 .vercel
 .env
 *.log
-.trae/
+.trae
+.claude/
+.config/
+.idea/
+.local/
+supabase/istruzioni_sql/
