@@ -26,20 +26,32 @@ const registerSchema = z.object({
     ),
   address: z
     .string()
-    .min(2, 'Indirizzo deve essere almeno 2 caratteri')
-    .optional(),
+    .optional()
+    .refine(
+      (val) => !val || val.length === 0 || val.trim().length >= 2,
+      'Indirizzo deve essere almeno 2 caratteri'
+    ),
   city: z
     .string()
-    .min(2, 'Città deve essere almeno 2 caratteri')
-    .optional(),
+    .optional()
+    .refine(
+      (val) => !val || val.length === 0 || val.trim().length >= 2,
+      'Città deve essere almeno 2 caratteri'
+    ),
   postalCode: z
     .string()
-    .regex(/^\d{5}$/, 'CAP deve contenere 5 cifre')
-    .optional(),
+    .optional()
+    .refine(
+      (val) => !val || val.length === 0 || /^\d{5}$/.test(val),
+      'CAP deve contenere 5 cifre'
+    ),
   province: z
     .string()
-    .regex(/^[A-Z]{2}$/, 'Provincia deve essere composta da 2 lettere maiuscole')
-    .optional(),
+    .optional()
+    .refine(
+      (val) => !val || val.length === 0 || /^[A-Z]{2}$/i.test(val),
+      'Provincia deve essere composta da 2 lettere'
+    ),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Le password non corrispondono',
   path: ['confirmPassword'],

@@ -339,16 +339,39 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
           .select(`
             quantity,
             unit_price_cents,
+            product_option_id,
             product_options (
               label,
-              products (
-                name
-              )
+              product_id
             )
           `)
           .eq("order_id", order.id);
 
         console.log(`[STRIPE WEBHOOK] orderItems: ${orderItems?.length || 0} items`, itemsError ? `errore: ${itemsError.message}` : '');
+        console.log(`[STRIPE WEBHOOK] orderItems dettaglio:`, JSON.stringify(orderItems, null, 2));
+
+        // Recupera i nomi dei prodotti separatamente per affidabilità
+        let productNames: Record<number, string> = {};
+        if (orderItems && orderItems.length > 0) {
+          const productIds = orderItems
+            .map((item: any) => item.product_options?.product_id)
+            .filter((id: any) => id != null);
+
+          if (productIds.length > 0) {
+            const { data: products } = await supabaseAdminForWebhook
+              .from("products")
+              .select("id, name")
+              .in("id", productIds);
+
+            if (products) {
+              productNames = products.reduce((acc: Record<number, string>, p: any) => {
+                acc[p.id] = p.name;
+                return acc;
+              }, {});
+            }
+            console.log(`[STRIPE WEBHOOK] productNames:`, productNames);
+          }
+        }
 
         // Recupera indirizzo di spedizione se presente
         let shippingAddr = null;
@@ -373,11 +396,17 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
         const customerName = userData?.first_name || (customerEmail ? customerEmail.split('@')[0] : 'Cliente');
 
         if (customerEmail) {
-          const emailItems = (orderItems || []).map((item: any) => ({
-            name: `${item.product_options?.products?.name || 'Prodotto'} - ${item.product_options?.label || ''}`,
-            quantity: item.quantity,
-            price: item.unit_price_cents
-          }));
+          const emailItems = (orderItems || []).map((item: any) => {
+            const productId = item.product_options?.product_id;
+            const productName = productId ? productNames[productId] : null;
+            const optionLabel = item.product_options?.label || '';
+            return {
+              name: `${productName || 'Prodotto'}${optionLabel ? ` - ${optionLabel}` : ''}`,
+              quantity: item.quantity,
+              price: item.unit_price_cents
+            };
+          });
+          console.log(`[STRIPE WEBHOOK] emailItems per email:`, JSON.stringify(emailItems, null, 2));
 
           await sendOrderConfirmationEmail({
             orderId: order.id,
