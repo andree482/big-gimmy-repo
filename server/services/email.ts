@@ -246,22 +246,32 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
   console.log(`[EMAIL ORDER] Resend configurato, invio a: ${userEmail}`);
 
   try {
-    const itemsHTML = items.map(item => `
+    console.log(`[EMAIL ORDER] Items ricevuti:`, JSON.stringify(items));
+
+    const itemsHTML = items && items.length > 0 ? items.map(item => `
       <tr>
-        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; color: #333;">${item.name}</td>
-        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: center; color: #666;">${item.quantity}</td>
-        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: right; color: #333; font-weight: 500;">€${(item.price / 100).toFixed(2)}</td>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; color: #333; font-size: 14px;">${item.name || 'Prodotto'}</td>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: center; color: #666; font-size: 14px;">${item.quantity || 1}</td>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: right; color: #333; font-weight: 600; font-size: 14px;">€${((item.price || 0) / 100).toFixed(2)}</td>
       </tr>
-    `).join('');
+    `).join('') : `
+      <tr>
+        <td colspan="3" style="padding: 15px; text-align: center; color: #666; font-style: italic;">Dettagli prodotti non disponibili</td>
+      </tr>
+    `;
 
     const shippingHTML = shippingAddress ? `
-      <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin-top: 25px;">
-        <h3 style="color: #1a1a1a; font-size: 16px; margin: 0 0 12px 0;">📦 Indirizzo di Spedizione</h3>
-        <p style="color: #4a4a4a; font-size: 14px; line-height: 1.6; margin: 0;">
-          ${shippingAddress.street}<br>
-          ${shippingAddress.postalCode} ${shippingAddress.city}${shippingAddress.province ? ` (${shippingAddress.province})` : ''}
-        </p>
-      </div>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 25px; background: #f8f9fa; border-radius: 8px;">
+        <tr>
+          <td style="padding: 20px;">
+            <h3 style="color: #1a1a1a; font-size: 16px; margin: 0 0 12px 0;">📦 Indirizzo di Spedizione</h3>
+            <p style="color: #4a4a4a; font-size: 14px; line-height: 1.6; margin: 0;">
+              ${shippingAddress.street}<br>
+              ${shippingAddress.postalCode} ${shippingAddress.city}${shippingAddress.province ? ` (${shippingAddress.province})` : ''}
+            </p>
+          </td>
+        </tr>
+      </table>
     ` : '';
 
     const { error } = await resend.emails.send({
@@ -308,20 +318,26 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
                 </tbody>
               </table>
 
-              <!-- Total -->
-              <div style="background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); border-radius: 8px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: #1a1a1a; font-size: 16px; font-weight: 600;">Totale Pagato</span>
-                <span style="color: #1a1a1a; font-size: 22px; font-weight: 700;">€${(total / 100).toFixed(2)}</span>
-              </div>
+              <!-- Total - usando tabella invece di flex -->
+              <table style="width: 100%; border-collapse: collapse; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); border-radius: 8px;">
+                <tr>
+                  <td style="padding: 18px 20px; color: #1a1a1a; font-size: 16px; font-weight: 600;">Totale Pagato</td>
+                  <td style="padding: 18px 20px; color: #1a1a1a; font-size: 24px; font-weight: 700; text-align: right;">€${(total / 100).toFixed(2)}</td>
+                </tr>
+              </table>
 
               ${shippingHTML}
 
               <!-- Info Box -->
-              <div style="background: #e8f5e9; border-left: 4px solid #2e7d32; padding: 15px 20px; border-radius: 0 8px 8px 0; margin-top: 25px;">
-                <p style="color: #2e7d32; font-size: 14px; margin: 0;">
-                  📧 Riceverai un'email con il codice di tracciamento non appena il pacco sarà spedito.
-                </p>
-              </div>
+              <table style="width: 100%; border-collapse: collapse; margin-top: 25px;">
+                <tr>
+                  <td style="background: #e8f5e9; border-left: 4px solid #2e7d32; padding: 15px 20px; border-radius: 0 8px 8px 0;">
+                    <p style="color: #2e7d32; font-size: 14px; margin: 0;">
+                      📧 Riceverai un'email con il codice di tracciamento non appena il pacco sarà spedito.
+                    </p>
+                  </td>
+                </tr>
+              </table>
             </div>
 
             <!-- Footer -->
@@ -379,22 +395,32 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
   }
 
   try {
-    const itemsHTML = items.map(item => `
+    console.log(`[EMAIL ADMIN ORDER] Items ricevuti:`, JSON.stringify(items));
+
+    const itemsHTML = items && items.length > 0 ? items.map(item => `
       <tr>
-        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; color: #333;">${item.name}</td>
-        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: center; color: #666;">${item.quantity}</td>
-        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: right; color: #333; font-weight: 500;">€${(item.price / 100).toFixed(2)}</td>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; color: #333; font-size: 14px;">${item.name || 'Prodotto'}</td>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: center; color: #666; font-size: 14px;">${item.quantity || 1}</td>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: right; color: #333; font-weight: 600; font-size: 14px;">€${((item.price || 0) / 100).toFixed(2)}</td>
       </tr>
-    `).join('');
+    `).join('') : `
+      <tr>
+        <td colspan="3" style="padding: 15px; text-align: center; color: #666; font-style: italic;">Dettagli prodotti non disponibili</td>
+      </tr>
+    `;
 
     const shippingHTML = shippingAddress ? `
-      <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin-top: 25px;">
-        <h3 style="color: #1a1a1a; font-size: 16px; margin: 0 0 12px 0;">📦 Indirizzo di Spedizione</h3>
-        <p style="color: #4a4a4a; font-size: 14px; line-height: 1.6; margin: 0;">
-          ${shippingAddress.street}<br>
-          ${shippingAddress.postalCode} ${shippingAddress.city}${shippingAddress.province ? ` (${shippingAddress.province})` : ''}
-        </p>
-      </div>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 25px; background: #f8f9fa; border-radius: 8px;">
+        <tr>
+          <td style="padding: 20px;">
+            <h3 style="color: #1a1a1a; font-size: 16px; margin: 0 0 12px 0;">📦 Indirizzo di Spedizione</h3>
+            <p style="color: #4a4a4a; font-size: 14px; line-height: 1.6; margin: 0;">
+              ${shippingAddress.street}<br>
+              ${shippingAddress.postalCode} ${shippingAddress.city}${shippingAddress.province ? ` (${shippingAddress.province})` : ''}
+            </p>
+          </td>
+        </tr>
+      </table>
     ` : '';
 
     const { error } = await resend.emails.send({
@@ -422,21 +448,25 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
             <div style="padding: 35px 30px;">
 
               <!-- Customer Info -->
-              <div style="background: #e3f2fd; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
-                <h3 style="color: #1565c0; font-size: 16px; margin: 0 0 12px 0;">👤 Dati Cliente</h3>
-                <table style="width: 100%; border-collapse: collapse;">
-                  <tr>
-                    <td style="padding: 5px 0; color: #666; font-size: 13px; width: 80px;">Nome:</td>
-                    <td style="padding: 5px 0; color: #1a1a1a; font-size: 15px; font-weight: 600;">${userName}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 5px 0; color: #666; font-size: 13px;">Email:</td>
-                    <td style="padding: 5px 0; color: #1a1a1a; font-size: 15px;">
-                      <a href="mailto:${userEmail}" style="color: #1976d2; text-decoration: none;">${userEmail}</a>
-                    </td>
-                  </tr>
-                </table>
-              </div>
+              <table style="width: 100%; border-collapse: collapse; background: #e3f2fd; border-radius: 8px; margin-bottom: 25px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <h3 style="color: #1565c0; font-size: 16px; margin: 0 0 12px 0;">👤 Dati Cliente</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px; width: 80px;">Nome:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 15px; font-weight: 600;">${userName}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Email:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 15px;">
+                          <a href="mailto:${userEmail}" style="color: #1976d2; text-decoration: none;">${userEmail}</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
 
               <!-- Order Items Table -->
               <h3 style="color: #1a1a1a; font-size: 16px; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #FFD100;">
@@ -446,7 +476,7 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
                 <thead>
                   <tr style="background: #f8f9fa;">
                     <th style="padding: 12px 15px; text-align: left; color: #666; font-weight: 600; font-size: 13px;">PRODOTTO</th>
-                    <th style="padding: 12px 15px; text-align: center; color: #666; font-weight: 600; font-size: 13px;">QTA</th>
+                    <th style="padding: 12px 15px; text-align: center; color: #666; font-weight: 600; font-size: 13px;">QTÀ</th>
                     <th style="padding: 12px 15px; text-align: right; color: #666; font-weight: 600; font-size: 13px;">PREZZO</th>
                   </tr>
                 </thead>
@@ -455,20 +485,26 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
                 </tbody>
               </table>
 
-              <!-- Total -->
-              <div style="background: linear-gradient(135deg, #2e7d32 0%, #388e3c 100%); border-radius: 8px; padding: 18px 20px; display: flex; justify-content: space-between; align-items: center;">
-                <span style="color: #ffffff; font-size: 16px; font-weight: 600;">Totale Incassato</span>
-                <span style="color: #ffffff; font-size: 22px; font-weight: 700;">€${(total / 100).toFixed(2)}</span>
-              </div>
+              <!-- Total - usando tabella invece di flex -->
+              <table style="width: 100%; border-collapse: collapse; background: linear-gradient(135deg, #2e7d32 0%, #388e3c 100%); border-radius: 8px;">
+                <tr>
+                  <td style="padding: 18px 20px; color: #ffffff; font-size: 16px; font-weight: 600;">Totale Incassato</td>
+                  <td style="padding: 18px 20px; color: #ffffff; font-size: 24px; font-weight: 700; text-align: right;">€${(total / 100).toFixed(2)}</td>
+                </tr>
+              </table>
 
               ${shippingHTML}
 
               <!-- Action -->
-              <div style="text-align: center; margin-top: 30px;">
-                <p style="color: #666; font-size: 14px; margin: 0 0 15px 0;">
-                  Ricordati di preparare e spedire l'ordine!
-                </p>
-              </div>
+              <table style="width: 100%; border-collapse: collapse; margin-top: 30px;">
+                <tr>
+                  <td style="text-align: center;">
+                    <p style="color: #666; font-size: 14px; margin: 0;">
+                      Ricordati di preparare e spedire l'ordine!
+                    </p>
+                  </td>
+                </tr>
+              </table>
             </div>
 
             <!-- Footer -->
