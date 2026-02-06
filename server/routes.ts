@@ -3156,7 +3156,7 @@ app.post("/api/contact", async (req: Request, res: Response) => {
                     .single();
 
                   // Recupera order_items
-                  const { data: orderItems } = await (supabaseAdmin as any)
+                  let { data: orderItems } = await (supabaseAdmin as any)
                     .from("order_items")
                     .select(`
                       quantity,
@@ -3169,7 +3169,95 @@ app.post("/api/contact", async (req: Request, res: Response) => {
                     `)
                     .eq("order_id", order.id);
 
-                  console.log(`[ORDERS] orderItems dettaglio:`, JSON.stringify(orderItems, null, 2));
+                  console.log(`[ORDERS] orderItems iniziali:`, JSON.stringify(orderItems, null, 2));
+
+                  // Se order_items sono vuoti, crearli dal carrello (il webhook potrebbe non essere ancora arrivato)
+                  if (!orderItems || orderItems.length === 0) {
+                    console.log(`[ORDERS] order_items vuoti, creo dal carrello...`);
+
+                    // Recupera il carrello dell'utente
+                    const { data: cartItems } = await (supabaseAdmin as any)
+                      .from("cart_items")
+                      .select(`
+                        id,
+                        quantity,
+                        product_option_id,
+                        product_options (
+                          id,
+                          price_cents,
+                          label,
+                          product_id
+                        )
+                      `)
+                      .eq("user_id", user.id);
+
+                    if (cartItems && cartItems.length > 0) {
+                      const orderItemsToInsert = cartItems.map((item: any) => {
+                        const priceCents = item.product_options?.price_cents || 0;
+                        return {
+                          order_id: order.id,
+                          product_option_id: item.product_option_id,
+                          quantity: item.quantity,
+                          unit_price_cents: priceCents,
+                          line_total_cents: item.quantity * priceCents,
+                        };
+                      });
+
+                      const { error: insertError } = await (supabaseAdmin as any)
+                        .from("order_items")
+                        .insert(orderItemsToInsert);
+
+                      if (insertError) {
+                        console.error(`[ORDERS] Errore inserimento order_items:`, insertError);
+                      } else {
+                        console.log(`[ORDERS] Creati ${orderItemsToInsert.length} order_items per ordine ${order.id}`);
+
+                        // Svuota il carrello
+                        await (supabaseAdmin as any)
+                          .from("cart_items")
+                          .delete()
+                          .eq("user_id", user.id);
+                        console.log(`[ORDERS] Carrello svuotato per user ${user.id}`);
+
+                        // Usa i dati del carrello per l'email (hanno già i dettagli)
+                        orderItems = cartItems.map((item: any) => ({
+                          quantity: item.quantity,
+                          unit_price_cents: item.product_options?.price_cents || 0,
+                          product_option_id: item.product_option_id,
+                          product_options: {
+                            label: item.product_options?.label,
+                            product_id: item.product_options?.product_id
+                          }
+                        }));
+                      }
+                    } else {
+                      console.warn(`[ORDERS] Carrello vuoto per user ${user.id}, provo a recuperare da Stripe...`);
+
+                      // Ultimo fallback: recupera i line_items dalla sessione Stripe
+                      try {
+                        const lineItems = await stripe.checkout.sessions.listLineItems(order.stripe_session_id, { limit: 100 });
+                        console.log(`[ORDERS] Stripe lineItems:`, JSON.stringify(lineItems.data, null, 2));
+
+                        if (lineItems.data && lineItems.data.length > 0) {
+                          // Crea emailItems direttamente dai line_items di Stripe
+                          orderItems = lineItems.data.map((item: any) => ({
+                            quantity: item.quantity || 1,
+                            unit_price_cents: item.amount_total || 0,
+                            product_options: {
+                              label: item.description || item.price?.product?.name || 'Prodotto'
+                            },
+                            // Salviamo il nome direttamente per l'email
+                            _stripe_name: item.description || 'Prodotto'
+                          }));
+                          console.log(`[ORDERS] orderItems da Stripe:`, JSON.stringify(orderItems, null, 2));
+                        }
+                      } catch (stripeErr) {
+                        console.error(`[ORDERS] Errore recupero line_items da Stripe:`, stripeErr);
+                      }
+                    }
+                  }
+
+                  console.log(`[ORDERS] orderItems finali:`, JSON.stringify(orderItems, null, 2));
 
                   // Recupera i nomi dei prodotti separatamente per affidabilità
                   let productNames: Record<number, string> = {};
@@ -3223,6 +3311,15 @@ app.post("/api/contact", async (req: Request, res: Response) => {
 
                   if (customerEmail) {
                     const emailItems = (orderItems || []).map((item: any) => {
+                      // Se proviene da Stripe, usa _stripe_name
+                      if (item._stripe_name) {
+                        return {
+                          name: item._stripe_name,
+                          quantity: item.quantity,
+                          price: item.unit_price_cents
+                        };
+                      }
+                      // Altrimenti usa i dati dal DB
                       const productId = item.product_options?.product_id;
                       const productName = productId ? productNames[productId] : null;
                       const optionLabel = item.product_options?.label || '';

@@ -80,7 +80,7 @@ const Home = () => {
                       src={aboutImg1} 
                       alt="BigGimmy Store Interior" 
                       className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
-                      loading="eager"
+                      loading="lazy"
                       decoding="async"
                     />
                   </AnimatedCard>
@@ -89,7 +89,7 @@ const Home = () => {
                       src={aboutImg2} 
                       alt="BigGimmy Product Display" 
                       className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
-                      loading="eager"
+                      loading="lazy"
                       decoding="async"
                     />
                   </AnimatedCard>
@@ -99,7 +99,7 @@ const Home = () => {
                       alt="BigGimmy Supplements" 
                       className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
                       style={{ objectPosition: "center 30%" }}
-                      loading="eager"
+                      loading="lazy"
                       decoding="async"
                     />
                   </AnimatedCard>
@@ -108,7 +108,7 @@ const Home = () => {
                       src={aboutImg4} 
                       alt="BigGimmy Store Exterior" 
                       className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
-                      loading="eager"
+                      loading="lazy"
                       decoding="async"
                     />
                   </AnimatedCard>

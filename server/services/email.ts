@@ -248,13 +248,16 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
   try {
     console.log(`[EMAIL ORDER] Items ricevuti:`, JSON.stringify(items));
 
-    const itemsHTML = items && items.length > 0 ? items.map(item => `
+    const itemsHTML = items && items.length > 0 ? items.map(item => {
+      const isShipping = (item.name || '').toLowerCase().includes('spedizione') || (item.name || '').toLowerCase().includes('shipping');
+      return `
       <tr>
         <td style="padding: 12px 15px; border-bottom: 1px solid #eee; color: #333; font-size: 14px;">${item.name || 'Prodotto'}</td>
-        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: center; color: #666; font-size: 14px;">${item.quantity || 1}</td>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: center; color: #666; font-size: 14px;">${isShipping ? '-' : (item.quantity || 1)}</td>
         <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: right; color: #333; font-weight: 600; font-size: 14px;">€${((item.price || 0) / 100).toFixed(2)}</td>
       </tr>
-    `).join('') : `
+    `;
+    }).join('') : `
       <tr>
         <td colspan="3" style="padding: 15px; text-align: center; color: #666; font-style: italic;">Dettagli prodotti non disponibili</td>
       </tr>
@@ -338,6 +341,14 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
                   </td>
                 </tr>
               </table>
+
+              <!-- CTA Button -->
+              <div style="text-align: center; margin-top: 30px;">
+                <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://biggimmy.it'}/ordini"
+                   style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                  📋 Visualizza i tuoi ordini
+                </a>
+              </div>
             </div>
 
             <!-- Footer -->
@@ -397,13 +408,16 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
   try {
     console.log(`[EMAIL ADMIN ORDER] Items ricevuti:`, JSON.stringify(items));
 
-    const itemsHTML = items && items.length > 0 ? items.map(item => `
+    const itemsHTML = items && items.length > 0 ? items.map(item => {
+      const isShipping = (item.name || '').toLowerCase().includes('spedizione') || (item.name || '').toLowerCase().includes('shipping');
+      return `
       <tr>
         <td style="padding: 12px 15px; border-bottom: 1px solid #eee; color: #333; font-size: 14px;">${item.name || 'Prodotto'}</td>
-        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: center; color: #666; font-size: 14px;">${item.quantity || 1}</td>
+        <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: center; color: #666; font-size: 14px;">${isShipping ? '-' : (item.quantity || 1)}</td>
         <td style="padding: 12px 15px; border-bottom: 1px solid #eee; text-align: right; color: #333; font-weight: 600; font-size: 14px;">€${((item.price || 0) / 100).toFixed(2)}</td>
       </tr>
-    `).join('') : `
+    `;
+    }).join('') : `
       <tr>
         <td colspan="3" style="padding: 15px; text-align: center; color: #666; font-style: italic;">Dettagli prodotti non disponibili</td>
       </tr>
@@ -499,9 +513,13 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
               <table style="width: 100%; border-collapse: collapse; margin-top: 30px;">
                 <tr>
                   <td style="text-align: center;">
-                    <p style="color: #666; font-size: 14px; margin: 0;">
+                    <p style="color: #666; font-size: 14px; margin: 0 0 20px 0;">
                       Ricordati di preparare e spedire l'ordine!
                     </p>
+                    <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://biggimmy.it'}/admin/orders"
+                       style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                      📦 Gestisci Ordini
+                    </a>
                   </td>
                 </tr>
               </table>

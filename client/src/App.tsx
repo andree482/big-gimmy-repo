@@ -8,12 +8,10 @@ import { useScrollToTop } from "@/hooks/useScrollToTop";
 import InfoBanner from "@/components/layout/InfoBanner";
 import { PendingOrderModal } from "@/components/PendingOrderModal";
 
-// Pagine principali caricate subito
-import Home from "@/pages/Home";
-import Products from "@/pages/Products";
-import Stores from "@/pages/Stores";
-
-// Lazy loading per pagine secondarie (riduce il bundle iniziale)
+// Lazy loading per tutte le pagine (riduce il bundle iniziale e migliora FCP/LCP)
+const Home = lazy(() => import("@/pages/Home"));
+const Products = lazy(() => import("@/pages/Products"));
+const Stores = lazy(() => import("@/pages/Stores"));
 const AboutUs = lazy(() => import("@/pages/AboutUs"));
 const Gallery = lazy(() => import("@/pages/Gallery"));
 const Contact = lazy(() => import("@/pages/Contact"));

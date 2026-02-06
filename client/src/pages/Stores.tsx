@@ -14,8 +14,8 @@ const Stores = () => {
   // Immagini gallery per ogni negozio
   const storeGalleries = {
     "Sede di Aosta": [
-      "/images/stores/aosta/aosta-1.jpg",
-      "/images/stores/aosta/aosta-2.jpg", 
+      "/images/stores/aosta/aosta-2.jpg",
+      "/images/stores/aosta/aosta-1.jpg", 
       "/images/stores/aosta/aosta-3.jpg",
       "/images/stores/aosta/aosta-4.jpg",
       "/images/stores/aosta/aosta-5.jpg",
@@ -164,6 +164,7 @@ const Stores = () => {
                           alt={`${store.name} - Foto ${imgIndex + 1}`}
                           className="w-full h-full group-hover:scale-105 transition-transform duration-300"
                           objectFit="cover"
+                          objectPosition={imageSrc.includes("aosta-2.jpg") ? "center top" : "center center"}
                           width={200}
                           height={200}
                         />
