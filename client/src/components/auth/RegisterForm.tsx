@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { useToast } from '@/hooks/use-toast';
@@ -52,6 +53,9 @@ const registerSchema = z.object({
       (val) => !val || val.length === 0 || /^[A-Z]{2}$/i.test(val),
       'Provincia deve essere composta da 2 lettere'
     ),
+  acceptPrivacy: z.boolean().refine((val) => val === true, {
+    message: 'Devi accettare la Privacy Policy per registrarti',
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Le password non corrispondono',
   path: ['confirmPassword'],
@@ -87,6 +91,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
       city: '',
       postalCode: '',
       province: '',
+      acceptPrivacy: false,
     },
   });
 
@@ -293,6 +298,39 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
             />
             {form.formState.errors.province && (
               <p className="text-sm text-red-600">{form.formState.errors.province.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-start space-x-3">
+              <Controller
+                name="acceptPrivacy"
+                control={form.control}
+                render={({ field }) => (
+                  <Checkbox
+                    id="acceptPrivacy"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    className="mt-1"
+                  />
+                )}
+              />
+              <Label htmlFor="acceptPrivacy" className="text-sm leading-relaxed cursor-pointer">
+                Ho letto e accetto la{' '}
+                <a
+                  href="/privacy-policy"
+                  className="text-[#FFD100] hover:underline font-medium"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Privacy Policy
+                </a>{' '}
+                *
+              </Label>
+            </div>
+            {form.formState.errors.acceptPrivacy && (
+              <p className="text-sm text-red-600">{form.formState.errors.acceptPrivacy.message}</p>
             )}
           </div>
 

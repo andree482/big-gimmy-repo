@@ -1,6 +1,6 @@
 import { google } from 'googleapis';
 import { db } from './db';
-import { productOptions, products } from '../shared/schema';
+import { productOptions, products, brands } from '../shared/schema';
 import { eq } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -82,11 +82,12 @@ async function exportPricesToGoogleSheets(spreadsheetId: string, sheetName: stri
       console.log(`⚠️ Errore nella verifica del foglio, procedo comunque: ${error}`);
     }
 
-    // Recupera tutti i prezzi dal database con nome del prodotto
+    // Recupera tutti i prezzi dal database con nome del prodotto e marca
     const allSizes = await db
       .select({
         productId: productOptions.productId,
         productName: products.name,
+        brandName: brands.name,
         flavor: productOptions.flavor,
         size: productOptions.size,
         currentPrice: productOptions.priceCents,
@@ -94,12 +95,14 @@ async function exportPricesToGoogleSheets(spreadsheetId: string, sheetName: stri
       })
       .from(productOptions)
       .innerJoin(products, eq(productOptions.productId, products.id))
+      .innerJoin(brands, eq(products.brandId, brands.id))
       .orderBy(productOptions.productId);
 
     // Prepara i dati per Google Sheets
-    const headers = ['Product ID', 'Nome', 'Flavor', 'Unit', 'Current Price', 'New Price', 'Disponibile'];
+    const headers = ['Product ID', 'Marca', 'Nome', 'Flavor', 'Unit', 'Current Price', 'New Price', 'Disponibile'];
     const rows = allSizes.map(option => [
       option.productId,
+      option.brandName,
       option.productName,
       option.flavor || '',
       option.size || '',
@@ -114,7 +117,7 @@ async function exportPricesToGoogleSheets(spreadsheetId: string, sheetName: stri
     try {
       await sheets.spreadsheets.values.clear({
         spreadsheetId,
-        range: `'${sheetName}'!A:G`,
+        range: `'${sheetName}'!A:H`,
       });
       console.log(`🗑️ Contenuto esistente cancellato`);
     } catch (clearError) {
@@ -152,7 +155,7 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
     // Legge i dati dal foglio
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `'${sheetName}'!A:G`,
+      range: `'${sheetName}'!A:H`,
     });
 
     const rows = response.data.values;
@@ -174,18 +177,19 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
         console.log(`🔍 Elaborando riga ${i + 1}:`, row);
 
         const productId = parseInt(row[0]);
-        const productName = row[1]?.toString(); // Nome del prodotto
-        const size = row[2]?.toString();
-        const unit = row[3]?.toString();
-        const currentPrice = parseFloat(row[4]); // Current Price
-        const newPrice = parseFloat(row[5]); // Colonna "New Price" (ora in posizione 5)
-        const availability = row[6]?.toString()?.trim()?.toUpperCase(); // Colonna "Disponibile"
+        const brandName = row[1]?.toString(); // Marca del prodotto
+        const productName = row[2]?.toString(); // Nome del prodotto
+        const size = row[3]?.toString(); // Flavor
+        const unit = row[4]?.toString(); // Unit/Size
+        const currentPrice = parseFloat(row[5]); // Current Price
+        const newPrice = parseFloat(row[6]); // Colonna "New Price"
+        const availability = row[7]?.toString()?.trim()?.toUpperCase(); // Colonna "Disponibile"
 
-        console.log(`📊 Dati estratti - ID: ${productId}, Nome: ${productName}, Size: ${size}, Unit: ${unit}, Current: ${currentPrice}, New: ${newPrice}, Disponibile: ${availability}`);
+        console.log(`📊 Dati estratti - ID: ${productId}, Marca: ${brandName}, Nome: ${productName}, Size: ${size}, Unit: ${unit}, Current: ${currentPrice}, New: ${newPrice}, Disponibile: ${availability}`);
 
         // Validazione dati (unit può essere vuoto se incluso in size)
         if (!productId || !size || isNaN(newPrice) || newPrice <= 0) {
-          console.log(`❌ Riga ${i + 1} invalida: Product ID: ${productId}, Nome: ${productName}, Size: ${size}, Unit: ${unit}, Price: ${newPrice}`);
+          console.log(`❌ Riga ${i + 1} invalida: Product ID: ${productId}, Marca: ${brandName}, Nome: ${productName}, Size: ${size}, Unit: ${unit}, Price: ${newPrice}`);
           errorCount++;
           continue;
         }
@@ -207,7 +211,7 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
         );
 
         if (!targetOption) {
-          console.log(`❌ Riga ${i + 1}: Non trovata combinazione Product ID ${productId} (${productName}), Flavor: ${size}, Unit: ${unit}`);
+          console.log(`❌ Riga ${i + 1}: Non trovata combinazione Product ID ${productId} (${brandName} - ${productName}), Flavor: ${size}, Unit: ${unit}`);
           errorCount++;
           continue;
         }
@@ -219,7 +223,7 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
         if (targetOption.priceCents !== priceInCents) {
           updates.priceCents = priceInCents;
           hasUpdates = true;
-          console.log(`💰 Prezzo cambiato: ${productName} (ID: ${productId}), ${size}${unit}: €${(targetOption.priceCents/100).toFixed(2)} → €${newPrice.toFixed(2)}`);
+          console.log(`💰 Prezzo cambiato: ${brandName} - ${productName} (ID: ${productId}), ${size}${unit}: €${(targetOption.priceCents/100).toFixed(2)} → €${newPrice.toFixed(2)}`);
           updatedCount++;
         }
 
@@ -227,7 +231,7 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
         if (targetOption.inStock !== newAvailability) {
           updates.inStock = newAvailability;
           hasUpdates = true;
-          console.log(`📦 Disponibilità cambiata: ${productName} (ID: ${productId}), ${size}${unit}: ${targetOption.inStock ? 'SI' : 'NO'} → ${newAvailability ? 'SI' : 'NO'}`);
+          console.log(`📦 Disponibilità cambiata: ${brandName} - ${productName} (ID: ${productId}), ${size}${unit}: ${targetOption.inStock ? 'SI' : 'NO'} → ${newAvailability ? 'SI' : 'NO'}`);
           availabilityUpdatedCount++;
         }
 
@@ -238,7 +242,7 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
             .set(updates)
             .where(eq(productOptions.id, targetOption.id));
         } else {
-          console.log(`⏭️ Riga ${i + 1}: ${productName} (ID: ${productId}), ${size}${unit}: Nessun cambiamento necessario`);
+          console.log(`⏭️ Riga ${i + 1}: ${brandName} - ${productName} (ID: ${productId}), ${size}${unit}: Nessun cambiamento necessario`);
         }
 
       } catch (error) {

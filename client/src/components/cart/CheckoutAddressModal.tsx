@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { MapPin, Plus, Loader2, Home, Edit } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +48,7 @@ export function CheckoutAddressModal({
   const [isLoading, setIsLoading] = useState(true);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [acceptRecesso, setAcceptRecesso] = useState(false);
   const { toast } = useToast();
 
   // Form per nuovo indirizzo
@@ -153,6 +155,14 @@ export function CheckoutAddressModal({
       toast({
         title: "Seleziona un indirizzo",
         description: "Devi selezionare un indirizzo di spedizione",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!acceptRecesso) {
+      toast({
+        title: "Accettazione obbligatoria",
+        description: "Devi accettare le condizioni sul diritto di recesso per procedere",
         variant: "destructive",
       });
       return;
@@ -368,6 +378,27 @@ export function CheckoutAddressModal({
                 />
               </div>
             )}
+
+            {/* Checkbox diritto di recesso */}
+            {!showNewAddressForm && addresses.length > 0 && (
+              <div className="space-y-2 pt-4 border-t">
+                <div className="flex items-start space-x-3">
+                  <Checkbox
+                    id="acceptRecesso"
+                    checked={acceptRecesso}
+                    onCheckedChange={(checked) => setAcceptRecesso(checked === true)}
+                    className="mt-1"
+                  />
+                  <Label htmlFor="acceptRecesso" className="text-sm leading-relaxed cursor-pointer">
+                    Ho letto e accetto le condizioni sul{' '}
+                    <a href="/diritto-recesso" className="text-[#FFD100] hover:underline font-medium" target="_blank" rel="noopener noreferrer">
+                      Diritto di Recesso
+                    </a>{' '}
+                    *
+                  </Label>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -378,7 +409,7 @@ export function CheckoutAddressModal({
           {!showNewAddressForm && addresses.length > 0 && (
             <Button
               onClick={handleConfirm}
-              disabled={!selectedAddressId}
+              disabled={!selectedAddressId || !acceptRecesso}
               className="w-full sm:w-auto bg-[#FFD100] hover:bg-[#e6bc00] text-black font-semibold"
             >
               Procedi al Pagamento - €{cartTotal.toFixed(2)}
