@@ -2,8 +2,8 @@ import { Resend } from 'resend';
 
 // Configurazione indirizzi
 // In fase di test con Resend "onboarding", l'ADMIN_EMAIL deve essere quella con cui ti sei registrato su Resend
-const ADMIN_EMAIL = 'lucaandrea264@gmail.com'; 
-const FROM_EMAIL = 'onboarding@resend.dev'; // Cambierai in noreply@biggimmyintegratori.com dopo verifica DNS
+const ADMIN_EMAIL = 'info@biggimmyintegratori.com'; 
+const FROM_EMAIL = 'noreply@biggimmyintegratori.com'; // Cambierai in noreply@biggimmyintegratori.com dopo verifica DNS
 
 // Modalità di simulazione
 const SIMULATION_MODE = false;
