@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "wouter";
 import { Menu, X, Heart, ShoppingCart, User, LogOut, Settings } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 import Logo from "../ui/Logo";
 import { useAuth } from "@/hooks/useAuth";
@@ -275,135 +274,129 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="lg:hidden bg-[#212121]/95 backdrop-blur-md border-t border-white/10"
-          >
-            <div className="container mx-auto px-4 py-4">
-              <div className="flex flex-col space-y-3">
-                {navLinks.map((link) => (
+      {/* Mobile Menu - CSS transitions invece di framer-motion */}
+      <div
+        className={`lg:hidden bg-[#212121]/95 backdrop-blur-md border-t border-white/10 overflow-hidden transition-all duration-300 ease-out ${
+          mobileMenuOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col space-y-3">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={handleNavClick}
+                className={`text-white hover:text-[#FFD100] transition-colors duration-200 py-2 font-montserrat font-semibold ${
+                  location === link.href ? "text-[#FFD100]" : ""
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+
+            {/* Authentication Mobile */}
+            {isLoading ? (
+              <div className="flex items-center gap-2 py-2 font-montserrat font-semibold text-white/80">
+                <User className="w-5 h-5 animate-pulse" />
+              </div>
+            ) : isAuthenticated ? (
+              <>
+                <div className="flex items-center gap-2 py-2 font-montserrat font-semibold text-[#FFD100]">
+                  <User className="w-5 h-5" />
+                  {user?.firstName || user?.email}
+                </div>
+                {user?.isAdmin && (
                   <Link
-                    key={link.href}
-                    href={link.href}
-                    onClick={handleNavClick}
-                    className={`text-white hover:text-[#FFD100] transition-colors duration-200 py-2 font-montserrat font-semibold ${
-                      location === link.href ? "text-[#FFD100]" : ""
-                    }`}
+                    href="/admin/ordini"
+                    onClick={() => {
+                      handleNavClick();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
                   >
-                    {link.label}
+                    <Settings className="w-5 h-5" />
+                    Gestione Ordini
                   </Link>
-                ))}
-
-                {/* Authentication Mobile */}
-                {isLoading ? (
-                  <div className="flex items-center gap-2 py-2 font-montserrat font-semibold text-white/80">
-                    <User className="w-5 h-5 animate-pulse" />
-                  </div>
-                ) : isAuthenticated ? (
-                  <>
-                    <div className="flex items-center gap-2 py-2 font-montserrat font-semibold text-[#FFD100]">
-                      <User className="w-5 h-5" />
-                      {user?.firstName || user?.email}
-                    </div>
-                    {user?.isAdmin && (
-                      <Link
-                        href="/admin/ordini"
-                        onClick={() => {
-                          handleNavClick();
-                          setMobileMenuOpen(false);
-                        }}
-                        className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
-                      >
-                        <Settings className="w-5 h-5" />
-                        Gestione Ordini
-                      </Link>
-                    )}
-                    <button
-                      onClick={handleLogout}
-                      disabled={isLogoutLoading}
-                      className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
-                    >
-                      <LogOut className="w-5 h-5" />
-                      {isLogoutLoading ? "Disconnessione..." : "Logout"}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => {
-                        handleLoginClick();
-                        setMobileMenuOpen(false);
-                      }}
-                      className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
-                    >
-                      <User className="w-5 h-5" />
-                      Accedi
-                    </button>
-                  </>
                 )}
-
-                {/* Cart Mobile */}
-                <Link
-                  href="/carrello"
-                  onClick={() => {
-                    handleNavClick();
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 ${
-                    location === "/carrello"
-                      ? "text-[#FFD100]"
-                      : "text-white hover:text-[#FFD100]"
-                  }`}
+                <button
+                  onClick={handleLogout}
+                  disabled={isLogoutLoading}
+                  className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
                 >
-                  <div className="relative">
-                    <ShoppingCart className="w-5 h-5" />
-                    {totalItems > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-[#FFD100] text-black text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                        {totalItems}
-                      </span>
-                    )}
-                  </div>
-                  Carrello
-                </Link>
-
-                {/* Favorites Mobile */}
-                <Link
-                  href="/preferiti"
+                  <LogOut className="w-5 h-5" />
+                  {isLogoutLoading ? "Disconnessione..." : "Logout"}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
                   onClick={() => {
-                    handleNavClick();
+                    handleLoginClick();
                     setMobileMenuOpen(false);
                   }}
                   className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
                 >
-                  <Heart className="w-5 h-5" />
-                  Preferiti
-                </Link>
+                  <User className="w-5 h-5" />
+                  Accedi
+                </button>
+              </>
+            )}
 
-                {!isAuthenticated && (
-                  <>
-                    <button
-                      onClick={() => {
-                        handleRegisterClick();
-                        setMobileMenuOpen(false);
-                      }}
-                      className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
-                    >
-                      <User className="w-5 h-5" />
-                      Registrati
-                    </button>
-                  </>
+            {/* Cart Mobile */}
+            <Link
+              href="/carrello"
+              onClick={() => {
+                handleNavClick();
+                setMobileMenuOpen(false);
+              }}
+              className={`flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 ${
+                location === "/carrello"
+                  ? "text-[#FFD100]"
+                  : "text-white hover:text-[#FFD100]"
+              }`}
+            >
+              <div className="relative">
+                <ShoppingCart className="w-5 h-5" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-[#FFD100] text-black text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {totalItems}
+                  </span>
                 )}
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              Carrello
+            </Link>
+
+            {/* Favorites Mobile */}
+            <Link
+              href="/preferiti"
+              onClick={() => {
+                handleNavClick();
+                setMobileMenuOpen(false);
+              }}
+              className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+            >
+              <Heart className="w-5 h-5" />
+              Preferiti
+            </Link>
+
+            {!isAuthenticated && (
+              <>
+                <button
+                  onClick={() => {
+                    handleRegisterClick();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                >
+                  <User className="w-5 h-5" />
+                  Registrati
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </header>
     <AuthModal
       isOpen={authModalOpen}

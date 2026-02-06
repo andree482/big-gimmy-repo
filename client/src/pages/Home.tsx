@@ -5,7 +5,6 @@ import { Link } from "wouter";
 import { storeImages, productCategories } from "@/lib/constants";
 import ScrollAnimatedSection from "@/components/animations/ScrollAnimatedSection";
 import { AnimatedCard, AnimatedText } from "@/components/animations/AnimatedCard";
-import { motion } from "framer-motion";
 
 // Immagini per la sezione Chi Siamo
 import aboutImg1 from "../assets/about_img1.jpeg";
@@ -23,7 +22,7 @@ const Home = () => {
     <>
       <Hero />
       <Features />
-      
+
       {/* About Section - Mobile Optimized with Animations */}
       <ScrollAnimatedSection animation="slideUp" className="py-10 sm:py-12 md:py-16">
         <section id="chi-siamo">
@@ -43,25 +42,18 @@ const Home = () => {
                     Il nostro negozio di Torino è rapidamente diventato un punto di riferimento nella città, grazie all'ampia selezione di prodotti, i prezzi competitivi e soprattutto la competenza del nostro staff.
                   </p>
                 </AnimatedText>
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4, duration: 0.4 }}
-                  className="mt-6 text-center md:text-left"
-                >
+                <div className="mt-6 text-center md:text-left animate-fade-in">
                   <Link
                     href="/chi-siamo"
-                    className="text-[#FFD100] font-semibold hover:underline inline-flex items-center transition-all hover:scale-105"
+                    className="text-[#FFD100] font-semibold hover:underline inline-flex items-center transition-all hover:scale-105 group"
                   >
                     Scopri di più su di noi
-                    <motion.svg
-                      className="w-4 h-4 ml-2"
+                    <svg
+                      className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                       xmlns="http://www.w3.org/2000/svg"
-                      whileHover={{ x: 5 }}
-                      transition={{ duration: 0.2 }}
                     >
                       <path
                         strokeLinecap="round"
@@ -69,34 +61,34 @@ const Home = () => {
                         strokeWidth={2}
                         d="M9 5l7 7-7 7"
                       />
-                    </motion.svg>
+                    </svg>
                   </Link>
-                </motion.div>
+                </div>
               </div>
               <div className="w-full md:w-1/2">
                 <div className="grid grid-cols-2 gap-2 sm:gap-4">
                   <AnimatedCard delay={0.2} hoverScale={1.03} className="rounded-lg shadow-md h-40 sm:h-48 md:h-64 w-full overflow-hidden">
-                    <img 
-                      src={aboutImg1} 
-                      alt="BigGimmy Store Interior" 
+                    <img
+                      src={aboutImg1}
+                      alt="BigGimmy Store Interior"
                       className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
                       loading="lazy"
                       decoding="async"
                     />
                   </AnimatedCard>
                   <AnimatedCard delay={0.3} hoverScale={1.03} className="rounded-lg shadow-md h-40 sm:h-48 md:h-64 w-full overflow-hidden">
-                    <img 
-                      src={aboutImg2} 
-                      alt="BigGimmy Product Display" 
+                    <img
+                      src={aboutImg2}
+                      alt="BigGimmy Product Display"
                       className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
                       loading="lazy"
                       decoding="async"
                     />
                   </AnimatedCard>
                   <AnimatedCard delay={0.4} hoverScale={1.03} className="rounded-lg shadow-md h-40 sm:h-48 md:h-64 w-full overflow-hidden">
-                    <img 
-                      src={aboutImg3} 
-                      alt="BigGimmy Supplements" 
+                    <img
+                      src={aboutImg3}
+                      alt="BigGimmy Supplements"
                       className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
                       style={{ objectPosition: "center 30%" }}
                       loading="lazy"
@@ -104,9 +96,9 @@ const Home = () => {
                     />
                   </AnimatedCard>
                   <AnimatedCard delay={0.5} hoverScale={1.03} className="rounded-lg shadow-md h-40 sm:h-48 md:h-64 w-full overflow-hidden">
-                    <img 
-                      src={aboutImg4} 
-                      alt="BigGimmy Store Exterior" 
+                    <img
+                      src={aboutImg4}
+                      alt="BigGimmy Store Exterior"
                       className="w-full h-full object-cover transition-transform duration-200 hover:scale-105"
                       loading="lazy"
                       decoding="async"
@@ -118,7 +110,7 @@ const Home = () => {
           </div>
         </section>
       </ScrollAnimatedSection>
-      
+
       {/* Featured Products - Mobile Optimized with Animations */}
       <ScrollAnimatedSection animation="slideUp" className="py-10 sm:py-12 md:py-16 bg-[#F5F5F5]">
         <section>
@@ -133,23 +125,23 @@ const Home = () => {
                 </p>
               </AnimatedText>
             </div>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
               {productCategories.slice(0, 3).map((category, index) => {
                 // Array delle immagini di sfondo per le prime 3 categorie
                 const backgroundImages = [categoryProteine, categoryAminoacidi, categoryAlimentiFit];
                 const backgroundImage = backgroundImages[index];
-                
+
                 return (
-                  <AnimatedCard 
-                    key={index} 
-                    delay={0.3 + (index * 0.1)} 
+                  <AnimatedCard
+                    key={index}
+                    delay={0.3 + (index * 0.1)}
                     hoverScale={1.03}
                     className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-200"
                   >
                     <div className="relative w-full h-36 sm:h-40 md:h-48 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
                       {/* Immagine di sfondo */}
-                      <img 
+                      <img
                         src={backgroundImage}
                         alt={`${category.name} background`}
                         className={`absolute inset-0 w-full h-full ${
@@ -165,19 +157,17 @@ const Home = () => {
                     <div className="p-4 sm:p-5 md:p-6">
                       <h3 className="font-montserrat font-bold text-lg sm:text-xl mb-2">{category.name}</h3>
                       <p className="mb-4 text-sm sm:text-base">{category.description}</p>
-                      <Link 
-                        href="/prodotti" 
+                      <Link
+                        href="/prodotti"
                         className="text-[#FFD100] font-semibold hover:underline inline-flex items-center text-sm sm:text-base group transition-all"
                       >
                         Esplora prodotti
-                        <motion.svg
-                          className="w-4 h-4 ml-2"
+                        <svg
+                          className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
                           xmlns="http://www.w3.org/2000/svg"
-                          whileHover={{ x: 5 }}
-                          transition={{ duration: 0.2 }}
                         >
                           <path
                             strokeLinecap="round"
@@ -185,41 +175,26 @@ const Home = () => {
                             strokeWidth={2}
                             d="M9 5l7 7-7 7"
                           />
-                        </motion.svg>
+                        </svg>
                       </Link>
                     </div>
                   </AnimatedCard>
                 );
               })}
             </div>
-            
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7, duration: 0.4 }}
-              className="text-center mt-8 sm:mt-10 md:mt-12"
-            >
-              <motion.div
-                whileHover={{
-                  scale: 1.05,
-                  boxShadow: '0 10px 25px rgba(255, 209, 0, 0.3)',
-                }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                className="inline-block"
+
+            <div className="text-center mt-8 sm:mt-10 md:mt-12 animate-fade-in">
+              <Link
+                href="/prodotti"
+                className="bg-[#FFD100] hover:bg-yellow-500 hover:scale-105 hover:shadow-lg active:scale-95 text-[#212121] font-montserrat font-bold px-6 sm:px-8 py-3 rounded-md transition-all duration-200 inline-block w-full sm:w-auto max-w-xs mx-auto"
               >
-                <Link
-                  href="/prodotti"
-                  className="bg-[#FFD100] hover:bg-yellow-500 text-[#212121] font-montserrat font-bold px-6 sm:px-8 py-3 rounded-md transition-all inline-block w-full sm:w-auto max-w-xs mx-auto"
-                >
-                  Scopri tutti i prodotti
-                </Link>
-              </motion.div>
-            </motion.div>
+                Scopri tutti i prodotti
+              </Link>
+            </div>
           </div>
         </section>
       </ScrollAnimatedSection>
-      
+
       <Cta />
     </>
   );
