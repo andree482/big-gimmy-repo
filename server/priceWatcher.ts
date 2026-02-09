@@ -1,7 +1,7 @@
 
 import { google } from 'googleapis';
 import { db } from './db';
-import { productOptions, products } from '../shared/schema.ts';
+import { productOptions, products, brands } from '../shared/schema.ts';
 import { eq } from 'drizzle-orm';
 import * as fs from 'fs';
 
@@ -49,7 +49,7 @@ class PriceWatcher {
 
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: this.spreadsheetId,
-        range: `'${this.sheetName}'!A:F`,
+        range: `'${this.sheetName}'!A:H`,
       });
 
       const rows = response.data.values;
@@ -62,17 +62,16 @@ class PriceWatcher {
 
       const changes: PriceChange[] = [];
 
-      // Controlla le prime 3 righe per debu
-
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         try {
           const productId = parseInt(row[0]);
-          const productName = row[1]?.toString();
-          const size = row[2]?.toString();
-          const unit = row[3]?.toString();
-          const currentPrice = parseFloat(row[4]);
-          const newPrice = parseFloat(row[5]);
+          const brandName = row[1]?.toString();    // Marca
+          const productName = row[2]?.toString();  // Nome
+          const size = row[3]?.toString();          // Flavor
+          const unit = row[4]?.toString();          // Unit
+          const currentPrice = parseFloat(row[5]);  // Current Price
+          const newPrice = parseFloat(row[6]);       // New Price
 
 
 
@@ -165,44 +164,49 @@ class PriceWatcher {
       const auth = await this.authenticate();
       const sheets = google.sheets({ version: 'v4', auth });
 
-      // Estrai tutti i dati da product_options con i nomi dei prodotti
+      // Estrai tutti i dati da product_options con i nomi dei prodotti e marca
       const allOptions = await db
         .select({
           productId: productOptions.productId,
           productName: products.name,
+          brandName: brands.name,
           flavor: productOptions.flavor,
           size: productOptions.size,
           priceCents: productOptions.priceCents,
+          inStock: productOptions.inStock,
         })
         .from(productOptions)
         .innerJoin(products, eq(productOptions.productId, products.id))
+        .innerJoin(brands, eq(products.brandId, brands.id))
         .orderBy(productOptions.productId);
 
-      // Prepara i dati per Google Sheets
-      const header = ['ID Prodotto', 'Nome', 'Gusto', 'Unità', 'Prezzo Attuale', 'Nuovo Prezzo'];
+      // Prepara i dati per Google Sheets (formato 8 colonne allineato a exportPricesToGoogleSheets)
+      const header = ['ID', 'Marca', 'Nome', 'Gusto', 'Unità', 'Prezzo Attuale', 'Prezzo Aggiornato', 'Disponibile'];
       const rows = [header];
 
       for (const option of allOptions) {
         const currentPrice = (option.priceCents / 100).toFixed(2);
         rows.push([
           option.productId.toString(),
+          option.brandName,
           option.productName,
           option.flavor || '',
           option.size || '',
           currentPrice,
-          currentPrice
+          currentPrice,
+          option.inStock ? 'SI' : 'NO'
         ]);
       }
 
       // Sovrascrivi completamente il Google Sheets
       await sheets.spreadsheets.values.clear({
         spreadsheetId: this.spreadsheetId,
-        range: `'${this.sheetName}'!A:F`,
+        range: `'${this.sheetName}'!A:H`,
       });
 
       await sheets.spreadsheets.values.update({
         spreadsheetId: this.spreadsheetId,
-        range: `'${this.sheetName}'!A1:F${rows.length}`,
+        range: `'${this.sheetName}'!A1:H${rows.length}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: rows,
@@ -225,7 +229,7 @@ class PriceWatcher {
 
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: this.spreadsheetId,
-        range: `'${this.sheetName}'!A:F`,
+        range: `'${this.sheetName}'!A:H`,
       });
 
       const rows = response.data.values;
@@ -236,26 +240,28 @@ class PriceWatcher {
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         const productId = parseInt(row[0]);
-        const size = row[2]?.toString();
-        const unit = row[3]?.toString();
-        const newPrice = parseFloat(row[5]);
+        const flavor = row[3]?.toString();   // Flavor
+        const unit = row[4]?.toString();      // Unit
+        const newPrice = parseFloat(row[6]);  // New Price
 
-        if (!productId || !size || !unit || isNaN(newPrice)) continue;
+        if (!productId || !flavor || isNaN(newPrice)) continue;
 
         updates.push([
           row[0], // Product ID
-          row[1], // Product Name
-          row[2], // Size
-          row[3], // Unit
+          row[1], // Marca
+          row[2], // Nome
+          row[3], // Flavor
+          row[4], // Unit
           newPrice.toFixed(2), // Current Price (aggiornato)
-          newPrice.toFixed(2)  // New Price
+          newPrice.toFixed(2), // New Price
+          row[7]  // Disponibile
         ]);
       }
 
       if (updates.length > 0) {
         await sheets.spreadsheets.values.update({
           spreadsheetId: this.spreadsheetId,
-          range: `'${this.sheetName}'!A2:F${updates.length + 1}`,
+          range: `'${this.sheetName}'!A2:H${updates.length + 1}`,
           valueInputOption: 'RAW',
           requestBody: {
             values: updates,
