@@ -70,29 +70,29 @@ class PriceWatcher {
           const productName = row[2]?.toString();  // Nome
           const size = row[3]?.toString();          // Flavor
           const unit = row[4]?.toString();          // Unit
-          const currentPrice = parseFloat(row[5]);  // Current Price
-          const newPrice = parseFloat(row[6]);       // New Price
+          const currentPrice = parseFloat(row[5]);  // Prezzo Attuale (editato dall'utente)
+          const confirmedPrice = parseFloat(row[6]); // Prezzo Aggiornato (ultimo prezzo confermato)
 
 
 
-          // Controlla se il prezzo è cambiato
-          if (!isNaN(currentPrice) && Math.abs(newPrice - currentPrice) >= 0.01) {
-            console.log(`🔄 Rilevata modifica prezzo riga ${i + 1}: ${currentPrice} → ${newPrice}`);
+          // Controlla se l'utente ha modificato "Prezzo Attuale" rispetto a "Prezzo Aggiornato"
+          if (!isNaN(currentPrice) && !isNaN(confirmedPrice) && Math.abs(currentPrice - confirmedPrice) >= 0.01) {
+            console.log(`🔄 Rilevata modifica prezzo riga ${i + 1}: ${confirmedPrice} → ${currentPrice}`);
 
-            const priceInCents = Math.round(newPrice * 100);
+            const priceInCents = Math.round(currentPrice * 100);
 
-            // Cerca nel database  
+            // Cerca nel database
             const existingOptions = await db
               .select()
               .from(productOptions)
               .where(eq(productOptions.productId, productId));
 
-            const targetOption = existingOptions.find(o => 
+            const targetOption = existingOptions.find(o =>
               o.flavor === size && o.size === unit
             );
 
             if (targetOption) {
-              console.log(`📊 Trovato nel DB: Prezzo attuale DB = €${targetOption.priceCents / 100}, Nuovo prezzo = €${newPrice}`);
+              console.log(`📊 Trovato nel DB: Prezzo DB = €${targetOption.priceCents / 100}, Nuovo prezzo = €${currentPrice}`);
 
               console.log(`✅ Aggiunta modifica: ${productName} - ${size}${unit}`);
               changes.push({
@@ -101,13 +101,13 @@ class PriceWatcher {
                 size,
                 unit,
                 oldPrice: targetOption.priceCents / 100,
-                newPrice
+                newPrice: currentPrice
               });
             } else {
               console.log(`❌ Non trovato nel DB: Product ID ${productId}, Size: ${size}, Unit: ${unit}`);
             }
           } else {
-            if (i <= 3) console.log(`⏭️ Riga ${i + 1}: Prezzi uguali (${currentPrice} = ${newPrice})`);
+            if (i <= 3) console.log(`⏭️ Riga ${i + 1}: Prezzi uguali (${currentPrice} = ${confirmedPrice})`);
           }
         } catch (error) {
           console.error(`❌ Errore elaborando riga ${i + 1}:`, error);
@@ -240,20 +240,20 @@ class PriceWatcher {
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         const productId = parseInt(row[0]);
-        const flavor = row[3]?.toString();   // Flavor
-        const unit = row[4]?.toString();      // Unit
-        const newPrice = parseFloat(row[6]);  // New Price
+        const flavor = row[3]?.toString();       // Flavor
+        const unit = row[4]?.toString();          // Unit
+        const currentPrice = parseFloat(row[5]);  // Prezzo Attuale (editato dall'utente)
 
-        if (!productId || !flavor || isNaN(newPrice)) continue;
+        if (!productId || !flavor || isNaN(currentPrice)) continue;
 
         updates.push([
-          row[0], // Product ID
+          row[0], // ID
           row[1], // Marca
           row[2], // Nome
-          row[3], // Flavor
-          row[4], // Unit
-          newPrice.toFixed(2), // Current Price (aggiornato)
-          newPrice.toFixed(2), // New Price
+          row[3], // Gusto
+          row[4], // Unità
+          row[5], // Prezzo Attuale (resta com'è)
+          currentPrice.toFixed(2), // Prezzo Aggiornato → si allinea a Prezzo Attuale
           row[7]  // Disponibile
         ]);
       }
