@@ -179,7 +179,7 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
 
         console.log(`📊 Dati estratti - ID: ${productId}, Marca: ${brandName}, Nome: ${productName}, Flavor: ${size}, Unit: ${unit}, Current: ${currentPrice}, New: ${newPrice}, Disponibile: ${availability}`);
 
-v        // Validazione dati (flavor e unit possono essere vuoti per alcuni prodotti)
+        // Validazione dati (flavor e unit possono essere vuoti per alcuni prodotti)
         if (!productId || isNaN(newPrice) || newPrice <= 0) {
           console.log(`❌ Riga ${i + 1} invalida: Product ID: ${productId}, Marca: ${brandName}, Nome: ${productName}, Flavor: ${size}, Unit: ${unit}, Price: ${newPrice}`);
           errorCount++;
