@@ -12,6 +12,11 @@ interface PriceChange {
   unit: string;
   oldPrice: number;
   newPrice: number;
+  optionId: number;
+  oldInStock: boolean | null;
+  newInStock: boolean;
+  availabilityChanged: boolean;
+  priceChanged: boolean;
 }
 
 class PriceWatcher {
@@ -41,7 +46,7 @@ class PriceWatcher {
   }
 
   async checkForPriceChanges(): Promise<PriceChange[]> {
-    console.log(`🔍 Controllo modifiche prezzi... (${new Date().toLocaleTimeString()})`);
+    console.log(`🔍 Controllo modifiche prezzi e disponibilità... (${new Date().toLocaleTimeString()})`);
 
     try {
       const auth = await this.authenticate();
@@ -66,55 +71,64 @@ class PriceWatcher {
         const row = rows[i];
         try {
           const productId = parseInt(row[0]);
-          const brandName = row[1]?.toString();    // Marca
           const productName = row[2]?.toString();  // Nome
           const size = row[3]?.toString();          // Flavor
           const unit = row[4]?.toString();          // Unit
           const currentPrice = parseFloat(row[5]);  // Prezzo Attuale (editato dall'utente)
           const confirmedPrice = parseFloat(row[6]); // Prezzo Aggiornato (ultimo prezzo confermato)
+          const availability = row[7]?.toString()?.trim()?.toUpperCase(); // Disponibile
 
+          if (!productId || isNaN(currentPrice)) continue;
 
+          // Controlla modifiche prezzo
+          const priceChanged = !isNaN(confirmedPrice) && Math.abs(currentPrice - confirmedPrice) >= 0.01;
 
-          // Controlla se l'utente ha modificato "Prezzo Attuale" rispetto a "Prezzo Aggiornato"
-          if (!isNaN(currentPrice) && !isNaN(confirmedPrice) && Math.abs(currentPrice - confirmedPrice) >= 0.01) {
-            console.log(`🔄 Rilevata modifica prezzo riga ${i + 1}: ${confirmedPrice} → ${currentPrice}`);
+          // Controlla modifiche disponibilità: legge dal DB per confrontare
+          const newInStock = availability === 'SI';
 
-            const priceInCents = Math.round(currentPrice * 100);
+          // Cerca nel database
+          const existingOptions = await db
+            .select()
+            .from(productOptions)
+            .where(eq(productOptions.productId, productId));
 
-            // Cerca nel database
-            const existingOptions = await db
-              .select()
-              .from(productOptions)
-              .where(eq(productOptions.productId, productId));
+          const targetOption = existingOptions.find(o =>
+            (o.flavor || '') === (size || '') && (o.size || '') === (unit || '')
+          );
 
-            const targetOption = existingOptions.find(o =>
-              o.flavor === size && o.size === unit
-            );
+          if (!targetOption) {
+            if (priceChanged) console.log(`❌ Non trovato nel DB: Product ID ${productId}, Flavor: ${size}, Unit: ${unit}`);
+            continue;
+          }
 
-            if (targetOption) {
-              console.log(`📊 Trovato nel DB: Prezzo DB = €${targetOption.priceCents / 100}, Nuovo prezzo = €${currentPrice}`);
+          const availabilityChanged = targetOption.inStock !== newInStock;
 
-              console.log(`✅ Aggiunta modifica: ${productName} - ${size}${unit}`);
-              changes.push({
-                productId,
-                productName,
-                size,
-                unit,
-                oldPrice: targetOption.priceCents / 100,
-                newPrice: currentPrice
-              });
-            } else {
-              console.log(`❌ Non trovato nel DB: Product ID ${productId}, Size: ${size}, Unit: ${unit}`);
-            }
-          } else {
-            if (i <= 3) console.log(`⏭️ Riga ${i + 1}: Prezzi uguali (${currentPrice} = ${confirmedPrice})`);
+          if (priceChanged || availabilityChanged) {
+            if (priceChanged) console.log(`🔄 Rilevata modifica prezzo riga ${i + 1}: €${confirmedPrice} → €${currentPrice}`);
+            if (availabilityChanged) console.log(`📦 Rilevata modifica disponibilità riga ${i + 1}: ${targetOption.inStock ? 'SI' : 'NO'} → ${availability}`);
+
+            changes.push({
+              productId,
+              productName: productName || '',
+              size: size || '',
+              unit: unit || '',
+              oldPrice: targetOption.priceCents / 100,
+              newPrice: currentPrice,
+              optionId: targetOption.id,
+              oldInStock: targetOption.inStock,
+              newInStock,
+              availabilityChanged,
+              priceChanged,
+            });
           }
         } catch (error) {
           console.error(`❌ Errore elaborando riga ${i + 1}:`, error);
         }
       }
 
-      console.log(`📋 Totale modifiche rilevate: ${changes.length}`);
+      const priceCount = changes.filter(c => c.priceChanged).length;
+      const availCount = changes.filter(c => c.availabilityChanged).length;
+      console.log(`📋 Totale modifiche rilevate: ${changes.length} (prezzi: ${priceCount}, disponibilità: ${availCount})`);
       return changes;
     } catch (error) {
       console.error('❌ Errore durante il controllo:', error);
@@ -123,37 +137,42 @@ class PriceWatcher {
   }
 
   async applyPriceChanges(changes: PriceChange[]): Promise<void> {
-    let updatedCount = 0;
+    let priceUpdated = 0;
+    let availabilityUpdated = 0;
 
     for (const change of changes) {
       try {
-        const priceInCents = Math.round(change.newPrice * 100);
+        const updates: any = {};
 
-        const existingOptions = await db
-          .select()
-          .from(productOptions)
-          .where(eq(productOptions.productId, change.productId));
+        if (change.priceChanged) {
+          updates.priceCents = Math.round(change.newPrice * 100);
+        }
+        if (change.availabilityChanged) {
+          updates.inStock = change.newInStock;
+        }
 
-        const targetOption = existingOptions.find(o => 
-          o.flavor === change.size && o.size === change.unit
-        );
-
-        if (targetOption) {
+        if (Object.keys(updates).length > 0) {
           await db
             .update(productOptions)
-            .set({ priceCents: priceInCents })
-            .where(eq(productOptions.id, targetOption.id));
+            .set(updates)
+            .where(eq(productOptions.id, change.optionId));
 
-          console.log(`✅ Aggiornato automaticamente: ${change.productName} (ID: ${change.productId}), ${change.size}${change.unit}: €${change.oldPrice.toFixed(2)} → €${change.newPrice.toFixed(2)}`);
-          updatedCount++;
+          if (change.priceChanged) {
+            console.log(`✅ Prezzo aggiornato: ${change.productName} (ID: ${change.productId}), ${change.size}${change.unit}: €${change.oldPrice.toFixed(2)} → €${change.newPrice.toFixed(2)}`);
+            priceUpdated++;
+          }
+          if (change.availabilityChanged) {
+            console.log(`✅ Disponibilità aggiornata: ${change.productName} (ID: ${change.productId}), ${change.size}${change.unit}: ${change.oldInStock ? 'SI' : 'NO'} → ${change.newInStock ? 'SI' : 'NO'}`);
+            availabilityUpdated++;
+          }
         }
       } catch (error) {
         console.error(`❌ Errore aggiornando ${change.productName}:`, error);
       }
     }
 
-    if (updatedCount > 0) {
-      console.log(`🎉 Aggiornati automaticamente ${updatedCount} prezzi!`);
+    if (priceUpdated > 0 || availabilityUpdated > 0) {
+      console.log(`🎉 Aggiornati automaticamente: ${priceUpdated} prezzi, ${availabilityUpdated} disponibilità!`);
     }
   }
 
@@ -244,7 +263,19 @@ class PriceWatcher {
         const unit = row[4]?.toString();          // Unit
         const currentPrice = parseFloat(row[5]);  // Prezzo Attuale (editato dall'utente)
 
-        if (!productId || !flavor || isNaN(currentPrice)) continue;
+        if (!productId || isNaN(currentPrice)) continue;
+
+        // Legge il valore attuale di inStock dal DB per sincronizzare la colonna Disponibile
+        const existingOptions = await db
+          .select()
+          .from(productOptions)
+          .where(eq(productOptions.productId, productId));
+
+        const targetOption = existingOptions.find(o =>
+          (o.flavor || '') === (flavor || '') && (o.size || '') === (unit || '')
+        );
+
+        const inStockValue = targetOption ? (targetOption.inStock ? 'SI' : 'NO') : (row[7] || 'SI');
 
         updates.push([
           row[0], // ID
@@ -254,7 +285,7 @@ class PriceWatcher {
           row[4], // Unità
           row[5], // Prezzo Attuale (resta com'è)
           currentPrice.toFixed(2), // Prezzo Aggiornato → si allinea a Prezzo Attuale
-          row[7]  // Disponibile
+          inStockValue  // Disponibile → sincronizzato dal DB
         ]);
       }
 
@@ -308,7 +339,9 @@ class PriceWatcher {
       const changes = await this.checkForPriceChanges();
 
       if (changes.length > 0) {
-        console.log(`🔄 Rilevate ${changes.length} modifiche di prezzo`);
+        const priceCount = changes.filter(c => c.priceChanged).length;
+        const availCount = changes.filter(c => c.availabilityChanged).length;
+        console.log(`🔄 Rilevate ${changes.length} modifiche (prezzi: ${priceCount}, disponibilità: ${availCount})`);
         await this.applyPriceChanges(changes);
         await this.updateGoogleSheetsCurrentPrices();
       } else {
