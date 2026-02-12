@@ -179,8 +179,8 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
 
         console.log(`📊 Dati estratti - ID: ${productId}, Marca: ${brandName}, Nome: ${productName}, Flavor: ${size}, Unit: ${unit}, Current: ${currentPrice}, New: ${newPrice}, Disponibile: ${availability}`);
 
-        // Validazione dati (unit può essere vuoto se incluso in size)
-        if (!productId || !size || isNaN(newPrice) || newPrice <= 0) {
+v        // Validazione dati (flavor e unit possono essere vuoti per alcuni prodotti)
+        if (!productId || isNaN(newPrice) || newPrice <= 0) {
           console.log(`❌ Riga ${i + 1} invalida: Product ID: ${productId}, Marca: ${brandName}, Nome: ${productName}, Flavor: ${size}, Unit: ${unit}, Price: ${newPrice}`);
           errorCount++;
           continue;
@@ -199,7 +199,7 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
           .where(eq(productOptions.productId, productId));
 
         const targetOption = existingOptions.find(o =>
-          o.flavor === size && o.size === unit
+          (o.flavor || '') === (size || '') && (o.size || '') === (unit || '')
         );
 
         if (!targetOption) {
