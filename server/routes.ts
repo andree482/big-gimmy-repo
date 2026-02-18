@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage.ts";
 import { insertContactSchema } from "@shared/schema";
 import { z } from "zod";
-import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply, sendTrackingEmail, sendWelcomeEmail, sendOrderConfirmationEmail, sendAdminOrderNotification, sendPasswordChangedEmail, sendRefundRequestEmail, sendPickupReadyEmail, sendOrderDeliveredEmail } from './services/email.ts';
+import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply, sendTrackingEmail, sendWelcomeEmail, sendOrderConfirmationEmail, sendAdminOrderNotification, sendPasswordChangedEmail, sendRefundRequestEmail, sendPickupReadyEmail, sendOrderDeliveredEmail, sendRefundCompletedEmail } from './services/email.ts';
 import { syncAllImages } from "./utils/imageSync.ts";
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
@@ -5023,7 +5023,7 @@ app.post("/api/contact", async (req: Request, res: Response) => {
       const validStatuses = [
         'pagato', 'in_attesa_di_pagamento', 'spedito', 'in_attesa_di_consegna',
         'consegnato', 'cancellato', 'fallito', 'richiesta_di_rimborso', 'rimborsato',
-        'pronto_per_ritiro'
+        'pronto_per_ritiro', 'ritirato'
       ];
 
       if (!status || !validStatuses.includes(status)) {
@@ -5130,6 +5130,36 @@ app.post("/api/contact", async (req: Request, res: Response) => {
           }
         } catch (emailError) {
           console.error("[STATUS] Errore invio email consegna:", emailError);
+        }
+      }
+
+      // Se lo stato diventa "rimborsato", invia email di rimborso completato al cliente e all'admin
+      if (status === 'rimborsato') {
+        try {
+          const { data: order } = await (supabaseAdmin as any)
+            .from("orders")
+            .select("id, user_id, total_cents")
+            .eq("id", orderId)
+            .single();
+
+          if (order) {
+            const { data: userData } = await (supabaseAdmin as any)
+              .from("users")
+              .select("email, first_name")
+              .eq("id", order.user_id)
+              .single();
+
+            if (userData?.email) {
+              await sendRefundCompletedEmail({
+                orderId: order.id,
+                userEmail: userData.email,
+                userName: userData.first_name || userData.email.split('@')[0],
+                total: order.total_cents || 0,
+              });
+            }
+          }
+        } catch (emailError) {
+          console.error("[STATUS] Errore invio email rimborso completato:", emailError);
         }
       }
 

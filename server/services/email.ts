@@ -1697,3 +1697,173 @@ export async function sendRefundRequestEmail(data: RefundRequestData): Promise<b
     return false;
   }
 }
+
+/**
+ * Invia email di rimborso completato al cliente e all'admin
+ */
+interface RefundCompletedData {
+  orderId: string;
+  userEmail: string;
+  userName: string;
+  total: number; // in centesimi
+}
+
+export async function sendRefundCompletedEmail(data: RefundCompletedData): Promise<boolean> {
+  const { orderId, userEmail, userName, total } = data;
+  const shortId = orderId.trim().toUpperCase();
+  const totalFormatted = (total / 100).toFixed(2).replace('.', ',');
+
+  console.log(`[EMAIL RIMBORSATO] Invio email rimborso completato ordine #${shortId} a ${userEmail}`);
+
+  if (SIMULATION_MODE) {
+    console.log('=== SIMULAZIONE REFUND COMPLETED EMAIL ===', { orderId, userEmail });
+    return true;
+  }
+
+  if (!resend) {
+    console.log('=== SIMULAZIONE REFUND COMPLETED EMAIL (resend=null) ===', { orderId });
+    return true;
+  }
+
+  try {
+    // Email al cliente
+    const { error: clientError } = await resend.emails.send({
+      from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [userEmail],
+      subject: `✅ Rimborso effettuato - Ordine #${shortId}`,
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%); padding: 40px 30px; text-align: center;">
+              <div style="font-size: 50px; margin-bottom: 15px;">✅</div>
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">
+                Rimborso effettuato
+              </h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">
+                Ordine #${shortId}
+              </p>
+            </div>
+            <div style="padding: 35px 30px;">
+              <p style="color: #4a4a4a; font-size: 16px; line-height: 1.7; margin: 0 0 25px 0;">
+                Ciao <strong>${userName}</strong>, ti informiamo che il rimborso per l'ordine <strong>#${shortId}</strong> è stato approvato ed elaborato.
+              </p>
+
+              <table style="width: 100%; border-collapse: collapse; background: #e8f5e9; border-radius: 8px; margin-bottom: 25px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <h3 style="color: #2e7d32; font-size: 16px; margin: 0 0 12px 0;">💰 Dettagli rimborso</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 5px 0; color: #555; font-size: 14px; width: 140px;">Ordine:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">#${shortId}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #555; font-size: 14px;">Importo rimborsato:</td>
+                        <td style="padding: 5px 0; color: #2e7d32; font-size: 16px; font-weight: 700;">€${totalFormatted}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <table style="width: 100%; border-collapse: collapse; background: #e3f2fd; border-left: 4px solid #1976d2; border-radius: 0 8px 8px 0; margin-bottom: 25px;">
+                <tr>
+                  <td style="padding: 15px 20px;">
+                    <p style="color: #1565c0; font-size: 14px; margin: 0;">
+                      ⏰ Il pagamento verrà accreditato sul metodo di pagamento originale entro <strong>10 giorni lavorativi</strong>, in base ai tempi del tuo istituto bancario o gestore di pagamento.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color: #4a4a4a; font-size: 14px; line-height: 1.6; margin: 0;">
+                Per qualsiasi dubbio, rispondi a questa email o contattaci tramite il nostro sito.
+              </p>
+            </div>
+            <div style="background: #1a1a1a; padding: 25px 30px; text-align: center;">
+              <p style="color: #FFD100; font-size: 14px; margin: 0 0 8px 0; font-weight: 600;">🏋️ Big Gimmy Integratori</p>
+              <p style="color: #888; font-size: 12px; margin: 0 0 10px 0;">Siamo qui per aiutarti!</p>
+              <p style="color: #666; font-size: 11px; margin: 0;">© ${new Date().getFullYear()} Big Gimmy Integratori - Tutti i diritti riservati</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (clientError) {
+      console.error(`[EMAIL RIMBORSATO] Errore email cliente:`, clientError);
+    } else {
+      console.log(`[EMAIL RIMBORSATO] ✅ Email rimborso completato inviata a ${userEmail}`);
+    }
+
+    // Email all'admin
+    const { error: adminError } = await resend.emails.send({
+      from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [ADMIN_EMAIL],
+      subject: `✅ Rimborso elaborato - Ordine #${shortId} - ${userName}`,
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%); padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 20px;">✅ Rimborso Elaborato</h1>
+            </div>
+            <div style="padding: 30px;">
+              <p style="color: #4a4a4a; font-size: 15px; line-height: 1.7; margin: 0 0 20px 0;">
+                Il rimborso per l'ordine <strong>#${shortId}</strong> del cliente <strong>${userName}</strong> è stato segnato come elaborato.
+              </p>
+
+              <table style="width: 100%; border-collapse: collapse; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                <tr>
+                  <td style="padding: 15px 20px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px; width: 140px;">Cliente:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">${userName}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Email:</td>
+                        <td style="padding: 5px 0; font-size: 14px;"><a href="mailto:${userEmail}" style="color: #1976d2; text-decoration: none;">${userEmail}</a></td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Ordine:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">#${shortId}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Importo:</td>
+                        <td style="padding: 5px 0; color: #2e7d32; font-size: 15px; font-weight: 700;">€${totalFormatted}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color: #555; font-size: 13px; margin: 0;">
+                Il cliente è stato notificato che riceverà il pagamento entro 10 giorni lavorativi.
+              </p>
+            </div>
+            <div style="background: #f5f5f5; padding: 15px 30px; text-align: center;">
+              <p style="color: #888; font-size: 12px; margin: 0;">Big Gimmy Integratori - Notifica Admin</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (adminError) {
+      console.error(`[EMAIL RIMBORSATO] Errore email admin:`, adminError);
+    } else {
+      console.log(`[EMAIL RIMBORSATO] ✅ Notifica rimborso completato inviata ad admin`);
+    }
+
+    return true;
+  } catch (err: any) {
+    console.error(`[EMAIL RIMBORSATO] ❌ ERRORE:`, err?.message || err);
+    return false;
+  }
+}

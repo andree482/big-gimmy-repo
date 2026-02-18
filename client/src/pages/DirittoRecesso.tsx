@@ -97,7 +97,7 @@ export default function DirittoRecesso() {
           <h2 className="font-bold text-2xl mb-4">RIMBORSO</h2>
           <p>
             Una volta ricevuto il prodotto e verificata la conformità alle condizioni sopra descritte,
-            BIG GIMMY INTEGRATORI provvederà al rimborso dell'importo versato entro 14 giorni dalla
+            BIG GIMMY INTEGRATORI provvederà al rimborso dell'importo versato entro 10 giorni lavorativi dalla
             ricezione della merce.
           </p>
           <p className="mt-4">

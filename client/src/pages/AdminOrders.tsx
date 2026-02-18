@@ -89,6 +89,7 @@ const statusLabels: Record<string, string> = {
   spedito: "Spedito",
   consegnato: "Consegnato",
   pronto_per_ritiro: "Pronto per ritiro",
+  ritirato: "Ritirato",
   cancellato: "Cancellato",
   fallito: "Fallito",
   richiesta_di_rimborso: "Richiesta di rimborso",
@@ -102,6 +103,7 @@ const statusColors: Record<string, string> = {
   in_attesa_di_consegna: "bg-blue-100 text-blue-800",
   consegnato: "bg-green-100 text-green-800",
   pronto_per_ritiro: "bg-orange-100 text-orange-800",
+  ritirato: "bg-teal-100 text-teal-800",
   cancellato: "bg-red-100 text-red-800",
   fallito: "bg-red-100 text-red-800",
   richiesta_di_rimborso: "bg-orange-100 text-orange-800",
@@ -115,6 +117,7 @@ const statusIcons: Record<string, typeof Clock> = {
   in_attesa_di_consegna: Truck,
   consegnato: CheckCircle,
   pronto_per_ritiro: Package,
+  ritirato: CheckCircle,
   cancellato: Clock,
   fallito: Clock,
   richiesta_di_rimborso: Clock,
@@ -849,47 +852,7 @@ export default function AdminOrders() {
                           <div className="flex flex-col items-center gap-1">
                             {isPickup ? (
                               // Azioni per ordini ritiro
-                              <>
-                                {order.status === 'pagato' && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-xs bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100"
-                                    onClick={() => handleReadyForPickup(order.id)}
-                                    disabled={loadingPickupAction === order.id}
-                                  >
-                                    {loadingPickupAction === order.id ? (
-                                      <Loader2 className="h-3 w-3 animate-spin" />
-                                    ) : (
-                                      <>
-                                        <Package className="h-3 w-3 mr-1" />
-                                        Pronto
-                                      </>
-                                    )}
-                                  </Button>
-                                )}
-                                {order.status === 'pronto_per_ritiro' && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-xs bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
-                                    onClick={() => handleConfirmPickup(order.id)}
-                                    disabled={loadingPickupAction === order.id}
-                                  >
-                                    {loadingPickupAction === order.id ? (
-                                      <Loader2 className="h-3 w-3 animate-spin" />
-                                    ) : (
-                                      <>
-                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                        Consegnato
-                                      </>
-                                    )}
-                                  </Button>
-                                )}
-                                {!['pagato', 'pronto_per_ritiro'].includes(order.status) && (
-                                  <span className="text-xs text-gray-400">-</span>
-                                )}
-                              </>
+                              <span className="text-xs text-gray-400">-</span>
                             ) : (
                               // Azioni per ordini spedizione (tracking)
                               <>
