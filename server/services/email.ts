@@ -51,16 +51,18 @@ interface OrderEmailData {
 }
 
 // Dati negozi per le email
-const STORE_INFO: Record<string, { name: string; address: string; hours: string }> = {
+const STORE_INFO: Record<string, { name: string; address: string; hours: string; mapsUrl: string }> = {
   torino: {
     name: "Sede di Torino",
     address: "Corso Torino 85, Buttigliera Alta",
     hours: "Lun-Ven 09:30-12:30, 15:30-19:30",
+    mapsUrl: "https://maps.app.goo.gl/bq2d6JxFty7pXkTv6",
   },
   aosta: {
     name: "Sede di Aosta",
     address: "Corso Saint-Martin-de-Corléans 55, Aosta",
     hours: "Lun-Ven 09-12:30, 15-19:30",
+    mapsUrl: "https://maps.app.goo.gl/K3L55t9XdVfesoUr6",
   },
 };
 
@@ -1054,6 +1056,9 @@ export async function sendPickupReadyEmail(data: PickupReadyEmailData): Promise<
                       📍 ${storeInfo.address}<br>
                       🕐 ${storeInfo.hours}
                     </p>
+                    <a href="${storeInfo.mapsUrl}" target="_blank" style="display: inline-block; margin-top: 12px; background: #ffffff; color: #1565c0; border: 1px solid #1565c0; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none;">
+                      🗺️ Apri su Google Maps
+                    </a>
                   </td>
                 </tr>
               </table>
