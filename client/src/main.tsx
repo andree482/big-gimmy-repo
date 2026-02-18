@@ -6,10 +6,10 @@ import { queryClient } from "./lib/queryClient";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/useAuth";
-// import SiteAccessGate from "@/components/SiteAccessGate"; // RIMOSSO - vedere docs/differenze_privato_pubblico.md
+import SiteAccessGate from "@/components/SiteAccessGate";
 
 createRoot(document.getElementById("root")!).render(
-  // <SiteAccessGate> {/* RIMOSSO - vedere docs/differenze_privato_pubblico.md */}
+  <SiteAccessGate> {}
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
