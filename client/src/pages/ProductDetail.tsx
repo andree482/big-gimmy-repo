@@ -4944,81 +4944,15 @@ export default function ProductDetail() {
   const getProductImage = () => {
     console.log('🎯 getProductImage chiamata per prodotto:', product?.name, 'slug:', product?.slug);
 
-    // PRIORITÀ 1: Usa l'immagine della variante selezionata se disponibile
-    if (selectedVariant?.image && !selectedVariant.image.includes('placeholder')) {
-      console.log('📸 Usando immagine della variante selezionata:', selectedVariant.image);
+    // PRIORITÀ 1: Usa l'immagine della variante selezionata dal DB
+    if (selectedVariant?.image && !selectedVariant.image.includes('placeholder')) {;
       return selectedVariant.image;
     }
 
     // PRIORITÀ 2: Usa image_url dal database se disponibile
     if (product?.image_url && !product.image_url.includes('placeholder')) {
-      console.log('📸 Usando immagine dal database:', product.image_url);
       return product.image_url;
     }
-
-    // PRIORITÀ 3: Controlla se esiste un'immagine specifica per la variante
-    if (product?.slug && selectedVariant?.size) {
-      const variantImage = getVariantSpecificImage(product.slug, selectedVariant.size);
-      if (variantImage) {
-        console.log('📸 Usando immagine specifica per variante:', variantImage);
-        return variantImage;
-      }
-    }
-
-    // PRIORITÀ 3: Se c'è una variante selezionata con un'immagine valida, usala
-    if (selectedVariant?.image && !selectedVariant.image.includes('placeholder')) {
-      console.log('📸 Usando immagine variante:', selectedVariant.image);
-      return selectedVariant.image;
-    }
-
-    // PRIORITÀ 3: Per i nuovi 9 prodotti, usa mapping specifico per varianti
-    if (product?.slug && selectedVariant) {
-      // Mapping specifico per prodotti con varianti multiple
-      const variantImageMap: Record<string, Record<string, string>> = {
-        "powergel": {
-          "Mela": "/images/products/22010100_box_1751035814528.png",
-          "Mango": "/images/products/22010100_box_1751035814528.png"
-        },
-        "avena-farina-istantanea": {
-          "Cappuccino": "/images/products/WN043_singolo_1751035979180.png",
-          "Cacao": "/images/products/WN043_singolo_1751035979180.png"
-        },
-        "promeal-energetica": {
-          "Mandorle": selectedVariant.size === "40g" 
-            ? "/images/products/Promeal Energetica 40g_1751036384519.jpg"
-            : "/images/products/Promeal Energetica barrette 25x40g web_1751036384521.jpg"
-        },
-        "promeal-50-protein-bar": {
-          "Yogurt": "/images/products/Promeal Energetica 40g_1751036384519.jpg",
-          "Cocco": "/images/products/Promeal Energetica 40g_1751036384519.jpg"
-        },
-        "energize-advanced": {
-          "Raspberry": "/images/products/21011001_singolo_1751035799917.png"
-        },
-        "sali-electrolyte-pocket-minerals": {
-          "Limone": selectedVariant.size === "40g" 
-            ? "/images/products/sali-electrolyte-pocket-minerals-arancia-singola-bustina-43f4_1755611277271.webp"
-            : "/images/products/sali-electrolyte-pocket-limone-18-bustine.webp"
-        }
-      };
-
-      if (variantImageMap[product.slug] && variantImageMap[product.slug][selectedVariant.flavor]) {
-        const variantImage = variantImageMap[product.slug][selectedVariant.flavor];
-        console.log('📸 Usando immagine mappata per variante:', variantImage);
-        return variantImage;
-      }
-    }
-
-    // PRIORITÀ 4: Usa il sistema unificato di gestione immagini per tutti i prodotti
-    if (product?.slug) {
-      const imagePath = getProductImagePath(product.slug);
-      console.log('🔍 Immagine finale per ' + product.slug + ':', imagePath);
-
-      // Assicurati che non sia mai una stringa vuota
-      return imagePath || "/images/products/placeholder-product.jpg";
-    }
-
-    console.log('❌ Fallback a placeholder per:', product?.name);
     return "/images/products/placeholder-product.jpg";
   };
 
