@@ -1893,14 +1893,14 @@ app.post("/api/contact", async (req: Request, res: Response) => {
       // Aggiorna stato ordine
       if (supabaseAdmin) {
         try {
-          const searchId = formData.orderId.trim().toUpperCase();
+          const searchId = formData.orderId.trim().toLowerCase();
           console.log(`[CONTACT RIMBORSO] Ricerca ordine con short ID: "${searchId}"`);
 
-          // Prova prima ricerca esatta per gli ultimi 8 caratteri
+          // Cast a testo per ricerca su colonna UUID
           const { data: orders, error: searchError } = await (supabaseAdmin as any)
             .from("orders")
             .select("id, status")
-            .ilike("id", `%${searchId}%`);
+            .filter('id::text', 'ilike', `${searchId}%`);
 
           if (searchError) {
             console.error("[CONTACT RIMBORSO] Errore ricerca ordine:", searchError);
@@ -5160,6 +5160,37 @@ app.post("/api/contact", async (req: Request, res: Response) => {
           }
         } catch (emailError) {
           console.error("[STATUS] Errore invio email rimborso completato:", emailError);
+        }
+      }
+
+      // Se lo stato diventa "ritirato", invia email di conferma ritiro al cliente e all'admin
+      if (status === 'ritirato') {
+        try {
+          const { data: order } = await (supabaseAdmin as any)
+            .from("orders")
+            .select("id, user_id, fulfillment_type, pickup_store")
+            .eq("id", orderId)
+            .single();
+
+          if (order) {
+            const { data: userData } = await (supabaseAdmin as any)
+              .from("users")
+              .select("email, first_name")
+              .eq("id", order.user_id)
+              .single();
+
+            if (userData?.email) {
+              await sendOrderDeliveredEmail({
+                orderId: order.id,
+                userEmail: userData.email,
+                userName: userData.first_name || userData.email.split('@')[0],
+                fulfillmentType: 'ritiro',
+                pickupStore: order.pickup_store,
+              });
+            }
+          }
+        } catch (emailError) {
+          console.error("[STATUS] Errore invio email ritirato:", emailError);
         }
       }
 
