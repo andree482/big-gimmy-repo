@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { Progress } from "@/components/ui/progress";
-import { ShoppingCart, Percent, Target } from "lucide-react";
+import { ShoppingCart, Percent, Target, Store, MapPin, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { CheckoutAuthModal } from "./CheckoutAuthModal";
 import { CheckoutAddressModal } from "./CheckoutAddressModal";
+import { CheckoutFulfillmentModal, STORE_INFO, type FulfillmentType, type PickupStore } from "./CheckoutFulfillmentModal";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,9 +21,12 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
   const { isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
+  const [showFulfillmentModal, setShowFulfillmentModal] = useState(false);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
+  const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>("spedizione");
+  const [pickupStore, setPickupStore] = useState<PickupStore | null>(null);
   const { toast } = useToast();
-  
+
   const calculations = useMemo(() => {
     const discountAmount = cartTotal * (DISCOUNT_PERCENTAGE / 100);
     const totalAfterDiscount = cartTotal - discountAmount;
@@ -30,10 +34,11 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
     const progressPercentage = totalAfterDiscount >= MINIMUM_ORDER ? 100 : Math.max(0, (totalAfterDiscount / MINIMUM_ORDER) * 100);
     const qualifiesForFreeShipping = totalAfterDiscount >= FREE_SHIPPING_THRESHOLD;
     const shippingNeeded = Math.max(0, FREE_SHIPPING_THRESHOLD - totalAfterDiscount);
-    const shippingCost = qualifiesForFreeShipping ? 0 : 12;
+    const isPickup = fulfillmentType === 'ritiro';
+    const shippingCost = isPickup ? 0 : (qualifiesForFreeShipping ? 0 : 12);
     const freeShippingProgress = totalAfterDiscount >= FREE_SHIPPING_THRESHOLD ? 100 : Math.max(0, (totalAfterDiscount / FREE_SHIPPING_THRESHOLD) * 100);
     const finalTotal = totalAfterDiscount + shippingCost;
-    
+
     return {
       discountAmount,
       totalAfterDiscount,
@@ -46,7 +51,26 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
       finalTotal,
       canCheckout: totalAfterDiscount >= MINIMUM_ORDER
     };
-  }, [cartTotal]);
+  }, [cartTotal, fulfillmentType]);
+
+  const doCheckout = async (body: Record<string, unknown>) => {
+    try {
+      setLoadingCheckout(true);
+      const resp = await apiRequest("POST", "/api/checkout", body);
+      const url = resp?.url;
+      if (typeof url === "string" && url.length > 0) {
+        sessionStorage.setItem('checkout_in_progress', 'true');
+        window.location.href = url;
+      } else {
+        toast({ title: "Checkout non disponibile", description: "Configurare Stripe lato server" });
+      }
+    } catch (error) {
+      console.error("Errore checkout:", error);
+      toast({ title: "Errore", description: "Impossibile procedere al checkout", variant: "destructive" });
+    } finally {
+      setLoadingCheckout(false);
+    }
+  };
 
   if (cartTotal === 0) {
     return (
@@ -95,7 +119,9 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
           <div className="flex justify-between items-center">
             <span className="text-gray-600">Spedizione:</span>
             <span className="font-semibold">
-              {calculations.qualifiesForFreeShipping ? (
+              {fulfillmentType === 'ritiro' ? (
+                <span className="text-green-600 font-bold">GRATIS (ritiro in negozio)</span>
+              ) : calculations.qualifiesForFreeShipping ? (
                 <span className="text-green-600 font-bold">Gratuita</span>
               ) : (
                 <span>€{calculations.shippingCost.toFixed(2)}</span>
@@ -103,8 +129,8 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
             </span>
           </div>
 
-          {/* Frase motivazionale e barra progresso per spedizione gratuita */}
-          {!calculations.qualifiesForFreeShipping && calculations.canCheckout && (
+          {/* Frase motivazionale e barra progresso per spedizione gratuita (solo per spedizione) */}
+          {fulfillmentType === 'spedizione' && !calculations.qualifiesForFreeShipping && calculations.canCheckout && (
             <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
               <div className="flex items-start gap-3">
                 <Target className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -112,7 +138,7 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
                   <p className="text-blue-800 font-medium mb-2">
                     Ti mancano solo €{calculations.shippingNeeded.toFixed(2)} per ottenere la spedizione gratuita!
                   </p>
-                  
+
                   {/* Barra di progresso spedizione gratuita */}
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm text-blue-700">
@@ -120,7 +146,7 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
                       <span>{calculations.freeShippingProgress.toFixed(0)}%</span>
                     </div>
                     <div className="relative w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-300 ease-out progress-bar"
                         style={{ width: `${calculations.freeShippingProgress}%` }}
                         role="progressbar"
@@ -136,8 +162,8 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
             </div>
           )}
 
-          {/* Conferma spedizione gratuita */}
-          {calculations.qualifiesForFreeShipping && calculations.canCheckout && (
+          {/* Conferma spedizione gratuita (solo per spedizione) */}
+          {fulfillmentType === 'spedizione' && calculations.qualifiesForFreeShipping && calculations.canCheckout && (
             <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-r-lg">
               <div className="flex items-center gap-2 text-green-800">
                 <div className="h-2 w-2 bg-green-500 rounded-full"></div>
@@ -146,6 +172,26 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
             </div>
           )}
         </div>
+
+        {/* Info ritiro in negozio */}
+        {fulfillmentType === 'ritiro' && pickupStore && (
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+            <div className="flex items-start gap-3">
+              <Store className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-blue-800 font-semibold">{STORE_INFO[pickupStore].name}</p>
+                <div className="flex items-center gap-1.5 text-sm text-blue-700 mt-1">
+                  <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span>{STORE_INFO[pickupStore].address}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-sm text-blue-600 mt-0.5">
+                  <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span>{STORE_INFO[pickupStore].hours}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Totale finale */}
         <div className="flex justify-between items-center text-lg font-bold border-t pt-3 bg-gray-50 -mx-6 px-6 py-4">
@@ -162,7 +208,7 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
                 <p className="text-yellow-800 font-medium mb-2">
                   Aggiungi ancora €{calculations.amountNeeded.toFixed(2)} per raggiungere l'ordine minimo e completare l'acquisto!
                 </p>
-                
+
                 {/* Barra di progresso */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm text-yellow-700">
@@ -170,7 +216,7 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
                     <span>{calculations.progressPercentage.toFixed(1)}%</span>
                   </div>
                   <div className="relative w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-full transition-all duration-300 ease-out progress-bar"
                       style={{ width: `${calculations.progressPercentage}%` }}
                       role="progressbar"
@@ -197,8 +243,8 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
               setShowAuthModal(true);
               return;
             }
-            // Mostra il modal per selezione indirizzo
-            setShowAddressModal(true);
+            // Mostra il modal per scelta fulfillment (spedizione o ritiro)
+            setShowFulfillmentModal(true);
           }}
           className={`w-full py-4 px-6 rounded-lg font-semibold text-lg transition-all duration-200 ${
             calculations.canCheckout && !loadingCheckout
@@ -222,33 +268,44 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
           itemCount={itemCount}
         />
 
-        {/* Modal per selezione indirizzo */}
+        {/* Modal per scelta fulfillment (spedizione o ritiro) */}
+        <CheckoutFulfillmentModal
+          isOpen={showFulfillmentModal}
+          onClose={() => setShowFulfillmentModal(false)}
+          cartTotal={calculations.finalTotal}
+          shippingCost={calculations.shippingCost}
+          onSelectShipping={() => {
+            setShowFulfillmentModal(false);
+            setFulfillmentType('spedizione');
+            setPickupStore(null);
+            // Apri il modal per selezione indirizzo
+            setShowAddressModal(true);
+          }}
+          onSelectPickup={async (store: PickupStore, notes: string) => {
+            setShowFulfillmentModal(false);
+            setFulfillmentType('ritiro');
+            setPickupStore(store);
+            // Procedi direttamente al checkout (senza indirizzo)
+            await doCheckout({
+              fulfillment_type: 'ritiro',
+              pickup_store: store,
+              notes: notes,
+            });
+          }}
+        />
+
+        {/* Modal per selezione indirizzo (solo spedizione) */}
         <CheckoutAddressModal
           isOpen={showAddressModal}
           onClose={() => setShowAddressModal(false)}
           cartTotal={calculations.finalTotal}
           onConfirm={async (addressId: number, notes: string) => {
             setShowAddressModal(false);
-            try {
-              setLoadingCheckout(true);
-              const resp = await apiRequest("POST", "/api/checkout", {
-                shipping_address_id: addressId,
-                notes: notes,
-              });
-              const url = resp?.url;
-              if (typeof url === "string" && url.length > 0) {
-                // Imposta flag per mostrare pop-up se l'utente torna senza completare
-                sessionStorage.setItem('checkout_in_progress', 'true');
-                window.location.href = url;
-              } else {
-                toast({ title: "Checkout non disponibile", description: "Configurare Stripe lato server" });
-              }
-            } catch (error) {
-              console.error("Errore checkout:", error);
-              toast({ title: "Errore", description: "Impossibile procedere al checkout", variant: "destructive" });
-            } finally {
-              setLoadingCheckout(false);
-            }
+            await doCheckout({
+              shipping_address_id: addressId,
+              fulfillment_type: 'spedizione',
+              notes: notes,
+            });
           }}
         />
 
@@ -257,6 +314,7 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
           <p>✓ Sconto {DISCOUNT_PERCENTAGE}% già applicato</p>
           <p>✓ Prezzi IVA inclusa</p>
           <p>✓ Spedizione gratuita da €{FREE_SHIPPING_THRESHOLD}</p>
+          <p>✓ Ritiro in negozio sempre gratuito</p>
         </div>
       </div>
     </div>

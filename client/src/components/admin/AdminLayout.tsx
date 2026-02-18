@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import AdminSidebar from "./AdminSidebar";
 import { AlertCircle } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -58,9 +57,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   // Mostra l'interfaccia admin solo se l'utente è admin
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <AdminSidebar />
-      <main className="flex-1">
+    <div className="min-h-screen bg-gray-50">
+      <main>
         {children}
       </main>
     </div>

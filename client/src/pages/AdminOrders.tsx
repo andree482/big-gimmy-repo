@@ -16,7 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ShoppingBag, Package, Truck, CheckCircle, Clock, Euro, Filter, X, CreditCard, ExternalLink, MapPin, FileText, Eye, Download, Loader2 } from "lucide-react";
+import { ShoppingBag, Package, Truck, CheckCircle, Clock, Euro, Filter, X, CreditCard, ExternalLink, MapPin, FileText, Eye, Download, Loader2, Store, Trophy } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -25,6 +26,7 @@ import { apiRequest } from "@/lib/queryClient";
 interface OrderItem {
   id?: string;
   name: string;
+  variant?: string;
   quantity: number;
   price?: number;
   image?: string | null;
@@ -57,27 +59,36 @@ interface Order {
   user_last_name?: string | null;
   tracking_number?: string | null;
   carrier?: string | null;
+  fulfillment_type?: string;
+  pickup_store?: string | null;
+  pickup_ready_at?: string | null;
+  pickup_collected_at?: string | null;
 }
+
+// Negozi per ritiro
+const PICKUP_STORES: Record<string, { name: string; address: string }> = {
+  torino: { name: "Sede di Torino", address: "Corso Torino 85, Buttigliera Alta" },
+  aosta: { name: "Sede di Aosta", address: "Corso Saint-Martin-de-Corléans 55, Aosta" },
+};
 
 // Status enum values e labels (italiano snake_case)
 const ORDER_STATUSES = [
-  { value: "pagato", label: "Pagato" },
-  { value: "in_attesa_di_pagamento", label: "In attesa di pagamento" },
+  { value: "ritirato", label: "Ritirato" },
+  { value: "pronto_per_ritiro", label: "Pronto per ritiro" },
   { value: "spedito", label: "Spedito" },
-  { value: "in_attesa_di_consegna", label: "In attesa di consegna" },
   { value: "consegnato", label: "Consegnato" },
-  { value: "cancellato", label: "Cancellato" },
-  { value: "fallito", label: "Fallito" },
   { value: "richiesta_di_rimborso", label: "Richiesta di rimborso" },
   { value: "rimborsato", label: "Rimborsato" },
+  { value: "cancellato", label: "Cancellato" },
+  { value: "fallito", label: "fallito" },
 ] as const;
 
 const statusLabels: Record<string, string> = {
   pagato: "Pagato",
   in_attesa_di_pagamento: "In attesa di pagamento",
   spedito: "Spedito",
-  in_attesa_di_consegna: "In attesa di consegna",
   consegnato: "Consegnato",
+  pronto_per_ritiro: "Pronto per ritiro",
   cancellato: "Cancellato",
   fallito: "Fallito",
   richiesta_di_rimborso: "Richiesta di rimborso",
@@ -90,6 +101,7 @@ const statusColors: Record<string, string> = {
   spedito: "bg-purple-100 text-purple-800",
   in_attesa_di_consegna: "bg-blue-100 text-blue-800",
   consegnato: "bg-green-100 text-green-800",
+  pronto_per_ritiro: "bg-orange-100 text-orange-800",
   cancellato: "bg-red-100 text-red-800",
   fallito: "bg-red-100 text-red-800",
   richiesta_di_rimborso: "bg-orange-100 text-orange-800",
@@ -102,6 +114,7 @@ const statusIcons: Record<string, typeof Clock> = {
   spedito: Truck,
   in_attesa_di_consegna: Truck,
   consegnato: CheckCircle,
+  pronto_per_ritiro: Package,
   cancellato: Clock,
   fallito: Clock,
   richiesta_di_rimborso: Clock,
@@ -189,13 +202,16 @@ function PendingPaymentTimer({ createdAt }: { createdAt: string }) {
 
 export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [fulfillmentFilter, setFulfillmentFilter] = useState<string>("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [trackingNumber, setTrackingNumber] = useState("");
   const [carrier, setCarrier] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [productsDialogOrder, setProductsDialogOrder] = useState<Order | null>(null);
   const [loadingInvoiceOrderId, setLoadingInvoiceOrderId] = useState<string | null>(null);
+  const [loadingPickupAction, setLoadingPickupAction] = useState<string | null>(null);
 
+  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: orders = [], isLoading, error } = useQuery<Order[]>({
@@ -262,13 +278,102 @@ export default function AdminOrders() {
     }
   };
 
-  const filteredOrders = orders.filter((order: Order) =>
-    statusFilter === "" || order.status === statusFilter
-  );
+  const handleReadyForPickup = async (orderId: string) => {
+    setLoadingPickupAction(orderId);
+    try {
+      await apiRequest("PUT", `/api/admin/orders/${orderId}/ready-for-pickup`);
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/orders'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/admin/orders'] });
+    } catch (error: any) {
+      alert(error.message || "Errore durante l'aggiornamento");
+    } finally {
+      setLoadingPickupAction(null);
+    }
+  };
+
+  const handleConfirmPickup = async (orderId: string) => {
+    setLoadingPickupAction(orderId);
+    try {
+      await apiRequest("PUT", `/api/admin/orders/${orderId}/confirm-pickup`);
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/orders'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/admin/orders'] });
+    } catch (error: any) {
+      alert(error.message || "Errore durante la conferma del ritiro");
+    } finally {
+      setLoadingPickupAction(null);
+    }
+  };
+
+  // Export ordini in CSV
+  const exportToCSV = () => {
+    if (filteredOrders.length === 0) {
+      toast({
+        title: "Nessun dato da esportare",
+        description: "Non ci sono ordini da esportare",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const csvHeader = "ID Ordine,Cliente,Data,Modalità,Stato,Totale,Negozio Ritiro,Indirizzo,Città,CAP,Tracking,Corriere\n";
+    const csvContent = filteredOrders
+      .map(order => {
+        const addr = order.shipping_address;
+        return `"${String(order.id).substring(0, 8)}","${order.user_email || ''}","${order.created_at ? new Date(order.created_at).toLocaleDateString('it-IT') : ''}","${order.fulfillment_type || 'spedizione'}","${statusLabels[order.status] || order.status}","€${((order.total || 0) / 100).toFixed(2)}","${order.fulfillment_type === 'ritiro' && order.pickup_store ? PICKUP_STORES[order.pickup_store]?.name || '' : ''}","${addr?.address || ''}","${addr?.city || ''}","${addr?.postalCode || ''}","${order.tracking_number || ''}","${order.carrier || ''}"`;
+      })
+      .join("\n");
+
+    const csvData = csvHeader + csvContent;
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `ordini_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Export completato",
+        description: `${filteredOrders.length} ordini esportati con successo`,
+      });
+    }
+  };
+
+  // Calcolo prodotto più venduto
+  const topProduct = (() => {
+    const productMap: Record<string, { name: string; variant: string; image: string | null; count: number }> = {};
+    for (const order of orders) {
+      const items = Array.isArray(order.items) ? order.items : [];
+      for (const item of items) {
+        const key = `${item.name}||${item.variant || ''}`;
+        if (!productMap[key]) {
+          productMap[key] = { name: item.name, variant: item.variant || '', image: item.image || null, count: 0 };
+        }
+        productMap[key].count += item.quantity;
+      }
+    }
+    let top: { name: string; variant: string; image: string | null; count: number } | null = null;
+    for (const p of Object.values(productMap)) {
+      if (!top || p.count > top.count) top = p;
+    }
+    return top;
+  })();
+
+  const filteredOrders = orders.filter((order: Order) => {
+    const matchesStatus = statusFilter === "" || order.status === statusFilter;
+    const matchesFulfillment = fulfillmentFilter === "" ||
+      (fulfillmentFilter === "ritiro" && order.fulfillment_type === "ritiro") ||
+      (fulfillmentFilter === "spedizione" && (order.fulfillment_type === "spedizione" || !order.fulfillment_type));
+    return matchesStatus && matchesFulfillment;
+  });
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="container mx-auto px-4 py-8 max-w-full">
         <div className="mb-8">
           <Skeleton className="h-8 w-64 mb-2" />
           <Skeleton className="h-4 w-96" />
@@ -307,7 +412,7 @@ export default function AdminOrders() {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="container mx-auto px-4 py-8 max-w-full">
         <Card>
           <CardContent className="pt-6">
             <div className="text-center text-red-600">
@@ -326,21 +431,31 @@ export default function AdminOrders() {
   const totalOrders = orders.length;
   const totalRevenue = orders.reduce((sum, order) => sum + (order.total || 0), 0);
   const paidOrders = orders.filter(order => order.status === 'pagato').length;
-  const completedOrders = orders.filter(order => order.status === 'consegnato').length;
+  const pickupOrders = orders.filter(order => order.fulfillment_type === 'ritiro').length;
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="container mx-auto px-4 py-8 max-w-full">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Gestione Ordini
-        </h1>
-        <p className="text-gray-600">
-          Visualizza e gestisci tutti gli ordini del negozio
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Gestione Ordini
+          </h1>
+          <p className="text-gray-600">
+            Visualizza e gestisci tutti gli ordini del negozio
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={exportToCSV}
+          className="flex items-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Esporta CSV
+        </Button>
       </div>
 
-      {/* Filtro */}
+      {/* Filtri */}
       <div className="mb-6">
         <Card>
           <CardHeader>
@@ -361,26 +476,35 @@ export default function AdminOrders() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tutti gli stati</SelectItem>
-                    <SelectItem value="pagato">Pagato</SelectItem>
-                    <SelectItem value="in_attesa_di_pagamento">In attesa di pagamento</SelectItem>
-                    <SelectItem value="spedito">Spedito</SelectItem>
-                    <SelectItem value="in_attesa_di_consegna">In attesa di consegna</SelectItem>
-                    <SelectItem value="consegnato">Consegnato</SelectItem>
-                    <SelectItem value="cancellato">Cancellato</SelectItem>
-                    <SelectItem value="fallito">Fallito</SelectItem>
-                    <SelectItem value="richiesta_di_rimborso">Richiesta di rimborso</SelectItem>
-                    <SelectItem value="rimborsato">Rimborsato</SelectItem>
+                    {ORDER_STATUSES.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>{status.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              {statusFilter && (
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Modalità
+                </label>
+                <Select value={fulfillmentFilter || "all"} onValueChange={(value) => setFulfillmentFilter(value === "all" ? "" : value)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Tutte le modalita" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutte le modalita</SelectItem>
+                    <SelectItem value="spedizione">Solo spedizioni</SelectItem>
+                    <SelectItem value="ritiro">Solo ritiri</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {(statusFilter || fulfillmentFilter) && (
                 <Button
                   variant="outline"
-                  onClick={() => setStatusFilter("")}
+                  onClick={() => { setStatusFilter(""); setFulfillmentFilter(""); }}
                   className="flex items-center gap-2"
                 >
                   <X className="h-4 w-4" />
-                  Rimuovi filtro
+                  Rimuovi filtri
                 </Button>
               )}
             </div>
@@ -440,18 +564,64 @@ export default function AdminOrders() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">
-              Completati
+              Ritiri in Negozio
             </CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
+            <Store className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">{completedOrders}</div>
+            <div className="text-2xl font-bold text-gray-900">{pickupOrders}</div>
             <p className="text-xs text-gray-500">
-              {completedOrders === 1 ? 'ordine completato' : 'ordini completati'}
+              {pickupOrders === 1 ? 'ritiro' : 'ritiri'} in negozio
             </p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Prodotto più venduto */}
+      {topProduct && (
+        <div className="mb-8">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-yellow-500" />
+                Prodotto più venduto
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex-shrink-0">
+                  {topProduct.image ? (
+                    <img
+                      src={topProduct.image}
+                      alt={topProduct.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Package className="w-6 h-6 text-gray-300" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 truncate">{topProduct.name}</p>
+                  {topProduct.variant && (
+                    <p className="text-sm text-gray-500 truncate">{topProduct.variant}</p>
+                  )}
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-2xl font-bold text-gray-900">{topProduct.count}</p>
+                  <p className="text-xs text-gray-500">
+                    {topProduct.count === 1 ? 'unità venduta' : 'unità vendute'}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Tabella Ordini */}
       <Card>
@@ -480,12 +650,13 @@ export default function AdminOrders() {
                     <TableHead>Ordine</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Data</TableHead>
+                    <TableHead>Modalita</TableHead>
                     <TableHead>Stato</TableHead>
                     <TableHead>Prodotti</TableHead>
-                    <TableHead>Indirizzo</TableHead>
+                    <TableHead>Indirizzo/Negozio</TableHead>
                     <TableHead className="text-right">Totale</TableHead>
                     <TableHead className="text-center">Fattura</TableHead>
-                    <TableHead className="text-center">Tracciamento</TableHead>
+                    <TableHead className="text-center">Azioni</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -494,6 +665,8 @@ export default function AdminOrders() {
                     const items = Array.isArray(order.items) ? order.items : [];
                     const orderId = String(order.id).substring(0, 8);
                     const trackingUrl = getTrackingUrl(order.carrier, order.tracking_number);
+                    const isPickup = order.fulfillment_type === 'ritiro';
+                    const pickupStoreInfo = isPickup && order.pickup_store ? PICKUP_STORES[order.pickup_store] : null;
 
                     return (
                       <TableRow key={order.id} className="hover:bg-gray-50">
@@ -524,6 +697,21 @@ export default function AdminOrders() {
                           )}
                         </TableCell>
 
+                        {/* Colonna Modalita */}
+                        <TableCell>
+                          {isPickup ? (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                              <Store className="h-3 w-3 mr-1" />
+                              Ritiro {order.pickup_store ? `(${order.pickup_store.charAt(0).toUpperCase() + order.pickup_store.slice(1)})` : ''}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
+                              <Truck className="h-3 w-3 mr-1" />
+                              Spedizione
+                            </Badge>
+                          )}
+                        </TableCell>
+
                         <TableCell>
                           <div>
                             <Select
@@ -538,7 +726,15 @@ export default function AdminOrders() {
                                 </div>
                               </SelectTrigger>
                               <SelectContent>
-                                {ORDER_STATUSES.map((status) => (
+                                {ORDER_STATUSES.filter((status) => {
+                                  if (isPickup) {
+                                    // Per ritiro: nascondi stati spedizione
+                                    return !['spedito', 'in_attesa_di_consegna', 'consegnato'].includes(status.value);
+                                  } else {
+                                    // Per spedizione: nascondi stati ritiro
+                                    return !['pronto_per_ritiro'].includes(status.value);
+                                  }
+                                }).map((status) => (
                                   <SelectItem key={status.value} value={status.value}>
                                     {status.label}
                                   </SelectItem>
@@ -560,15 +756,43 @@ export default function AdminOrders() {
                               onClick={() => setProductsDialogOrder(order)}
                             >
                               <Eye className="h-4 w-4 mr-1" />
-                              Visualizza prodotti ({items.length})
+                              ({items.length})
                             </Button>
                           ) : (
                             <span className="text-gray-400 text-sm">-</span>
                           )}
                         </TableCell>
 
+                        {/* Colonna Indirizzo/Negozio */}
                         <TableCell>
-                          {order.shipping_address ? (
+                          {isPickup && pickupStoreInfo ? (
+                            <div className="text-xs space-y-0.5 max-w-[180px]">
+                              <div className="flex items-center gap-1 text-blue-700 font-medium">
+                                <Store className="h-3 w-3" />
+                                <span>{pickupStoreInfo.name}</span>
+                              </div>
+                              <p className="text-gray-500 truncate">{pickupStoreInfo.address}</p>
+                              {order.status === 'pronto_per_ritiro' && order.pickup_ready_at && (() => {
+                                const readyDate = new Date(order.pickup_ready_at);
+                                const deadlineDate = new Date(readyDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+                                const now = new Date();
+                                const daysLeft = Math.ceil((deadlineDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+                                const isExpired = daysLeft <= 0;
+                                return (
+                                  <div className={`flex items-center gap-1 mt-1 font-medium ${isExpired ? 'text-red-600' : daysLeft <= 2 ? 'text-orange-600' : 'text-gray-500'}`}>
+                                    <Clock className="h-3 w-3" />
+                                    <span>{isExpired ? 'Scaduto!' : `${daysLeft}g per ritiro`}</span>
+                                  </div>
+                                );
+                              })()}
+                              {order.notes && (
+                                <div className="flex items-center gap-1 text-yellow-600 mt-1" title={order.notes}>
+                                  <FileText className="h-3 w-3" />
+                                  <span className="truncate">Note</span>
+                                </div>
+                              )}
+                            </div>
+                          ) : order.shipping_address ? (
                             <div className="text-xs space-y-0.5 max-w-[180px]">
                               {order.shipping_address.firstName && order.shipping_address.lastName && (
                                 <p className="font-medium text-gray-900 truncate">
@@ -598,7 +822,7 @@ export default function AdminOrders() {
                         </TableCell>
 
                         <TableCell className="text-center">
-                          {['pagato', 'spedito', 'in_attesa_di_consegna', 'consegnato'].includes(order.status) ? (
+                          {['pagato', 'spedito', 'in_attesa_di_consegna', 'consegnato', 'pronto_per_ritiro'].includes(order.status) ? (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -620,40 +844,89 @@ export default function AdminOrders() {
                           )}
                         </TableCell>
 
+                        {/* Colonna Azioni (Tracking per spedizione, Azioni ritiro per ritiro) */}
                         <TableCell className="text-center">
                           <div className="flex flex-col items-center gap-1">
-                            {trackingUrl ? (
+                            {isPickup ? (
+                              // Azioni per ordini ritiro
                               <>
-                                <a
-                                  href={trackingUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
-                                >
-                                  <ExternalLink className="h-3 w-3" />
-                                  Traccia
-                                </a>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-xs h-6 px-2"
-                                  onClick={() => openTrackingDialog(order)}
-                                >
-                                  Modifica
-                                </Button>
+                                {order.status === 'pagato' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100"
+                                    onClick={() => handleReadyForPickup(order.id)}
+                                    disabled={loadingPickupAction === order.id}
+                                  >
+                                    {loadingPickupAction === order.id ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <>
+                                        <Package className="h-3 w-3 mr-1" />
+                                        Pronto
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+                                {order.status === 'pronto_per_ritiro' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
+                                    onClick={() => handleConfirmPickup(order.id)}
+                                    disabled={loadingPickupAction === order.id}
+                                  >
+                                    {loadingPickupAction === order.id ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <>
+                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                        Consegnato
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
+                                {!['pagato', 'pronto_per_ritiro'].includes(order.status) && (
+                                  <span className="text-xs text-gray-400">-</span>
+                                )}
                               </>
-                            ) : ['in_attesa_di_pagamento', 'fallito', 'cancellato'].includes(order.status) ? (
-                              <span className="text-xs text-gray-400">-</span>
                             ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-xs"
-                                onClick={() => openTrackingDialog(order)}
-                              >
-                                <Truck className="h-3 w-3 mr-1" />
-                                Aggiungi
-                              </Button>
+                              // Azioni per ordini spedizione (tracking)
+                              <>
+                                {trackingUrl ? (
+                                  <>
+                                    <a
+                                      href={trackingUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                                    >
+                                      <ExternalLink className="h-3 w-3" />
+                                      Traccia
+                                    </a>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-xs h-6 px-2"
+                                      onClick={() => openTrackingDialog(order)}
+                                    >
+                                      Modifica
+                                    </Button>
+                                  </>
+                                ) : ['in_attesa_di_pagamento', 'fallito', 'cancellato'].includes(order.status) ? (
+                                  <span className="text-xs text-gray-400">-</span>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs"
+                                    onClick={() => openTrackingDialog(order)}
+                                  >
+                                    <Truck className="h-3 w-3 mr-1" />
+                                    Aggiungi
+                                  </Button>
+                                )}
+                              </>
                             )}
                           </div>
                         </TableCell>

@@ -114,7 +114,6 @@ export const PRODUCT_IMAGE_MAP: Record<string, string> = {
   // Nuovi prodotti proteine - immagini principali
   "hydro90-bv-104": "hydro90-vaniglia-18kg.png",
   "vegan-isopea-90": "vegan-isopea-90-cioccolato-700g.png",
-  "say-protein-221": "say-protein-221-cacao-750g.jpg",
   "smart-protein-cacao": "smart-protein-cacao-320ml.jpg",
   "perfect-mass": "perfect-mass-cacao-biscuit-1600g.png",
 
@@ -406,6 +405,8 @@ export const PRODUCT_IMAGE_MAP: Record<string, string> = {
   "turboactive-arachidi": "TurboActive_Arachidi_Fronte.jpg",
   "turboactive-cacao": "TurboActive_Cacao_Fronte.jpg",
   "smart-protein-cacao-existing": "SMART PROTEIN_CACAO_Fronte.jpg",
+  "soy-protein-221": "SAY-PROTEIN-221-CACAO-fronte.jpg",
+  "soy-protein-221": "SAY-PROTEIN-221-NOCCIOLA-fronte.jpg",
   "say-protein-221-cacao-existing": "SAY PROTEIN 221 CACAO fronte.jpg",
   "say-protein-221-nocciola-existing": "SAY PROTEIN 221 NOCCIOLA fronte.jpg",
 
@@ -426,7 +427,7 @@ export const PRODUCT_IMAGE_MAP: Record<string, string> = {
 
   // Prodotti WHY Sport
   "magnesio-potassio-sport": "magnesio-potassio-sport-updated.png",
-  "drenante-why-sport": "WN122_singolo_1750778570190.png",
+  "drenante-why-nature": "WN122_singolo_1750778570190.png",
   "vitamina-b12-1000": "WN234_singolo_1750778607581.png",
   "refuel-recovery": "W172_box_1750778570187.png",
   "testo-xplode": "W297_singolo_1750778570188.png",

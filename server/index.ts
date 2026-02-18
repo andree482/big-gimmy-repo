@@ -138,6 +138,8 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
   const orderId = session.metadata?.order_id;
   const shippingAddressId = session.metadata?.shipping_address_id;
   const notes = session.metadata?.notes;
+  const fulfillmentType = session.metadata?.fulfillment_type || 'spedizione';
+  const pickupStore = session.metadata?.pickup_store || null;
   const stripeSessionId = session.id;
   // Recupera l'ID fattura dalla sessione (disponibile se invoice_creation.enabled: true)
   const stripeInvoiceId = typeof session.invoice === 'string' ? session.invoice : null;
@@ -264,7 +266,7 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
         .from("orders")
         .insert({
           user_id: userId,
-          shipping_address_id: shippingAddressId ? parseInt(shippingAddressId) : null,
+          shipping_address_id: fulfillmentType === 'spedizione' && shippingAddressId ? parseInt(shippingAddressId) : null,
           status: "pagato",
           currency: session.currency?.toUpperCase() || "EUR",
           total_cents: session.amount_total || 0,
@@ -273,6 +275,8 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
           stripe_invoice_id: stripeInvoiceId,
           stripe_customer_id: stripeCustomerId,
           notes: notes || null,
+          fulfillment_type: fulfillmentType,
+          pickup_store: pickupStore || null,
         })
         .select()
         .single();
@@ -408,13 +412,19 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
           });
           console.log(`[STRIPE WEBHOOK] emailItems per email:`, JSON.stringify(emailItems, null, 2));
 
+          // Determina il fulfillment type dell'ordine (dal metadata o dall'ordine stesso)
+          const orderFulfillmentType = fulfillmentType || order.fulfillment_type || 'spedizione';
+          const orderPickupStore = pickupStore || order.pickup_store || null;
+
           await sendOrderConfirmationEmail({
             orderId: order.id,
             userEmail: customerEmail,
             userName: customerName,
             total: order.total_cents,
             items: emailItems,
-            shippingAddress: shippingAddr || undefined
+            shippingAddress: shippingAddr || undefined,
+            fulfillmentType: orderFulfillmentType,
+            pickupStore: orderPickupStore,
           });
           console.log(`[STRIPE WEBHOOK] Email conferma ordine inviata a ${customerEmail}`);
 
@@ -427,7 +437,9 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
               userName: customerName,
               total: order.total_cents,
               items: emailItems,
-              shippingAddress: shippingAddr || undefined
+              shippingAddress: shippingAddr || undefined,
+              fulfillmentType: orderFulfillmentType,
+              pickupStore: orderPickupStore,
             });
             console.log(`[STRIPE WEBHOOK] Email notifica admin inviata, risultato: ${adminEmailResult}`);
           } catch (adminEmailError) {
@@ -579,7 +591,7 @@ app.use((req, res, next) => {
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-    
+
     console.error('❌ Error:', {
       status,
       message,
@@ -587,7 +599,11 @@ app.use((req, res, next) => {
       method: req.method
     });
 
-    res.status(status).json({ 
+    if (res.headersSent) {
+      return next(err);
+    }
+
+    res.status(status).json({
       success: false,
       message,
       path: req.path
@@ -670,6 +686,111 @@ if (app.get("env") === "development") {
     console.log('=================================');
 
     // Avvia automaticamente Price Watcher se configurato
+
+    // ================================
+    // SCHEDULER: Reminder automatici ritiro in negozio
+    // Controlla ogni ora se ci sono ordini in "pronto_per_ritiro" che necessitano reminder
+    // ================================
+    if (supabaseAdminForWebhook) {
+      const PICKUP_REMINDER_INTERVAL_MS = 60 * 60 * 1000; // 1 ora
+
+      async function checkPickupReminders() {
+        try {
+          const { data: orders, error } = await supabaseAdminForWebhook!
+            .from("orders")
+            .select("id, user_id, pickup_store, pickup_ready_at, pickup_reminder_4d_sent_at, pickup_reminder_6d_sent_at")
+            .eq("status", "pronto_per_ritiro")
+            .eq("fulfillment_type", "ritiro")
+            .not("pickup_ready_at", "is", null);
+
+          if (error) {
+            console.error("[PICKUP REMINDER] Errore query ordini:", error);
+            return;
+          }
+
+          if (!orders || orders.length === 0) return;
+
+          const now = new Date();
+          const { sendPickupReminderEmail } = await import("./services/email");
+
+          for (const order of orders) {
+            const readyAt = new Date(order.pickup_ready_at);
+            const hoursSinceReady = (now.getTime() - readyAt.getTime()) / (1000 * 60 * 60);
+
+            // Reminder a 4 giorni (96 ore)
+            if (hoursSinceReady >= 96 && !order.pickup_reminder_4d_sent_at) {
+              try {
+                const { data: userData } = await supabaseAdminForWebhook!
+                  .from("users")
+                  .select("email, first_name")
+                  .eq("id", order.user_id)
+                  .single();
+
+                if (userData?.email) {
+                  await sendPickupReminderEmail({
+                    orderId: order.id,
+                    userEmail: userData.email,
+                    userName: userData.first_name || userData.email.split('@')[0],
+                    pickupStore: order.pickup_store,
+                    type: '4days',
+                  });
+
+                  await supabaseAdminForWebhook!
+                    .from("orders")
+                    .update({ pickup_reminder_4d_sent_at: now.toISOString() })
+                    .eq("id", order.id);
+
+                  console.log(`[PICKUP REMINDER] Reminder 4 giorni inviato per ordine ${order.id}`);
+                }
+              } catch (err) {
+                console.error(`[PICKUP REMINDER] Errore reminder 4gg ordine ${order.id}:`, err);
+              }
+            }
+
+            // Reminder a 6 giorni (144 ore) - ultimo avviso, 24h rimanenti
+            if (hoursSinceReady >= 144 && !order.pickup_reminder_6d_sent_at) {
+              try {
+                const { data: userData } = await supabaseAdminForWebhook!
+                  .from("users")
+                  .select("email, first_name")
+                  .eq("id", order.user_id)
+                  .single();
+
+                if (userData?.email) {
+                  await sendPickupReminderEmail({
+                    orderId: order.id,
+                    userEmail: userData.email,
+                    userName: userData.first_name || userData.email.split('@')[0],
+                    pickupStore: order.pickup_store,
+                    type: '6days',
+                  });
+
+                  await supabaseAdminForWebhook!
+                    .from("orders")
+                    .update({ pickup_reminder_6d_sent_at: now.toISOString() })
+                    .eq("id", order.id);
+
+                  console.log(`[PICKUP REMINDER] Avviso finale 6 giorni inviato per ordine ${order.id}`);
+                }
+              } catch (err) {
+                console.error(`[PICKUP REMINDER] Errore reminder 6gg ordine ${order.id}:`, err);
+              }
+            }
+          }
+        } catch (err) {
+          console.error("[PICKUP REMINDER] Errore scheduler:", err);
+        }
+      }
+
+      // Esegui il primo check dopo 5 minuti dall'avvio
+      setTimeout(() => {
+        checkPickupReminders();
+        // Poi ripeti ogni ora
+        setInterval(checkPickupReminders, PICKUP_REMINDER_INTERVAL_MS);
+      }, 5 * 60 * 1000);
+
+      console.log("📦 Pickup reminder scheduler attivato (check ogni ora)");
+    }
 
   });
 })();

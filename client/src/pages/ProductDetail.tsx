@@ -3965,7 +3965,7 @@ const getIngredientsInfo = (productSlug: string) => {
       "say-protein-221": {
         description: (
           <>
-            <strong>Proteine isolate di soia</strong>; cacao in polvere; aromi; edulcoranti: sucralosio, acesulfame K; 
+            <strong>Proteiia</strong>; cacao in polvere; aromi; edulcoranti: sucralosio, acesulfame K; 
             <strong>vitamine</strong>: C (acido L-ascorbico), E (DL-alfa-tocoferolo acetato), B1 (tiamina mononitrato).
           </>
         ),

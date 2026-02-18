@@ -1,9 +1,9 @@
 import { Resend } from 'resend';
 
 // Configurazione indirizzi
-// In fase di test con Resend "onboarding", l'ADMIN_EMAIL deve essere quella con cui ti sei registrato su Resend
 const ADMIN_EMAIL = 'help@biggimmyintegratori.com';
-const FROM_EMAIL = 'noreply@biggimmyintegratori.com'; // Cambierai in noreply@biggimmyintegratori.com dopo verifica DNS
+const FROM_EMAIL = 'noreply@biggimmyintegratori.com';
+const REPLY_TO_EMAIL = 'help@biggimmyintegratori.com';
 
 // Modalità di simulazione
 const SIMULATION_MODE = false;
@@ -25,6 +25,8 @@ interface ContactFormData {
   name: string;
   email: string;
   phone?: string;
+  requestType?: string;
+  orderId?: string;
   message: string;
 }
 
@@ -44,6 +46,29 @@ interface OrderEmailData {
     postalCode: string;
     province?: string;
   };
+  fulfillmentType?: 'spedizione' | 'ritiro';
+  pickupStore?: string | null;
+}
+
+// Dati negozi per le email
+const STORE_INFO: Record<string, { name: string; address: string; hours: string }> = {
+  torino: {
+    name: "Sede di Torino",
+    address: "Corso Torino 85, Buttigliera Alta",
+    hours: "Lun-Ven 09:30-12:30, 15:30-19:30",
+  },
+  aosta: {
+    name: "Sede di Aosta",
+    address: "Corso Saint-Martin-de-Corléans 55, Aosta",
+    hours: "Lun-Ven 09-12:30, 15-19:30",
+  },
+};
+
+interface PickupReadyEmailData {
+  orderId: string;
+  userEmail: string;
+  userName: string;
+  pickupStore: string;
 }
 
 // --- FUNZIONI DI INVIO ---
@@ -129,7 +154,8 @@ export async function sendAdminNotification(formData: ContactFormData): Promise<
     const { error } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
-      subject: `📬 Nuovo messaggio da ${name}`,
+      reply_to: email,
+      subject: `Nuovo messaggio da ${name}`,
       html: emailHTML,
     });
 
@@ -156,7 +182,8 @@ export async function sendUserConfirmation(formData: ContactFormData): Promise<b
     const { error } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [email],
-      subject: 'Abbiamo ricevuto il tuo messaggio - Big Gimmy',
+      reply_to: REPLY_TO_EMAIL,
+      subject: 'Abbiamo ricevuto il tuo messaggio - Big Gimmy Integratori',
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -191,7 +218,7 @@ export async function sendUserConfirmation(formData: ContactFormData): Promise<b
               </p>
 
               <div style="text-align: center; margin: 35px 0 20px 0;">
-                <a href="https://biggimmyintegratori.com/products"
+                <a href="https://big-gimmy-private.onrender.com/prodotti"
                    style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 35px;
                           text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 15px rgba(255,209,0,0.3);">
                   Scopri i Prodotti
@@ -226,7 +253,9 @@ export async function sendUserConfirmation(formData: ContactFormData): Promise<b
  * Invia conferma ordine dopo pagamento
  */
 export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Promise<boolean> {
-  const { orderId, userEmail, userName, total, items, shippingAddress } = orderData;
+  const { orderId, userEmail, userName, total, items, shippingAddress, fulfillmentType, pickupStore } = orderData;
+  const isPickup = fulfillmentType === 'ritiro';
+  const storeInfo = pickupStore ? STORE_INFO[pickupStore] : null;
 
   console.log(`[EMAIL ORDER] Tentativo invio email ordine #${orderId} a ${userEmail}`);
   console.log(`[EMAIL ORDER] Dati: userName=${userName}, total=${total}, items=${items?.length || 0}`);
@@ -263,7 +292,20 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
       </tr>
     `;
 
-    const shippingHTML = shippingAddress ? `
+    const shippingHTML = isPickup && storeInfo ? `
+      <table style="width: 100%; border-collapse: collapse; margin-top: 25px; background: #e3f2fd; border-radius: 8px;">
+        <tr>
+          <td style="padding: 20px;">
+            <h3 style="color: #1565c0; font-size: 16px; margin: 0 0 12px 0;">🏪 Ritiro in Negozio</h3>
+            <p style="color: #1a1a1a; font-size: 15px; font-weight: 600; margin: 0 0 8px 0;">${storeInfo.name}</p>
+            <p style="color: #4a4a4a; font-size: 14px; line-height: 1.6; margin: 0;">
+              📍 ${storeInfo.address}<br>
+              🕐 ${storeInfo.hours}
+            </p>
+          </td>
+        </tr>
+      </table>
+    ` : shippingAddress ? `
       <table style="width: 100%; border-collapse: collapse; margin-top: 25px; background: #f8f9fa; border-radius: 8px;">
         <tr>
           <td style="padding: 20px;">
@@ -277,10 +319,17 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
       </table>
     ` : '';
 
+    // Testo info box diverso per ritiro vs spedizione
+    const infoBoxText = isPickup
+      ? '📧 Ti invieremo un\'email quando il tuo ordine sarà pronto per il ritiro.'
+      : '📧 Riceverai un\'email con il codice di tracciamento non appena il pacco sarà spedito.';
+
     const { error } = await resend.emails.send({
       from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [userEmail],
-      subject: `✅ Ordine Confermato #${orderId.slice(-8).toUpperCase()}`,
+      subject: isPickup
+        ? `✅ Ordine Confermato #${orderId.slice(-8).toUpperCase()} - Ritiro presso ${storeInfo?.name || 'negozio'}`
+        : `✅ Ordine Confermato #${orderId.slice(-8).toUpperCase()}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -289,10 +338,11 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
 
             <!-- Header -->
             <div style="background: linear-gradient(135deg, #2e7d32 0%, #388e3c 100%); padding: 40px 30px; text-align: center;">
-              <div style="font-size: 50px; margin-bottom: 15px;">✅</div>
+              <div style="font-size: 50px; margin-bottom: 15px;">${isPickup ? '🏪' : '✅'}</div>
               <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">
                 Ordine Confermato!
               </h1>
+              ${isPickup ? `<p style="color: #FFD100; margin: 8px 0 0 0; font-size: 15px; font-weight: 600;">RITIRO IN NEGOZIO - ${storeInfo?.name || ''}</p>` : ''}
               <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">
                 Ordine #${orderId.slice(-8).toUpperCase()}
               </p>
@@ -301,7 +351,7 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
             <!-- Content -->
             <div style="padding: 35px 30px;">
               <p style="color: #4a4a4a; font-size: 16px; line-height: 1.7; margin: 0 0 25px 0;">
-                Ciao <strong>${userName}</strong>, grazie per il tuo acquisto! Il tuo ordine è stato ricevuto ed è ora in fase di preparazione.
+                Ciao <strong>${userName}</strong>, grazie per il tuo acquisto! ${isPickup ? 'Il tuo ordine è stato ricevuto e verrà preparato per il ritiro.' : 'Il tuo ordine è stato ricevuto ed è ora in fase di preparazione.'}
               </p>
 
               <!-- Order Items Table -->
@@ -336,7 +386,7 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
                 <tr>
                   <td style="background: #e8f5e9; border-left: 4px solid #2e7d32; padding: 15px 20px; border-radius: 0 8px 8px 0;">
                     <p style="color: #2e7d32; font-size: 14px; margin: 0;">
-                      📧 Riceverai un'email con il codice di tracciamento non appena il pacco sarà spedito.
+                      ${infoBoxText}
                     </p>
                   </td>
                 </tr>
@@ -344,7 +394,7 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
 
               <!-- CTA Button -->
               <div style="text-align: center; margin-top: 30px;">
-                <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://biggimmy.it'}/ordini"
+                <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://big-gimmy-private.onrender.com'}/ordini"
                    style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
                   📋 Visualizza i tuoi ordini
                 </a>
@@ -390,7 +440,9 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
  * Invia notifica all'admin quando arriva un nuovo ordine pagato
  */
 export async function sendAdminOrderNotification(orderData: OrderEmailData): Promise<boolean> {
-  const { orderId, userEmail, userName, total, items, shippingAddress } = orderData;
+  const { orderId, userEmail, userName, total, items, shippingAddress, fulfillmentType, pickupStore } = orderData;
+  const isPickup = fulfillmentType === 'ritiro';
+  const storeInfo = pickupStore ? STORE_INFO[pickupStore] : null;
 
   console.log(`[EMAIL ADMIN ORDER] Tentativo invio notifica nuovo ordine #${orderId} a ${ADMIN_EMAIL}`);
 
@@ -423,7 +475,20 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
       </tr>
     `;
 
-    const shippingHTML = shippingAddress ? `
+    const shippingHTML = isPickup && storeInfo ? `
+      <table style="width: 100%; border-collapse: collapse; margin-top: 25px; background: #e3f2fd; border-radius: 8px;">
+        <tr>
+          <td style="padding: 20px;">
+            <h3 style="color: #1565c0; font-size: 16px; margin: 0 0 12px 0;">🏪 RITIRO IN NEGOZIO</h3>
+            <p style="color: #1a1a1a; font-size: 15px; font-weight: 600; margin: 0 0 8px 0;">${storeInfo.name}</p>
+            <p style="color: #4a4a4a; font-size: 14px; line-height: 1.6; margin: 0;">
+              📍 ${storeInfo.address}<br>
+              🕐 ${storeInfo.hours}
+            </p>
+          </td>
+        </tr>
+      </table>
+    ` : shippingAddress ? `
       <table style="width: 100%; border-collapse: collapse; margin-top: 25px; background: #f8f9fa; border-radius: 8px;">
         <tr>
           <td style="padding: 20px;">
@@ -437,10 +502,16 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
       </table>
     ` : '';
 
+    const adminActionText = isPickup
+      ? 'Ricordati di preparare l\'ordine per il ritiro!'
+      : 'Ricordati di preparare e spedire l\'ordine!';
+
     const { error } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
-      subject: `🛒 Nuovo Ordine #${orderId.slice(-8).toUpperCase()} - €${(total / 100).toFixed(2)}`,
+      subject: isPickup
+        ? `🏪 Nuovo Ordine RITIRO #${orderId.slice(-8).toUpperCase()} - ${storeInfo?.name || 'Negozio'} - €${(total / 100).toFixed(2)}`
+        : `🛒 Nuovo Ordine #${orderId.slice(-8).toUpperCase()} - €${(total / 100).toFixed(2)}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -449,10 +520,11 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
 
             <!-- Header -->
             <div style="background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); padding: 40px 30px; text-align: center;">
-              <div style="font-size: 50px; margin-bottom: 15px;">🛒</div>
+              <div style="font-size: 50px; margin-bottom: 15px;">${isPickup ? '🏪' : '🛒'}</div>
               <h1 style="color: #1a1a1a; margin: 0; font-size: 24px; font-weight: 700;">
                 Nuovo Ordine Ricevuto!
               </h1>
+              ${isPickup ? `<p style="color: #d32f2f; margin: 8px 0 0 0; font-size: 15px; font-weight: 700;">RITIRO IN NEGOZIO - ${storeInfo?.name || ''}</p>` : ''}
               <p style="color: #333; margin: 10px 0 0 0; font-size: 14px;">
                 Ordine #${orderId.slice(-8).toUpperCase()}
               </p>
@@ -514,9 +586,9 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
                 <tr>
                   <td style="text-align: center;">
                     <p style="color: #666; font-size: 14px; margin: 0 0 20px 0;">
-                      Ricordati di preparare e spedire l'ordine!
+                      ${adminActionText}
                     </p>
-                    <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://biggimmy.it'}/admin/orders"
+                    <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://big-gimmy-private.onrender.com'}/admin/ordini"
                        style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
                       📦 Gestisci Ordini
                     </a>
@@ -603,7 +675,7 @@ export async function sendWelcomeEmail(userData: { email: string; firstName?: st
                 <li>Salvare i tuoi indirizzi per checkout più veloci</li>
               </ul>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="https://biggimmyintegratori.com/products"
+                <a href="https://big-gimmy-private.onrender.com/prodotti"
                    style="display: inline-block; background: #FFD100; color: #212121; padding: 15px 30px;
                           text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
                   Scopri i Nostri Prodotti
@@ -757,27 +829,35 @@ export async function sendTrackingEmail(trackingData: any): Promise<boolean> {
 
               <!-- Tracking Box -->
               <div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 12px; padding: 25px; margin-bottom: 25px;">
-                <div style="display: flex; align-items: center; margin-bottom: 15px;">
-                  <span style="font-size: 24px; margin-right: 12px;">📦</span>
-                  <div>
-                    <p style="color: #666; font-size: 12px; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Corriere</p>
-                    <p style="color: #1a1a1a; font-size: 18px; margin: 4px 0 0 0; font-weight: 600;">${carrier}</p>
-                  </div>
-                </div>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                  <tr>
+                    <td style="vertical-align: middle; width: 40px;">
+                      <span style="font-size: 24px;">📦</span>
+                    </td>
+                    <td style="vertical-align: middle;">
+                      <p style="color: #666; font-size: 12px; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Corriere</p>
+                      <p style="color: #1a1a1a; font-size: 18px; margin: 4px 0 0 0; font-weight: 600;">${carrier}</p>
+                    </td>
+                  </tr>
+                </table>
 
+                ${trackingUrl ? `
+                <a href="${trackingUrl}" target="_blank"
+                   style="display: block; background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%); color: #ffffff; padding: 14px 25px;
+                          text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; text-align: center;
+                          box-shadow: 0 4px 15px rgba(25,118,210,0.3); margin-bottom: 12px;">
+                  📍 Traccia la Spedizione
+                </a>
+                <div style="background: #ffffff; border-radius: 8px; padding: 12px; text-align: center;">
+                  <p style="color: #666; font-size: 11px; margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 0.5px;">Codice Tracking</p>
+                  <p style="color: #1a1a1a; font-size: 16px; margin: 0; font-weight: 700; font-family: monospace; letter-spacing: 1px;">${trackingNumber}</p>
+                </div>
+                ` : `
                 <div style="background: #ffffff; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
                   <p style="color: #666; font-size: 12px; margin: 0 0 5px 0; text-transform: uppercase; letter-spacing: 0.5px;">Codice Tracking</p>
                   <p style="color: #1a1a1a; font-size: 20px; margin: 0; font-weight: 700; font-family: monospace; letter-spacing: 1px;">${trackingNumber}</p>
                 </div>
-
-                ${trackingUrl ? `
-                <a href="${trackingUrl}"
-                   style="display: block; background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%); color: #ffffff; padding: 14px 25px;
-                          text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; text-align: center;
-                          box-shadow: 0 4px 15px rgba(25,118,210,0.3);">
-                  📍 Traccia la Spedizione
-                </a>
-                ` : ''}
+                `}
               </div>
 
               <!-- Info -->
@@ -811,6 +891,77 @@ export async function sendTrackingEmail(trackingData: any): Promise<boolean> {
     });
 
     if (error) throw error;
+
+    // Email di conferma all'admin
+    const trackingLinkHTML = trackingUrl
+      ? `<a href="${trackingUrl}" style="color: #1976d2; text-decoration: none; font-weight: 600;">${trackingUrl}</a>`
+      : 'N/D';
+
+    const { error: adminError } = await resend.emails.send({
+      from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [ADMIN_EMAIL],
+      subject: `📦 Tracking inserito per ordine #${orderId.slice(-8).toUpperCase()} - ${carrier}`,
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%); padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 20px;">📦 Tracking inserito correttamente</h1>
+            </div>
+            <div style="padding: 30px;">
+              <p style="color: #4a4a4a; font-size: 15px; line-height: 1.7; margin: 0 0 15px 0;">
+                Il codice di tracciamento per l'ordine <strong>#${orderId.slice(-8).toUpperCase()}</strong> è stato inserito e il cliente è stato notificato.
+              </p>
+              <table style="width: 100%; border-collapse: collapse; background: #f8f9fa; border-radius: 8px; margin-bottom: 15px;">
+                <tr>
+                  <td style="padding: 15px 20px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px; width: 100px;">Cliente:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">${userName} (${userEmail})</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Corriere:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">${carrier}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Tracking:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600; font-family: monospace;">${trackingNumber}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Link:</td>
+                        <td style="padding: 5px 0; font-size: 13px; word-break: break-all;">${trackingLinkHTML}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              <table style="width: 100%; border-collapse: collapse; background: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 0 8px 8px 0;">
+                <tr>
+                  <td style="padding: 12px 20px;">
+                    <p style="color: #2e7d32; font-size: 14px; margin: 0;">
+                      ✅ Email di tracciamento inviata al cliente con successo.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </div>
+            <div style="background: #f5f5f5; padding: 15px 30px; text-align: center;">
+              <p style="color: #888; font-size: 12px; margin: 0;">Big Gimmy Integratori - Notifica Admin</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (adminError) {
+      console.error('[EMAIL TRACKING] Errore email admin:', adminError);
+    } else {
+      console.log(`[EMAIL TRACKING] ✅ Conferma tracking inviata ad admin per ordine #${orderId}`);
+    }
+
     return true;
   } catch (err) {
     console.error('Errore invio email tracking:', err);
@@ -838,4 +989,711 @@ export async function sendPasswordChangedEmail(userData: { email: string; firstN
     return true;
   }
 
+}
+
+/**
+ * Invia email "Il tuo ordine è pronto per il ritiro"
+ */
+export async function sendPickupReadyEmail(data: PickupReadyEmailData): Promise<boolean> {
+  const { orderId, userEmail, userName, pickupStore } = data;
+  const storeInfo = STORE_INFO[pickupStore];
+
+  if (!storeInfo) {
+    console.error(`[EMAIL PICKUP] Negozio non trovato: ${pickupStore}`);
+    return false;
+  }
+
+  console.log(`[EMAIL PICKUP] Tentativo invio email pronto per ritiro #${orderId} a ${userEmail}`);
+
+  if (SIMULATION_MODE) {
+    console.log('=== SIMULAZIONE PICKUP READY EMAIL ===', { orderId, pickupStore });
+    return true;
+  }
+
+  if (!resend) {
+    console.error('[EMAIL PICKUP] ERRORE: Resend non inizializzato!');
+    console.log('=== SIMULAZIONE PICKUP READY EMAIL (resend=null) ===', { orderId });
+    return true;
+  }
+
+  try {
+    const { error } = await resend.emails.send({
+      from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [userEmail],
+      subject: `📦 Il tuo ordine #${orderId.slice(-8).toUpperCase()} è pronto per il ritiro!`,
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); padding: 40px 30px; text-align: center;">
+              <div style="font-size: 50px; margin-bottom: 15px;">📦</div>
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">
+                Il tuo ordine è pronto!
+              </h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">
+                Ordine #${orderId.slice(-8).toUpperCase()}
+              </p>
+            </div>
+
+            <!-- Content -->
+            <div style="padding: 35px 30px;">
+              <p style="color: #4a4a4a; font-size: 16px; line-height: 1.7; margin: 0 0 25px 0;">
+                Ciao <strong>${userName}</strong>, il tuo ordine è stato preparato ed è pronto per il ritiro!
+              </p>
+
+              <!-- Store Info -->
+              <table style="width: 100%; border-collapse: collapse; background: #e3f2fd; border-radius: 12px; margin-bottom: 25px;">
+                <tr>
+                  <td style="padding: 25px;">
+                    <h3 style="color: #1565c0; font-size: 18px; margin: 0 0 15px 0;">🏪 Vieni a ritirarlo presso:</h3>
+                    <p style="color: #1a1a1a; font-size: 16px; font-weight: 600; margin: 0 0 10px 0;">${storeInfo.name}</p>
+                    <p style="color: #4a4a4a; font-size: 14px; line-height: 1.8; margin: 0;">
+                      📍 ${storeInfo.address}<br>
+                      🕐 ${storeInfo.hours}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Order ID Box -->
+              <table style="width: 100%; border-collapse: collapse; background: #fff3e0; border-left: 4px solid #ff9800; border-radius: 0 8px 8px 0; margin-bottom: 25px;">
+                <tr>
+                  <td style="padding: 15px 20px;">
+                    <p style="color: #e65100; font-size: 14px; margin: 0 0 8px 0;">
+                      💡 Presenta il numero d'ordine <strong>#${orderId.slice(-8).toUpperCase()}</strong> al momento del ritiro.
+                    </p>
+                    <p style="color: #e65100; font-size: 13px; margin: 0;">
+                      ⏰ Hai <strong>7 giorni</strong> di tempo per ritirare il tuo ordine.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA Button -->
+              <div style="text-align: center; margin-top: 30px;">
+                <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://big-gimmy-private.onrender.com'}/ordini"
+                   style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                  📋 Visualizza i tuoi ordini
+                </a>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="background: #1a1a1a; padding: 25px 30px; text-align: center;">
+              <p style="color: #FFD100; font-size: 14px; margin: 0 0 8px 0; font-weight: 600;">
+                🏋️ Big Gimmy Integratori
+              </p>
+              <p style="color: #888; font-size: 12px; margin: 0 0 10px 0;">
+                Ti aspettiamo in negozio!
+              </p>
+              <p style="color: #666; font-size: 11px; margin: 0;">
+                © ${new Date().getFullYear()} Big Gimmy Integratori - Tutti i diritti riservati
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error(`[EMAIL PICKUP] Resend ha restituito errore:`, error);
+    } else {
+      console.log(`[EMAIL PICKUP] ✅ Email pronto per ritiro inviata a ${userEmail}`);
+    }
+
+    // Email all'admin
+    const { error: adminError } = await resend.emails.send({
+      from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [ADMIN_EMAIL],
+      subject: `🏪 Ordine #${orderId.slice(-8).toUpperCase()} segnato come pronto per il ritiro - ${storeInfo.name}`,
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 20px;">🏪 Ordine pronto per il ritiro</h1>
+            </div>
+            <div style="padding: 30px;">
+              <p style="color: #4a4a4a; font-size: 15px; line-height: 1.7; margin: 0 0 15px 0;">
+                L'ordine <strong>#${orderId.slice(-8).toUpperCase()}</strong> del cliente <strong>${userName}</strong> (${userEmail}) è stato segnato come <strong>pronto per il ritiro</strong>.
+              </p>
+              <p style="color: #4a4a4a; font-size: 14px; margin: 0 0 15px 0;">
+                Sede: <strong>${storeInfo.name}</strong><br>
+                📍 ${storeInfo.address}
+              </p>
+              <p style="color: #e65100; font-size: 13px; margin: 0;">
+                ⏰ Il cliente ha 7 giorni per ritirare l'ordine.
+              </p>
+            </div>
+            <div style="background: #f5f5f5; padding: 15px 30px; text-align: center;">
+              <p style="color: #888; font-size: 12px; margin: 0;">Big Gimmy Integratori - Notifica Admin</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (adminError) {
+      console.error(`[EMAIL PICKUP] Errore email admin:`, adminError);
+    } else {
+      console.log(`[EMAIL PICKUP] ✅ Email pronto per ritiro inviata ad admin`);
+    }
+
+    return true;
+  } catch (err: any) {
+    console.error(`[EMAIL PICKUP] ❌ ERRORE invio email:`, err?.message || err);
+    return false;
+  }
+}
+
+/**
+ * Invia email di consegna ordine al cliente e all'admin.
+ * Gestisce sia ordini con spedizione che con ritiro in negozio.
+ */
+interface OrderDeliveredEmailData {
+  orderId: string;
+  userEmail: string;
+  userName: string;
+  fulfillmentType: 'spedizione' | 'ritiro' | string;
+  pickupStore?: string | null;
+  trackingNumber?: string | null;
+  carrier?: string | null;
+}
+
+export async function sendOrderDeliveredEmail(data: OrderDeliveredEmailData): Promise<boolean> {
+  const { orderId, userEmail, userName, fulfillmentType, pickupStore, trackingNumber, carrier } = data;
+  const isPickup = fulfillmentType === 'ritiro';
+  const shortId = orderId.slice(-8).toUpperCase();
+
+  const headerEmoji = isPickup ? '🏪' : '📦';
+  const headerTitle = isPickup ? 'Ordine ritirato con successo!' : 'Il tuo ordine è stato consegnato!';
+  const subjectEmoji = isPickup ? '🏪' : '✅';
+  const subjectText = isPickup
+    ? `${subjectEmoji} Ordine #${shortId} ritirato con successo!`
+    : `${subjectEmoji} Ordine #${shortId} consegnato con successo!`;
+
+  const storeInfo = isPickup && pickupStore ? STORE_INFO[pickupStore] : null;
+
+  // Tracking info per spedizioni
+  const trackingHTML = !isPickup && trackingNumber && carrier ? `
+    <table style="width: 100%; border-collapse: collapse; background: #e3f2fd; border-radius: 12px; margin-bottom: 15px;">
+      <tr>
+        <td style="padding: 20px;">
+          <h3 style="color: #1565c0; font-size: 14px; margin: 0 0 8px 0;">📦 Dati spedizione</h3>
+          <p style="color: #4a4a4a; font-size: 13px; margin: 0;">
+            Corriere: <strong>${carrier}</strong><br>
+            Tracking: <strong style="font-family: monospace;">${trackingNumber}</strong>
+          </p>
+        </td>
+      </tr>
+    </table>
+  ` : '';
+
+  const deliveryDetailHTML = isPickup && storeInfo
+    ? `
+      <table style="width: 100%; border-collapse: collapse; background: #e3f2fd; border-radius: 12px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 25px;">
+            <h3 style="color: #1565c0; font-size: 16px; margin: 0 0 10px 0;">🏪 Ritirato presso:</h3>
+            <p style="color: #1a1a1a; font-size: 15px; font-weight: 600; margin: 0 0 5px 0;">${storeInfo.name}</p>
+            <p style="color: #4a4a4a; font-size: 13px; margin: 0;">📍 ${storeInfo.address}</p>
+          </td>
+        </tr>
+      </table>
+    `
+    : `
+      <table style="width: 100%; border-collapse: collapse; background: #e8f5e9; border-radius: 12px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 25px;">
+            <h3 style="color: #2e7d32; font-size: 16px; margin: 0 0 10px 0;">🚚 Consegnato a domicilio</h3>
+            <p style="color: #4a4a4a; font-size: 13px; margin: 0;">Il pacco è stato consegnato all'indirizzo di spedizione indicato.</p>
+          </td>
+        </tr>
+      </table>
+      ${trackingHTML}
+    `;
+
+  const bodyText = isPickup
+    ? `Ciao <strong>${userName}</strong>, confermiamo che hai ritirato con successo il tuo ordine!`
+    : `Ciao <strong>${userName}</strong>, il tuo ordine è stato consegnato con successo!`;
+
+  const headerGradient = isPickup
+    ? 'linear-gradient(135deg, #2e7d32 0%, #388e3c 100%)'
+    : 'linear-gradient(135deg, #2e7d32 0%, #388e3c 100%)';
+
+  const emailHTML = `
+    <!DOCTYPE html>
+    <html lang="it">
+    <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+      <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+        <!-- Header -->
+        <div style="background: ${headerGradient}; padding: 40px 30px; text-align: center;">
+          <div style="font-size: 50px; margin-bottom: 15px;">${headerEmoji}</div>
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">${headerTitle}</h1>
+          <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">Ordine #${shortId}</p>
+        </div>
+        <!-- Content -->
+        <div style="padding: 35px 30px;">
+          <p style="color: #4a4a4a; font-size: 16px; line-height: 1.7; margin: 0 0 25px 0;">${bodyText}</p>
+          ${deliveryDetailHTML}
+          <table style="width: 100%; border-collapse: collapse; background: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 0 8px 8px 0; margin-bottom: 25px;">
+            <tr>
+              <td style="padding: 15px 20px;">
+                <p style="color: #2e7d32; font-size: 14px; margin: 0;">
+                  ✅ Grazie per il tuo acquisto! Speriamo che i nostri prodotti ti aiutino a raggiungere i tuoi obiettivi. 💪
+                </p>
+              </td>
+            </tr>
+          </table>
+          <div style="text-align: center; margin-top: 30px;">
+            <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://big-gimmy-private.onrender.com'}/ordini"
+               style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
+              📋 Visualizza i tuoi ordini
+            </a>
+          </div>
+        </div>
+        <!-- Footer -->
+        <div style="background: #1a1a1a; padding: 25px 30px; text-align: center;">
+          <p style="color: #FFD100; font-size: 14px; margin: 0 0 8px 0; font-weight: 600;">🏋️ Big Gimmy Integratori</p>
+          <p style="color: #888; font-size: 12px; margin: 0 0 10px 0;">Hai domande? Contattaci!</p>
+          <p style="color: #666; font-size: 11px; margin: 0;">© ${new Date().getFullYear()} Big Gimmy Integratori - Tutti i diritti riservati</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Email admin
+  const adminSubject = isPickup
+    ? `🏪 Ordine #${shortId} ritirato dal cliente`
+    : `✅ Ordine #${shortId} consegnato al cliente`;
+  const trackingAdminInfo = !isPickup && trackingNumber && carrier
+    ? `<br>Corriere: <strong>${carrier}</strong> - Tracking: <strong>${trackingNumber}</strong>`
+    : '';
+  const adminBody = isPickup
+    ? `L'ordine <strong>#${shortId}</strong> è stato ritirato dal cliente <strong>${userName}</strong> (${userEmail}) presso ${storeInfo?.name || 'negozio'}.`
+    : `L'ordine <strong>#${shortId}</strong> è stato consegnato al cliente <strong>${userName}</strong> (${userEmail}) tramite spedizione.${trackingAdminInfo}`;
+
+  const adminHTML = `
+    <!DOCTYPE html>
+    <html lang="it">
+    <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+      <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+        <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 30px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 20px;">${adminSubject}</h1>
+        </div>
+        <div style="padding: 30px;">
+          <p style="color: #4a4a4a; font-size: 15px; line-height: 1.7; margin: 0 0 20px 0;">${adminBody}</p>
+          <p style="color: #4a4a4a; font-size: 14px; margin: 0;">L'ordine è stato segnato come <strong>consegnato</strong>.</p>
+        </div>
+        <div style="background: #f5f5f5; padding: 15px 30px; text-align: center;">
+          <p style="color: #888; font-size: 12px; margin: 0;">Big Gimmy Integratori - Notifica Admin</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  console.log(`[EMAIL DELIVERED] Invio email consegna ordine #${shortId} a ${userEmail} (${fulfillmentType})`);
+
+  if (SIMULATION_MODE) {
+    console.log('=== SIMULAZIONE DELIVERED EMAIL ===', { orderId, fulfillmentType });
+    return true;
+  }
+
+  if (!resend) {
+    console.log('=== SIMULAZIONE DELIVERED EMAIL (resend=null) ===', { orderId });
+    return true;
+  }
+
+  try {
+    // Email al cliente
+    const { error: clientError } = await resend.emails.send({
+      from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [userEmail],
+      subject: subjectText,
+      html: emailHTML,
+    });
+
+    if (clientError) {
+      console.error(`[EMAIL DELIVERED] Errore email cliente:`, clientError);
+    } else {
+      console.log(`[EMAIL DELIVERED] ✅ Email consegna inviata a ${userEmail}`);
+    }
+
+    // Email all'admin
+    const { error: adminError } = await resend.emails.send({
+      from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [ADMIN_EMAIL],
+      subject: adminSubject,
+      html: adminHTML,
+    });
+
+    if (adminError) {
+      console.error(`[EMAIL DELIVERED] Errore email admin:`, adminError);
+    } else {
+      console.log(`[EMAIL DELIVERED] ✅ Email consegna inviata ad admin`);
+    }
+
+    return true;
+  } catch (err: any) {
+    console.error(`[EMAIL DELIVERED] ❌ ERRORE invio email:`, err?.message || err);
+    return false;
+  }
+}
+
+/**
+ * Invia reminder ritiro al cliente e notifica all'admin.
+ * type: '4days' = reminder a 4 giorni, '6days' = avviso finale a 6 giorni (24h rimanenti)
+ */
+interface PickupReminderEmailData {
+  orderId: string;
+  userEmail: string;
+  userName: string;
+  pickupStore: string;
+  type: '4days' | '6days';
+}
+
+export async function sendPickupReminderEmail(data: PickupReminderEmailData): Promise<boolean> {
+  const { orderId, userEmail, userName, pickupStore, type } = data;
+  const storeInfo = STORE_INFO[pickupStore];
+  const shortId = orderId.slice(-8).toUpperCase();
+
+  if (!storeInfo) {
+    console.error(`[EMAIL REMINDER] Negozio non trovato: ${pickupStore}`);
+    return false;
+  }
+
+  const is4Days = type === '4days';
+  const subjectClient = is4Days
+    ? `⏰ Promemoria: ritira il tuo ordine #${shortId}`
+    : `🚨 Ultimo avviso: ritira il tuo ordine #${shortId} entro 24 ore!`;
+
+  const headerGradient = is4Days
+    ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
+    : 'linear-gradient(135deg, #d32f2f 0%, #c62828 100%)';
+  const headerEmoji = is4Days ? '⏰' : '🚨';
+  const headerTitle = is4Days
+    ? 'Non dimenticare il tuo ordine!'
+    : 'Ultima possibilità per ritirare!';
+  const bodyText = is4Days
+    ? `Ciao <strong>${userName}</strong>, ti ricordiamo che il tuo ordine <strong>#${shortId}</strong> è pronto per il ritiro da 4 giorni. Hai ancora <strong>3 giorni</strong> per venire a ritirarlo!`
+    : `Ciao <strong>${userName}</strong>, il tuo ordine <strong>#${shortId}</strong> è in attesa di ritiro da 6 giorni. Hai ancora <strong>24 ore</strong> per venire a ritirarlo prima che venga considerato non ritirato.`;
+  const urgencyColor = is4Days ? '#e65100' : '#c62828';
+  const urgencyText = is4Days
+    ? '⏰ Hai ancora 3 giorni per ritirare il tuo ordine.'
+    : '🚨 ATTENZIONE: Hai solo 24 ore rimanenti per il ritiro!';
+
+  const clientHTML = `
+    <!DOCTYPE html>
+    <html lang="it">
+    <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+      <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+        <div style="background: ${headerGradient}; padding: 40px 30px; text-align: center;">
+          <div style="font-size: 50px; margin-bottom: 15px;">${headerEmoji}</div>
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">${headerTitle}</h1>
+          <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">Ordine #${shortId}</p>
+        </div>
+        <div style="padding: 35px 30px;">
+          <p style="color: #4a4a4a; font-size: 16px; line-height: 1.7; margin: 0 0 25px 0;">${bodyText}</p>
+          <table style="width: 100%; border-collapse: collapse; background: #e3f2fd; border-radius: 12px; margin-bottom: 25px;">
+            <tr>
+              <td style="padding: 25px;">
+                <h3 style="color: #1565c0; font-size: 16px; margin: 0 0 10px 0;">🏪 Vieni a ritirarlo presso:</h3>
+                <p style="color: #1a1a1a; font-size: 15px; font-weight: 600; margin: 0 0 8px 0;">${storeInfo.name}</p>
+                <p style="color: #4a4a4a; font-size: 14px; line-height: 1.8; margin: 0;">
+                  📍 ${storeInfo.address}<br>
+                  🕐 ${storeInfo.hours}
+                </p>
+              </td>
+            </tr>
+          </table>
+          <table style="width: 100%; border-collapse: collapse; background: ${is4Days ? '#fff3e0' : '#ffebee'}; border-left: 4px solid ${urgencyColor}; border-radius: 0 8px 8px 0; margin-bottom: 25px;">
+            <tr>
+              <td style="padding: 15px 20px;">
+                <p style="color: ${urgencyColor}; font-size: 14px; font-weight: 600; margin: 0;">${urgencyText}</p>
+              </td>
+            </tr>
+          </table>
+          <div style="text-align: center; margin-top: 30px;">
+            <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://big-gimmy-private.onrender.com'}/ordini"
+               style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
+              📋 Visualizza i tuoi ordini
+            </a>
+          </div>
+        </div>
+        <div style="background: #1a1a1a; padding: 25px 30px; text-align: center;">
+          <p style="color: #FFD100; font-size: 14px; margin: 0 0 8px 0; font-weight: 600;">🏋️ Big Gimmy Integratori</p>
+          <p style="color: #888; font-size: 12px; margin: 0;">© ${new Date().getFullYear()} Big Gimmy Integratori</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Email admin
+  const daysLabel = is4Days ? '4 giorni' : '6 giorni';
+  const adminSubject = is4Days
+    ? `⏰ Promemoria inviato: ordine #${shortId} in attesa di ritiro da 4 giorni`
+    : `🚨 Avviso finale inviato: ordine #${shortId} in attesa di ritiro da 6 giorni`;
+  const adminHTML = `
+    <!DOCTYPE html>
+    <html lang="it">
+    <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+      <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+        <div style="background: ${headerGradient}; padding: 30px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 20px;">${headerEmoji} Ritiro in sospeso da ${daysLabel}</h1>
+        </div>
+        <div style="padding: 30px;">
+          <p style="color: #4a4a4a; font-size: 15px; line-height: 1.7; margin: 0 0 15px 0;">
+            Ho inviato un ${is4Days ? 'promemoria' : 'avviso finale'} al cliente <strong>${userName}</strong> (<a href="mailto:${userEmail}" style="color: #1976d2;">${userEmail}</a>) per l'ordine <strong>#${shortId}</strong>.
+          </p>
+          <p style="color: #4a4a4a; font-size: 14px; margin: 0 0 15px 0;">
+            L'ordine è in attesa di ritiro da <strong>${daysLabel}</strong> presso <strong>${storeInfo.name}</strong>.
+          </p>
+          <table style="width: 100%; border-collapse: collapse; background: ${is4Days ? '#fff3e0' : '#ffebee'}; border-left: 4px solid ${urgencyColor}; border-radius: 0 8px 8px 0;">
+            <tr>
+              <td style="padding: 15px 20px;">
+                <p style="color: ${urgencyColor}; font-size: 14px; font-weight: 600; margin: 0;">
+                  ${is4Days ? '💡 Se necessario, contatta direttamente il cliente.' : '🚨 Contattare direttamente il cliente se necessario. Scadenza tra 24 ore.'}
+                </p>
+              </td>
+            </tr>
+          </table>
+        </div>
+        <div style="background: #f5f5f5; padding: 15px 30px; text-align: center;">
+          <p style="color: #888; font-size: 12px; margin: 0;">Big Gimmy Integratori - Notifica automatica</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  console.log(`[EMAIL REMINDER] Invio ${type} reminder ordine #${shortId} a ${userEmail}`);
+
+  if (SIMULATION_MODE) {
+    console.log(`=== SIMULAZIONE REMINDER ${type} ===`, { orderId, pickupStore });
+    return true;
+  }
+
+  if (!resend) {
+    console.log(`=== SIMULAZIONE REMINDER ${type} (resend=null) ===`, { orderId });
+    return true;
+  }
+
+  try {
+    const { error: clientError } = await resend.emails.send({
+      from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [userEmail],
+      subject: subjectClient,
+      html: clientHTML,
+    });
+    if (clientError) {
+      console.error(`[EMAIL REMINDER] Errore email cliente:`, clientError);
+    } else {
+      console.log(`[EMAIL REMINDER] ✅ Reminder ${type} inviato a ${userEmail}`);
+    }
+
+    const { error: adminError } = await resend.emails.send({
+      from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [ADMIN_EMAIL],
+      subject: adminSubject,
+      html: adminHTML,
+    });
+    if (adminError) {
+      console.error(`[EMAIL REMINDER] Errore email admin:`, adminError);
+    } else {
+      console.log(`[EMAIL REMINDER] ✅ Reminder ${type} inviato ad admin`);
+    }
+
+    return true;
+  } catch (err: any) {
+    console.error(`[EMAIL REMINDER] ❌ ERRORE:`, err?.message || err);
+    return false;
+  }
+}
+
+/**
+ * Invia email di richiesta rimborso al cliente e all'admin
+ */
+interface RefundRequestData {
+  name: string;
+  email: string;
+  phone?: string;
+  orderId: string;
+  message: string;
+}
+
+export async function sendRefundRequestEmail(data: RefundRequestData): Promise<boolean> {
+  const { name, email, phone, orderId, message } = data;
+  const shortId = orderId.trim().toUpperCase();
+
+  console.log(`[EMAIL REFUND] Invio email richiesta rimborso ordine #${shortId} da ${email}`);
+
+  if (SIMULATION_MODE) {
+    console.log('=== SIMULAZIONE REFUND REQUEST EMAIL ===', { orderId, email });
+    return true;
+  }
+
+  if (!resend) {
+    console.log('=== SIMULAZIONE REFUND REQUEST EMAIL (resend=null) ===', { orderId });
+    return true;
+  }
+
+  try {
+    // Email al cliente
+    const { error: clientError } = await resend.emails.send({
+      from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [email],
+      subject: `📋 Richiesta di rimborso ricevuta - Ordine #${shortId}`,
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); padding: 40px 30px; text-align: center;">
+              <div style="font-size: 50px; margin-bottom: 15px;">📋</div>
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">
+                Richiesta di rimborso ricevuta
+              </h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">
+                Ordine #${shortId}
+              </p>
+            </div>
+            <div style="padding: 35px 30px;">
+              <p style="color: #4a4a4a; font-size: 16px; line-height: 1.7; margin: 0 0 25px 0;">
+                Ciao <strong>${name}</strong>, abbiamo ricevuto la tua richiesta di rimborso per l'ordine <strong>#${shortId}</strong>.
+              </p>
+
+              <table style="width: 100%; border-collapse: collapse; background: #fff3e0; border-radius: 8px; margin-bottom: 25px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <h3 style="color: #e65100; font-size: 16px; margin: 0 0 12px 0;">📝 La tua richiesta</h3>
+                    <p style="color: #4a4a4a; font-size: 14px; line-height: 1.7; margin: 0; white-space: pre-wrap;">${message}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <table style="width: 100%; border-collapse: collapse; background: #e3f2fd; border-left: 4px solid #1976d2; border-radius: 0 8px 8px 0; margin-bottom: 25px;">
+                <tr>
+                  <td style="padding: 15px 20px;">
+                    <p style="color: #1565c0; font-size: 14px; margin: 0;">
+                      ⏰ Il nostro team esaminerà la tua richiesta e ti risponderà entro <strong>48 ore lavorative</strong>.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color: #4a4a4a; font-size: 14px; line-height: 1.6; margin: 0;">
+                Se hai bisogno di ulteriori informazioni, rispondi a questa email o contattaci tramite il nostro sito.
+              </p>
+            </div>
+            <div style="background: #1a1a1a; padding: 25px 30px; text-align: center;">
+              <p style="color: #FFD100; font-size: 14px; margin: 0 0 8px 0; font-weight: 600;">🏋️ Big Gimmy Integratori</p>
+              <p style="color: #888; font-size: 12px; margin: 0 0 10px 0;">Siamo qui per aiutarti!</p>
+              <p style="color: #666; font-size: 11px; margin: 0;">© ${new Date().getFullYear()} Big Gimmy Integratori - Tutti i diritti riservati</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (clientError) {
+      console.error(`[EMAIL REFUND] Errore email cliente:`, clientError);
+    } else {
+      console.log(`[EMAIL REFUND] ✅ Email richiesta rimborso inviata a ${email}`);
+    }
+
+    // Email all'admin
+    const { error: adminError } = await resend.emails.send({
+      from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [ADMIN_EMAIL],
+      subject: `🔴 Richiesta di Rimborso - Ordine #${shortId} - ${name}`,
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(135deg, #d32f2f 0%, #c62828 100%); padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 20px;">🔴 Nuova Richiesta di Rimborso</h1>
+            </div>
+            <div style="padding: 30px;">
+              <p style="color: #4a4a4a; font-size: 15px; line-height: 1.7; margin: 0 0 20px 0;">
+                Il cliente <strong>${name}</strong> ha richiesto un rimborso per l'ordine <strong>#${shortId}</strong>.
+              </p>
+
+              <table style="width: 100%; border-collapse: collapse; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                <tr>
+                  <td style="padding: 15px 20px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px; width: 100px;">Cliente:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">${name}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Email:</td>
+                        <td style="padding: 5px 0; font-size: 14px;"><a href="mailto:${email}" style="color: #1976d2; text-decoration: none;">${email}</a></td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Telefono:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px;">${phone || 'Non fornito'}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Ordine:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">#${shortId}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <h3 style="color: #1a1a1a; font-size: 14px; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px;">💬 Motivo della richiesta</h3>
+              <div style="background: #ffebee; border-left: 4px solid #d32f2f; padding: 15px 20px; border-radius: 0 8px 8px 0; margin-bottom: 20px;">
+                <p style="color: #333; font-size: 14px; line-height: 1.7; margin: 0; white-space: pre-wrap;">${message}</p>
+              </div>
+
+              <table style="width: 100%; border-collapse: collapse; background: #fff3e0; border-left: 4px solid #ff9800; border-radius: 0 8px 8px 0; margin-bottom: 20px;">
+                <tr>
+                  <td style="padding: 12px 20px;">
+                    <p style="color: #e65100; font-size: 14px; font-weight: 600; margin: 0;">
+                      ⚠️ Lo stato dell'ordine è stato aggiornato a "Richiesta di rimborso". Gestisci la richiesta dalla dashboard.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="text-align: center; margin-top: 25px;">
+                <a href="mailto:${email}?subject=Re: Richiesta rimborso ordine %23${shortId}"
+                   style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; margin-right: 10px;">
+                  ✉️ Rispondi al cliente
+                </a>
+              </div>
+            </div>
+            <div style="background: #f5f5f5; padding: 15px 30px; text-align: center;">
+              <p style="color: #888; font-size: 12px; margin: 0;">Big Gimmy Integratori - Notifica Admin</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (adminError) {
+      console.error(`[EMAIL REFUND] Errore email admin:`, adminError);
+    } else {
+      console.log(`[EMAIL REFUND] ✅ Notifica rimborso inviata ad admin`);
+    }
+
+    return true;
+  } catch (err: any) {
+    console.error(`[EMAIL REFUND] ❌ ERRORE:`, err?.message || err);
+    return false;
+  }
 }

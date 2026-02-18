@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Package, Clock, CheckCircle, AlertCircle, ChevronDown, ShoppingBag, ArrowLeft, ExternalLink, Truck, MapPin, FileText, CreditCard, Loader2, Download } from "lucide-react";
+import { Package, Clock, CheckCircle, AlertCircle, ChevronDown, ShoppingBag, ArrowLeft, ExternalLink, Truck, MapPin, FileText, CreditCard, Loader2, Download, Store } from "lucide-react";
+import { STORE_INFO, type PickupStore } from "@/components/cart/CheckoutFulfillmentModal";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -39,6 +40,8 @@ interface Order {
   updatedAt: string;
   trackingNumber?: string | null;
   carrier?: string | null;
+  fulfillmentType?: string;
+  pickupStore?: string;
 }
 
 const formatPrice = (cents: number) => {
@@ -130,6 +133,15 @@ const getStatusInfo = (status: string) => {
         borderColor: 'border-green-300',
         accentColor: 'bg-green-500'
       };
+    case 'pronto_per_ritiro':
+      return {
+        label: 'Pronto per il ritiro',
+        icon: Store,
+        bgColor: 'bg-orange-100',
+        textColor: 'text-orange-700',
+        borderColor: 'border-orange-300',
+        accentColor: 'bg-orange-500'
+      };
     case 'cancellato':
       return {
         label: 'Cancellato',
@@ -192,7 +204,7 @@ function OrderCard({ order }: { order: Order }) {
   const carrierLabel = order.carrier ? carrierOptions[order.carrier]?.label || order.carrier : null;
 
   // Verifica se l'ordine ha una fattura scaricabile (ordini pagati)
-  const canDownloadInvoice = ['pagato', 'spedito', 'in_attesa_di_consegna', 'consegnato'].includes(order.status);
+  const canDownloadInvoice = ['pagato', 'spedito', 'in_attesa_di_consegna', 'consegnato', 'pronto_per_ritiro'].includes(order.status);
 
   // Verifica se l'ordine è in attesa di pagamento
   const isPendingPayment = order.status === 'in_attesa_di_pagamento';
@@ -334,8 +346,63 @@ function OrderCard({ order }: { order: Order }) {
       {/* Expanded content */}
       <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'}`}>
         <div className="border-t border-gray-100">
-          {/* Shipping address */}
-          {order.shippingAddress && (
+          {/* Shipping address or Pickup store info */}
+          {order.fulfillmentType === 'ritiro' && order.pickupStore ? (
+            <div className="p-5 border-b border-gray-100">
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Store className="w-3.5 h-3.5" />
+                Ritiro in negozio
+              </h4>
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                {(() => {
+                  const storeInfo = STORE_INFO[order.pickupStore as PickupStore];
+                  if (!storeInfo) return null;
+                  return (
+                    <>
+                      <p className="font-semibold text-gray-900">{storeInfo.name}</p>
+                      <div className="flex items-center gap-1.5 text-sm text-gray-600 mt-1">
+                        <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span>{storeInfo.address}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-sm text-gray-500 mt-0.5">
+                        <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span>{storeInfo.hours}</span>
+                      </div>
+                    </>
+                  );
+                })()}
+                {order.status === 'pagato' && (
+                  <p className="text-sm text-blue-700 mt-3 font-medium">
+                    Ti invieremo un'email quando il tuo ordine sarà pronto per il ritiro.
+                  </p>
+                )}
+                {order.status === 'pronto_per_ritiro' && (
+                  <div className="mt-3 space-y-1">
+                    <p className="text-sm text-orange-700 font-medium">
+                      Il tuo ordine è pronto! Passa a ritirarlo negli orari di apertura.
+                    </p>
+                    <p className="text-xs text-orange-600">
+                      Hai 7 giorni di tempo per ritirare il tuo ordine.
+                    </p>
+                  </div>
+                )}
+                {order.status === 'consegnato' && order.fulfillmentType === 'ritiro' && (
+                  <p className="text-sm text-green-700 mt-3 font-medium">
+                    Ordine ritirato con successo.
+                  </p>
+                )}
+              </div>
+              {order.notes && (
+                <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <p className="text-xs font-medium text-yellow-800 flex items-center gap-1 mb-1">
+                    <FileText className="w-3 h-3" />
+                    Note
+                  </p>
+                  <p className="text-sm text-yellow-700">{order.notes}</p>
+                </div>
+              )}
+            </div>
+          ) : order.shippingAddress && (
             <div className="p-5 border-b border-gray-100">
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <MapPin className="w-3.5 h-3.5" />
@@ -497,27 +564,29 @@ function OrderCard({ order }: { order: Order }) {
               </div>
             )}
 
-            {/* Tasto Tracciamento - solo se c'è tracking e non è in attesa */}
-            {!isPendingPayment && trackingUrl ? (
-              <a
-                href={trackingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block"
-              >
-                <Button
-                  variant="outline"
-                  className="w-full flex items-center justify-center gap-2 border-[#FFD100] text-black hover:bg-[#FFD100]/10"
+            {/* Tasto Tracciamento - solo per spedizioni, non per ritiri */}
+            {order.fulfillmentType !== 'ritiro' && (
+              !isPendingPayment && trackingUrl ? (
+                <a
+                  href={trackingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block"
                 >
-                  <ExternalLink className="w-4 h-4" />
-                  Traccia su {carrierLabel}
-                </Button>
-              </a>
-            ) : !isPendingPayment && (
-              <div className="text-center text-sm text-gray-500 py-2">
-                <Clock className="w-4 h-4 inline mr-1" />
-                Tracciamento non ancora disponibile
-              </div>
+                  <Button
+                    variant="outline"
+                    className="w-full flex items-center justify-center gap-2 border-[#FFD100] text-black hover:bg-[#FFD100]/10"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Traccia su {carrierLabel}
+                  </Button>
+                </a>
+              ) : !isPendingPayment && (
+                <div className="text-center text-sm text-gray-500 py-2">
+                  <Clock className="w-4 h-4 inline mr-1" />
+                  Tracciamento non ancora disponibile
+                </div>
+              )
             )}
           </div>
         </div>

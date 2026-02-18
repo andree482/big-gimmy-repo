@@ -19,6 +19,8 @@ export const contacts = pgTable("contacts", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
+  requestType: text("request_type").default("informazioni"),
+  orderId: text("order_id"),
   message: text("message").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -27,6 +29,8 @@ export const insertContactSchema = createInsertSchema(contacts).pick({
   name: true,
   email: true,
   phone: true,
+  requestType: true,
+  orderId: true,
   message: true,
 });
 

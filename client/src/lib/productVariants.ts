@@ -839,7 +839,7 @@ const vitaminVariants: Record<string, ProductVariant[]> = {
       inStock: true,
     },
   ],
-  "drenante-why-sport": [
+  "drenante-why-nature": [
     {
       flavor: "Naturale",
       size: "60 compresse",
@@ -1194,19 +1194,19 @@ const vitaminVariants: Record<string, ProductVariant[]> = {
       inStock: true,
     },
   ],
-  "say-protein-221": [
+  "soy-protein-221": [
     {
       flavor: "Cacao",
       size: "750g",
       price: 41.99,
-      image: "/images/products/say-protein-221-cacao-750g.jpg",
+      image: "/images/SAY-PROTEIN-221-CACAO-fronte.jpg",
       inStock: true,
     },
     {
       flavor: "Nocciola",
       size: "750g",
       price: 41.99,
-      image: "/images/products/say-protein-221-nocciola-750g.jpg",
+      image: "/images/SAY-PROTEIN-221-NOCCIOLA-fronte.jpg",
       inStock: true,
     },
   ],

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage.ts";
 import { insertContactSchema } from "@shared/schema";
 import { z } from "zod";
-import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply, sendTrackingEmail, sendWelcomeEmail, sendOrderConfirmationEmail, sendAdminOrderNotification, sendPasswordChangedEmail } from './services/email.ts';
+import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply, sendTrackingEmail, sendWelcomeEmail, sendOrderConfirmationEmail, sendAdminOrderNotification, sendPasswordChangedEmail, sendRefundRequestEmail, sendPickupReadyEmail, sendOrderDeliveredEmail } from './services/email.ts';
 import { syncAllImages } from "./utils/imageSync.ts";
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
@@ -1701,6 +1701,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updated_at,
           tracking_number,
           carrier,
+          fulfillment_type,
+          pickup_store,
+          pickup_ready_at,
+          pickup_collected_at,
           users:user_id (email)
         `)
         .order("created_at", { ascending: false });
@@ -1807,7 +1811,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             updated_at: order.updated_at,
             user_email: order.users?.email || null,
             tracking_number: order.tracking_number || null,
-            carrier: order.carrier || null
+            carrier: order.carrier || null,
+            fulfillment_type: order.fulfillment_type || 'spedizione',
+            pickup_store: order.pickup_store || null,
+            pickup_ready_at: order.pickup_ready_at || null,
+            pickup_collected_at: order.pickup_collected_at || null,
           };
         })
       );
@@ -1861,32 +1869,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all contacts endpoint (for admin purposes)
   // ROTTA PER RICEVERE IL MESSAGGIO DAL FORM (POST)
 app.post("/api/contact", async (req: Request, res: Response) => {
+  const formData = req.body;
+  console.log(`[CONTACT] Nuova richiesta - tipo: "${formData?.requestType}", orderId: "${formData?.orderId}", email: "${formData?.email}"`);
+
+  // 1. Salva nel DB in try-catch separato: non blocca il flusso se fallisce
+  let newContact: any = null;
   try {
-    const formData = req.body; // Riceve nome, email, messaggio dal frontend
+    newContact = await storage.createContact(formData);
+    console.log(`[CONTACT] Contatto salvato nel DB: id=${newContact?.id}`);
+  } catch (dbErr: any) {
+    console.error("[CONTACT] Errore salvataggio DB (non bloccante):", dbErr?.message || dbErr);
+  }
 
-    // 1. Salviamo il contatto nel database (se il tuo storage lo prevede)
-    const newContact = await storage.createContact(formData);
+  try {
+    // 2. Gestione rimborso
+    if (formData.requestType === 'richiesta_di_rimborso') {
+      console.log(`[CONTACT RIMBORSO] Avvio gestione rimborso per ordine "${formData.orderId}"`);
 
-    // 2. INVIO EMAIL (Usando le funzioni che abbiamo sistemato in email.ts)
-    // Inviamo la notifica a te (Admin) e la conferma al cliente
-    const adminEmailPromise = sendAdminNotification(formData);
-    const userEmailPromise = sendUserConfirmation(formData);
+      if (!formData.orderId || formData.orderId.trim().length === 0) {
+        return res.status(400).json({ success: false, message: "Numero ordine obbligatorio per richiesta di rimborso." });
+      }
 
-    // Aspettiamo che le email vengano inviate
-    await Promise.all([adminEmailPromise, userEmailPromise]);
+      // Aggiorna stato ordine
+      if (supabaseAdmin) {
+        try {
+          const searchId = formData.orderId.trim().toUpperCase();
+          console.log(`[CONTACT RIMBORSO] Ricerca ordine con short ID: "${searchId}"`);
 
-    return res.status(201).json({ 
-      success: true, 
+          // Prova prima ricerca esatta per gli ultimi 8 caratteri
+          const { data: orders, error: searchError } = await (supabaseAdmin as any)
+            .from("orders")
+            .select("id, status")
+            .ilike("id", `%${searchId}%`);
+
+          if (searchError) {
+            console.error("[CONTACT RIMBORSO] Errore ricerca ordine:", searchError);
+          } else if (orders && orders.length > 0) {
+            const order = orders[0];
+            console.log(`[CONTACT RIMBORSO] Ordine trovato: ${order.id} (stato attuale: ${order.status})`);
+            const { error: updateError } = await (supabaseAdmin as any)
+              .from("orders")
+              .update({ status: "richiesta_di_rimborso", updated_at: new Date().toISOString() })
+              .eq("id", order.id);
+            if (updateError) {
+              console.error("[CONTACT RIMBORSO] Errore aggiornamento stato:", updateError);
+            } else {
+              console.log(`[CONTACT RIMBORSO] ✅ Ordine ${order.id} aggiornato a richiesta_di_rimborso`);
+            }
+          } else {
+            console.warn(`[CONTACT RIMBORSO] ⚠️ Nessun ordine trovato con ID contenente "${searchId}"`);
+          }
+        } catch (dbError: any) {
+          console.error("[CONTACT RIMBORSO] Errore DB:", dbError?.message || dbError);
+        }
+      } else {
+        console.warn("[CONTACT RIMBORSO] supabaseAdmin non disponibile, salto aggiornamento stato");
+      }
+
+      // Invia email rimborso (cliente + admin)
+      console.log(`[CONTACT RIMBORSO] Invio email rimborso a ${formData.email}...`);
+      await sendRefundRequestEmail({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        orderId: formData.orderId,
+        message: formData.message,
+      });
+      console.log(`[CONTACT RIMBORSO] ✅ Email rimborso inviata`);
+
+      return res.status(201).json({
+        success: true,
+        message: "Richiesta di rimborso inviata con successo!",
+        contact: newContact,
+      });
+    }
+
+    // 3. Email standard per tutte le altre richieste
+    console.log(`[CONTACT] Invio email standard (admin + cliente)...`);
+    await Promise.all([
+      sendAdminNotification(formData),
+      sendUserConfirmation(formData),
+    ]);
+    console.log(`[CONTACT] ✅ Email standard inviate`);
+
+    return res.status(201).json({
+      success: true,
       message: "Messaggio inviato e salvato con successo!",
-      contact: newContact 
+      contact: newContact,
+      emailStatus: { adminNotified: true, userConfirmationSent: true, simulationMode: false },
     });
 
-  } catch (error) {
-    console.error("Error in contact form:", error);
-    return res.status(500).json({ 
-      success: false, 
-      message: "Errore durante l'invio del messaggio" 
-    });
+  } catch (error: any) {
+    console.error("[CONTACT] Errore:", error?.message || error);
+    return res.status(500).json({ success: false, message: "Errore durante l'invio del messaggio" });
   }
 });
 
@@ -2877,7 +2952,9 @@ app.post("/api/contact", async (req: Request, res: Response) => {
           created_at,
           updated_at,
           tracking_number,
-          carrier
+          carrier,
+          fulfillment_type,
+          pickup_store
         `)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
@@ -2996,7 +3073,9 @@ app.post("/api/contact", async (req: Request, res: Response) => {
             createdAt: order.created_at,
             updatedAt: order.updated_at,
             trackingNumber: order.tracking_number || null,
-            carrier: order.carrier || null
+            carrier: order.carrier || null,
+            fulfillmentType: order.fulfillment_type || 'spedizione',
+            pickupStore: order.pickup_store || null,
           };
         })
       );
@@ -4608,8 +4687,16 @@ app.post("/api/contact", async (req: Request, res: Response) => {
           return res.status(401).json({ success: false, message: "Non autenticato" });
         }
 
-        // Recupera indirizzo spedizione e note dal body
-        const { shipping_address_id, notes } = req.body || {};
+        // Recupera indirizzo spedizione, note e fulfillment type dal body
+        const { shipping_address_id, notes, fulfillment_type, pickup_store } = req.body || {};
+
+        // Validazione fulfillment_type
+        const fulfillmentType: string = fulfillment_type === 'ritiro' ? 'ritiro' : 'spedizione';
+        const pickupStore: string | null = fulfillmentType === 'ritiro' && ['torino', 'aosta'].includes(pickup_store) ? pickup_store : null;
+
+        if (fulfillmentType === 'ritiro' && !pickupStore) {
+          return res.status(400).json({ success: false, message: "Seleziona un negozio per il ritiro" });
+        }
 
         let items: any[] = [];
         if (supabaseAdmin && user?.id) {
@@ -4706,8 +4793,8 @@ app.post("/api/contact", async (req: Request, res: Response) => {
         // Applica sconto 10%
         const totalAfterDiscount = Math.round(subtotalCents * 0.90);
 
-        // Spedizione: gratis sopra 160 EUR, altrimenti 12 EUR
-        const shippingCents = totalAfterDiscount >= 16000 ? 0 : 1200;
+        // Spedizione: gratis se ritiro, gratis sopra 160 EUR, altrimenti 12 EUR
+        const shippingCents = fulfillmentType === 'ritiro' ? 0 : (totalAfterDiscount >= 16000 ? 0 : 1200);
 
         const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((i) => {
           const priceCents = typeof i.price_cents === "number" ? i.price_cents : Math.round(Number(i.price) * 100);
@@ -4726,8 +4813,8 @@ app.post("/api/contact", async (req: Request, res: Response) => {
           };
         });
 
-        // Aggiungi spedizione come line item se necessario
-        if (shippingCents > 0) {
+        // Aggiungi spedizione come line item se necessario (non per ritiro in negozio)
+        if (shippingCents > 0 && fulfillmentType === 'spedizione') {
           line_items.push({
             price_data: {
               currency: "eur",
@@ -4759,11 +4846,13 @@ app.post("/api/contact", async (req: Request, res: Response) => {
               .from("orders")
               .insert({
                 user_id: user.id,
-                shipping_address_id: shipping_address_id ? parseInt(shipping_address_id) : null,
+                shipping_address_id: fulfillmentType === 'spedizione' && shipping_address_id ? parseInt(shipping_address_id) : null,
                 status: "in_attesa_di_pagamento",
                 currency: "EUR",
                 total_cents: totalOrderCents,
                 notes: notes || null,
+                fulfillment_type: fulfillmentType,
+                pickup_store: pickupStore,
               })
               .select("id")
               .single();
@@ -4816,9 +4905,11 @@ app.post("/api/contact", async (req: Request, res: Response) => {
           metadata: {
             user_id: user.id,
             order_id: orderId || "",
-            shipping_address_id: shipping_address_id ? String(shipping_address_id) : "",
+            shipping_address_id: fulfillmentType === 'spedizione' && shipping_address_id ? String(shipping_address_id) : "",
             cart_items: cartItemsJson,
             notes: notes ? String(notes).slice(0, 500) : "",
+            fulfillment_type: fulfillmentType,
+            pickup_store: pickupStore || "",
           },
         });
 
@@ -4892,12 +4983,20 @@ app.post("/api/contact", async (req: Request, res: Response) => {
             .single();
 
           if (userData?.email) {
+            // Genera tracking URL in base al corriere
+            let trackingUrl = '';
+            const carrierLower = (carrier || '').toLowerCase();
+            if (carrierLower === 'bartolini' || carrierLower === 'brt') {
+              trackingUrl = `https://vas.brt.it/vas/sped_det_show.hsm?referer=sped_numspe_par.htm&lingua=IT&numero_spedizione=${tracking_number}`;
+            }
+
             await sendTrackingEmail({
               orderId: orderId,
               userEmail: userData.email,
               userName: userData.first_name || userData.email.split('@')[0],
               trackingNumber: tracking_number,
-              carrier: carrier
+              carrier: carrier,
+              trackingUrl: trackingUrl
             });
             console.log(`[TRACKING] Email tracciamento inviata a ${userData.email} per ordine ${orderId}`);
           }
@@ -4923,7 +5022,8 @@ app.post("/api/contact", async (req: Request, res: Response) => {
       // Valori enum validi per lo status (italiano snake_case)
       const validStatuses = [
         'pagato', 'in_attesa_di_pagamento', 'spedito', 'in_attesa_di_consegna',
-        'consegnato', 'cancellato', 'fallito', 'richiesta_di_rimborso', 'rimborsato'
+        'consegnato', 'cancellato', 'fallito', 'richiesta_di_rimborso', 'rimborsato',
+        'pronto_per_ritiro'
       ];
 
       if (!status || !validStatuses.includes(status)) {
@@ -4937,12 +5037,32 @@ app.post("/api/contact", async (req: Request, res: Response) => {
         return res.status(500).json({ success: false, message: "Database non configurato" });
       }
 
+      // Se lo stato è "consegnato", gestisci pickup_collected_at per ordini ritiro
+      const updateData: any = {
+        status: status,
+        updated_at: new Date().toISOString()
+      };
+
+      // Se è pronto_per_ritiro, salva pickup_ready_at
+      if (status === 'pronto_per_ritiro') {
+        updateData.pickup_ready_at = new Date().toISOString();
+      }
+
+      // Se è un ordine ritiro che viene segnato come consegnato, salva pickup_collected_at
+      if (status === 'consegnato') {
+        const { data: orderCheck } = await (supabaseAdmin as any)
+          .from("orders")
+          .select("fulfillment_type")
+          .eq("id", orderId)
+          .single();
+        if (orderCheck?.fulfillment_type === 'ritiro') {
+          updateData.pickup_collected_at = new Date().toISOString();
+        }
+      }
+
       const { error } = await (supabaseAdmin as any)
         .from("orders")
-        .update({
-          status: status,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq("id", orderId);
 
       if (error) {
@@ -4950,9 +5070,214 @@ app.post("/api/contact", async (req: Request, res: Response) => {
         return res.status(500).json({ success: false, message: "Errore aggiornamento stato" });
       }
 
+      // Se lo stato diventa "pronto_per_ritiro", invia email al cliente e all'admin
+      if (status === 'pronto_per_ritiro') {
+        try {
+          const { data: order } = await (supabaseAdmin as any)
+            .from("orders")
+            .select("id, user_id, fulfillment_type, pickup_store")
+            .eq("id", orderId)
+            .single();
+
+          if (order && order.fulfillment_type === 'ritiro' && order.pickup_store) {
+            const { data: userData } = await (supabaseAdmin as any)
+              .from("users")
+              .select("email, first_name")
+              .eq("id", order.user_id)
+              .single();
+
+            if (userData?.email) {
+              await sendPickupReadyEmail({
+                orderId: order.id,
+                userEmail: userData.email,
+                userName: userData.first_name || userData.email.split('@')[0],
+                pickupStore: order.pickup_store,
+              });
+            }
+          }
+        } catch (emailError) {
+          console.error("[STATUS] Errore invio email pronto per ritiro:", emailError);
+        }
+      }
+
+      // Se lo stato diventa "consegnato", invia email di consegna al cliente e all'admin
+      if (status === 'consegnato') {
+        try {
+          const { data: order } = await (supabaseAdmin as any)
+            .from("orders")
+            .select("id, user_id, fulfillment_type, pickup_store, total_cents, tracking_number, carrier")
+            .eq("id", orderId)
+            .single();
+
+          if (order) {
+            const { data: userData } = await (supabaseAdmin as any)
+              .from("users")
+              .select("email, first_name")
+              .eq("id", order.user_id)
+              .single();
+
+            if (userData?.email) {
+              await sendOrderDeliveredEmail({
+                orderId: order.id,
+                userEmail: userData.email,
+                userName: userData.first_name || userData.email.split('@')[0],
+                fulfillmentType: order.fulfillment_type || 'spedizione',
+                pickupStore: order.pickup_store,
+                trackingNumber: order.tracking_number,
+                carrier: order.carrier,
+              });
+            }
+          }
+        } catch (emailError) {
+          console.error("[STATUS] Errore invio email consegna:", emailError);
+        }
+      }
+
       return res.json({ success: true, message: "Stato ordine aggiornato" });
     } catch (err) {
       console.error("[STATUS] Errore PUT /api/admin/orders/:orderId/status:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // ================================
+  // RITIRO IN NEGOZIO - ENDPOINT ADMIN
+  // ================================
+
+  // PUT segna ordine come "pronto per il ritiro" + invia email al cliente
+  app.put("/api/admin/orders/:orderId/ready-for-pickup", ensureAuth, ensureAdmin, async (req: Request, res: Response) => {
+    try {
+      const { orderId } = req.params;
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      // Verifica che l'ordine sia di tipo ritiro e in stato pagato
+      const { data: order, error: fetchError } = await (supabaseAdmin as any)
+        .from("orders")
+        .select("id, user_id, fulfillment_type, pickup_store, status, total_cents")
+        .eq("id", orderId)
+        .single();
+
+      if (fetchError || !order) {
+        return res.status(404).json({ success: false, message: "Ordine non trovato" });
+      }
+
+      if (order.fulfillment_type !== 'ritiro') {
+        return res.status(400).json({ success: false, message: "Questo ordine non è di tipo ritiro" });
+      }
+
+      if (order.status !== 'pagato') {
+        return res.status(400).json({ success: false, message: "L'ordine deve essere in stato 'pagato' per segnarlo come pronto" });
+      }
+
+      // Aggiorna stato
+      const { error: updateError } = await (supabaseAdmin as any)
+        .from("orders")
+        .update({
+          status: "pronto_per_ritiro",
+          pickup_ready_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderId);
+
+      if (updateError) {
+        console.error("[PICKUP] Errore aggiornamento pronto_per_ritiro:", updateError);
+        return res.status(500).json({ success: false, message: "Errore aggiornamento stato" });
+      }
+
+      // Invia email al cliente
+      try {
+        const { data: userData } = await (supabaseAdmin as any)
+          .from("users")
+          .select("email, first_name")
+          .eq("id", order.user_id)
+          .single();
+
+        if (userData?.email) {
+          await sendPickupReadyEmail({
+            orderId: order.id,
+            userEmail: userData.email,
+            userName: userData.first_name || userData.email.split('@')[0],
+            pickupStore: order.pickup_store,
+          });
+        }
+      } catch (emailError) {
+        console.error("[PICKUP] Errore invio email pronto per ritiro:", emailError);
+      }
+
+      return res.json({ success: true, message: "Ordine segnato come pronto per il ritiro" });
+    } catch (err) {
+      console.error("[PICKUP] Errore PUT ready-for-pickup:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // PUT conferma ritiro avvenuto (stato → consegnato + email)
+  app.put("/api/admin/orders/:orderId/confirm-pickup", ensureAuth, ensureAdmin, async (req: Request, res: Response) => {
+    try {
+      const { orderId } = req.params;
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      // Verifica che l'ordine sia pronto per il ritiro
+      const { data: order, error: fetchError } = await (supabaseAdmin as any)
+        .from("orders")
+        .select("id, user_id, fulfillment_type, pickup_store, status, total_cents, tracking_number, carrier")
+        .eq("id", orderId)
+        .single();
+
+      if (fetchError || !order) {
+        return res.status(404).json({ success: false, message: "Ordine non trovato" });
+      }
+
+      if (order.status !== 'pronto_per_ritiro') {
+        return res.status(400).json({ success: false, message: "L'ordine deve essere in stato 'pronto_per_ritiro' per confermare il ritiro" });
+      }
+
+      const { error: updateError } = await (supabaseAdmin as any)
+        .from("orders")
+        .update({
+          status: "consegnato",
+          pickup_collected_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderId);
+
+      if (updateError) {
+        console.error("[PICKUP] Errore aggiornamento consegnato:", updateError);
+        return res.status(500).json({ success: false, message: "Errore aggiornamento stato" });
+      }
+
+      // Invia email di consegna al cliente e all'admin
+      try {
+        const { data: userData } = await (supabaseAdmin as any)
+          .from("users")
+          .select("email, first_name")
+          .eq("id", order.user_id)
+          .single();
+
+        if (userData?.email) {
+          await sendOrderDeliveredEmail({
+            orderId: order.id,
+            userEmail: userData.email,
+            userName: userData.first_name || userData.email.split('@')[0],
+            fulfillmentType: 'ritiro',
+            pickupStore: order.pickup_store,
+            trackingNumber: order.tracking_number,
+            carrier: order.carrier,
+          });
+        }
+      } catch (emailError) {
+        console.error("[PICKUP] Errore invio email consegna:", emailError);
+      }
+
+      return res.json({ success: true, message: "Ritiro confermato, ordine consegnato" });
+    } catch (err) {
+      console.error("[PICKUP] Errore PUT confirm-pickup:", err);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });

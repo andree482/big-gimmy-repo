@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Heart, ShoppingCart, User, LogOut, Settings } from "lucide-react";
+import { Menu, X, Heart, ShoppingCart, User, LogOut, Settings, Users, BarChart3 } from "lucide-react";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 import Logo from "../ui/Logo";
 import { useAuth } from "@/hooks/useAuth";
@@ -199,9 +199,15 @@ const Navbar = () => {
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem asChild>
+                        <Link href="/admin/ordini" onClick={handleNavClick}>
+                          <BarChart3 className="mr-2 h-4 w-4" />
+                          <span>Gestione Ordini</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
                         <Link href="/admin/users" onClick={handleNavClick}>
-                          <Settings className="mr-2 h-4 w-4" />
-                          <span>Gestionale Admin</span>
+                          <Users className="mr-2 h-4 w-4" />
+                          <span>Gestione Utenti</span>
                         </Link>
                       </DropdownMenuItem>
                     </>
@@ -307,17 +313,30 @@ const Navbar = () => {
                   {user?.firstName || user?.email}
                 </div>
                 {user?.isAdmin && (
-                  <Link
-                    href="/admin/ordini"
-                    onClick={() => {
-                      handleNavClick();
-                      setMobileMenuOpen(false);
-                    }}
-                    className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
-                  >
-                    <Settings className="w-5 h-5" />
-                    Gestione Ordini
-                  </Link>
+                  <>
+                    <Link
+                      href="/admin/ordini"
+                      onClick={() => {
+                        handleNavClick();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                    >
+                      <BarChart3 className="w-5 h-5" />
+                      Gestione Ordini
+                    </Link>
+                    <Link
+                      href="/admin/users"
+                      onClick={() => {
+                        handleNavClick();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                    >
+                      <Users className="w-5 h-5" />
+                      Gestione Utenti
+                    </Link>
+                  </>
                 )}
                 <button
                   onClick={handleLogout}

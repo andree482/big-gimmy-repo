@@ -9,14 +9,32 @@ import { stores } from "@/lib/constants";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
 import { Link } from "wouter";
 
+const REQUEST_TYPES = [
+  { value: "informazioni", label: "Informazioni generali" },
+  { value: "prodotti", label: "Informazioni sui prodotti" },
+  { value: "ordine", label: "Informazioni su un ordine" },
+  { value: "richiesta_di_rimborso", label: "Richiesta di rimborso" },
+  { value: "altro", label: "Altro" },
+];
+
 const contactSchema = z.object({
   name: z.string().min(3, { message: "Il nome deve essere di almeno 3 caratteri." }),
   email: z.string().email({ message: "Inserisci un indirizzo email valido." }),
   phone: z.string().min(5, { message: "Inserisci un numero di telefono valido." }),
+  requestType: z.string().default("informazioni"),
+  orderId: z.string().optional(),
   message: z.string().min(10, { message: "Il messaggio deve essere di almeno 10 caratteri." }),
   privacy: z.boolean().refine((val) => val === true, {
     message: "Devi accettare la Privacy Policy per continuare.",
   }),
+}).refine((data) => {
+  if (data.requestType === "richiesta_di_rimborso" && (!data.orderId || data.orderId.trim().length === 0)) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Inserisci il numero dell'ordine per la richiesta di rimborso.",
+  path: ["orderId"],
 });
 
 type ContactFormValues = z.infer<typeof contactSchema>;
@@ -25,21 +43,26 @@ const Contact = () => {
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
 
-  const { 
-    register, 
-    handleSubmit, 
+  const {
+    register,
+    handleSubmit,
     reset,
-    formState: { errors } 
+    watch,
+    formState: { errors }
   } = useForm<ContactFormValues>({
     resolver: zodResolver(contactSchema),
     defaultValues: {
       name: "",
       email: "",
       phone: "",
+      requestType: "informazioni",
+      orderId: "",
       message: "",
       privacy: false,
     },
   });
+
+  const selectedRequestType = watch("requestType");
 
   const contactMutation = useMutation({
     mutationFn: (data: ContactFormValues) => {
@@ -53,6 +76,17 @@ const Contact = () => {
         simulationMode: false
       };
       
+      // Se è una richiesta di rimborso, mostra messaggio specifico
+      if (response.message?.includes('rimborso')) {
+        toast({
+          title: "Richiesta di rimborso inviata!",
+          description: "Abbiamo ricevuto la tua richiesta di rimborso. Ti risponderemo entro 48 ore lavorative.",
+        });
+        reset();
+        setSubmitting(false);
+        return;
+      }
+
       // Se siamo in modalità simulazione, mostriamo un messaggio appropriato
       if (emailStatus.simulationMode) {
         toast({
@@ -166,6 +200,41 @@ const Contact = () => {
                     <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
                   )}
                 </div>
+                <div className="mb-4">
+                  <label htmlFor="requestType" className="block font-montserrat font-semibold mb-2">
+                    Tipo di Richiesta
+                  </label>
+                  <select
+                    id="requestType"
+                    {...register("requestType")}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#FFD100] bg-white"
+                  >
+                    {REQUEST_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {(selectedRequestType === "richiesta_di_rimborso" || selectedRequestType === "ordine") && (
+                  <div className="mb-4">
+                    <label htmlFor="orderId" className="block font-montserrat font-semibold mb-2">
+                      Numero Ordine {selectedRequestType === "richiesta_di_rimborso" && <span className="text-red-500">*</span>}
+                    </label>
+                    <input
+                      type="text"
+                      id="orderId"
+                      placeholder="Es. AB12CD34"
+                      {...register("orderId")}
+                      className={`w-full px-4 py-2 border ${
+                        errors.orderId ? "border-red-500" : "border-gray-300"
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-[#FFD100]`}
+                    />
+                    {errors.orderId && (
+                      <p className="text-red-500 text-sm mt-1">{errors.orderId.message}</p>
+                    )}
+                  </div>
+                )}
                 <div className="mb-4">
                   <label htmlFor="message" className="block font-montserrat font-semibold mb-2">
                     Messaggio
