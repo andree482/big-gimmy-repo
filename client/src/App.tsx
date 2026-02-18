@@ -88,18 +88,6 @@ function App() {
         });
     }
 
-    // Configurazione Snipcart semplificata
-    const initSnipcart = () => {
-      if (window.Snipcart && window.Snipcart.api) {
-        window.Snipcart.api.session.setLanguage('it');
-        console.log('Snipcart initialized successfully');
-      } else {
-        // Retry dopo un breve delay
-        setTimeout(initSnipcart, 100);
-      }
-    };
-    
-    initSnipcart();
   }, []);
 
  

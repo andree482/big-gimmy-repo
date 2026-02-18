@@ -28,7 +28,6 @@ interface ShippingAddress {
 
 interface Order {
   id: string;
-  snipcartOrderId: string;
   stripeSessionId?: string | null;
   total: number;
   status: string;

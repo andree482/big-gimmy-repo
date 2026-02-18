@@ -45,7 +45,6 @@ interface ShippingAddress {
 interface Order {
   id: string;
   user_id: string;
-  snipcart_order_id: string;
   total: number;
   status: string;
   items: OrderItem[] | null;

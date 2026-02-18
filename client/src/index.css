@@ -1,5 +1,4 @@
 /* Font già caricati in index.html con preload per evitare CLS */
-@import './styles/snipcart-custom.css';
 
 @tailwind base;
 @tailwind components;

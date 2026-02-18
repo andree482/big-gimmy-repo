@@ -1313,7 +1313,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Sanitizza i dati rimuovendo informazioni sensibili
       const sanitized = (orders || []).map((o: any) => ({
         id: o.id,
-        snipcartOrderId: o.snipcart_order_id,
         total: o.total,
         status: o.status,
         items: o.items,
@@ -1801,7 +1800,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return {
             id: order.id,
             user_id: order.user_id,
-            snipcart_order_id: order.id,
             total: order.total_cents,
             status: order.status,
             items: formattedItems,
@@ -1894,30 +1892,35 @@ app.post("/api/contact", async (req: Request, res: Response) => {
       if (supabaseAdmin) {
         try {
           const searchId = formData.orderId.trim().toLowerCase();
-          console.log(`[CONTACT RIMBORSO] Ricerca ordine con short ID: "${searchId}"`);
+          console.log(`[CONTACT RIMBORSO] Ricerca ordine con ID: "${searchId}"`);
 
-          // Cast a testo per ricerca su colonna UUID
-          const { data: orders, error: searchError } = await (supabaseAdmin as any)
+          // Recupera tutti gli ordini e filtra lato JS per compatibilità con UUID e integer
+          const { data: allOrders, error: searchError } = await (supabaseAdmin as any)
             .from("orders")
-            .select("id, status")
-            .filter('id::text', 'ilike', `${searchId}%`);
+            .select("id, status");
 
           if (searchError) {
-            console.error("[CONTACT RIMBORSO] Errore ricerca ordine:", searchError);
-          } else if (orders && orders.length > 0) {
-            const order = orders[0];
-            console.log(`[CONTACT RIMBORSO] Ordine trovato: ${order.id} (stato attuale: ${order.status})`);
-            const { error: updateError } = await (supabaseAdmin as any)
-              .from("orders")
-              .update({ status: "richiesta_di_rimborso", updated_at: new Date().toISOString() })
-              .eq("id", order.id);
-            if (updateError) {
-              console.error("[CONTACT RIMBORSO] Errore aggiornamento stato:", updateError);
-            } else {
-              console.log(`[CONTACT RIMBORSO] ✅ Ordine ${order.id} aggiornato a richiesta_di_rimborso`);
-            }
+            console.error("[CONTACT RIMBORSO] Errore recupero ordini:", searchError);
           } else {
-            console.warn(`[CONTACT RIMBORSO] ⚠️ Nessun ordine trovato con ID contenente "${searchId}"`);
+            const order = (allOrders || []).find((o: any) => {
+              const orderId = String(o.id).toLowerCase();
+              return orderId === searchId || orderId.startsWith(searchId);
+            });
+
+            if (order) {
+              console.log(`[CONTACT RIMBORSO] Ordine trovato: ${order.id} (stato attuale: ${order.status})`);
+              const { error: updateError } = await (supabaseAdmin as any)
+                .from("orders")
+                .update({ status: "richiesta_di_rimborso", updated_at: new Date().toISOString() })
+                .eq("id", order.id);
+              if (updateError) {
+                console.error("[CONTACT RIMBORSO] Errore aggiornamento stato:", updateError);
+              } else {
+                console.log(`[CONTACT RIMBORSO] ✅ Ordine ${order.id} aggiornato a richiesta_di_rimborso`);
+              }
+            } else {
+              console.warn(`[CONTACT RIMBORSO] ⚠️ Nessun ordine trovato con ID "${searchId}"`);
+            }
           }
         } catch (dbError: any) {
           console.error("[CONTACT RIMBORSO] Errore DB:", dbError?.message || dbError);
@@ -3063,7 +3066,6 @@ app.post("/api/contact", async (req: Request, res: Response) => {
 
           return {
             id: order.id,
-            snipcartOrderId: order.stripe_session_id,
             stripeSessionId: order.stripe_session_id || null,
             total: order.total_cents,
             status: order.status,
