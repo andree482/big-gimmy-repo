@@ -99,7 +99,7 @@ async function exportPricesToGoogleSheets(spreadsheetId: string, sheetName: stri
       .orderBy(productOptions.productId);
 
     // Prepara i dati per Google Sheets
-    const headers = ['Product ID', 'Marca', 'Nome', 'Flavor', 'Unit', 'Current Price', 'New Price', 'Disponibile'];
+    const headers = ['ID Prodotto', 'Marca', 'Nome', 'Gusto', 'Unità', 'Prezzo Attuale', 'Prezzo Aggiornato', 'Disponibile'];
     const rows = allSizes.map(option => [
       option.productId,
       option.brandName,
