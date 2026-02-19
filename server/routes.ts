@@ -1,8 +1,19 @@
 import { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import multer from "multer";
 import { storage } from "./storage.ts";
 import { insertContactSchema } from "@shared/schema";
 import { z } from "zod";
+
+// Multer: memoria, max 5 MB, solo per la route /api/contact
+const uploadAttachment = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
 import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply, sendTrackingEmail, sendWelcomeEmail, sendOrderConfirmationEmail, sendAdminOrderNotification, sendPasswordChangedEmail, sendRefundRequestEmail, sendPickupReadyEmail, sendOrderDeliveredEmail, sendRefundCompletedEmail } from './services/email.ts';
 import { syncAllImages } from "./utils/imageSync.ts";
 import session from 'express-session';
@@ -1866,8 +1877,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get all contacts endpoint (for admin purposes)
   // ROTTA PER RICEVERE IL MESSAGGIO DAL FORM (POST)
-app.post("/api/contact", async (req: Request, res: Response) => {
+app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Request, res: Response) => {
   const formData = req.body;
+  const uploadedFile = (req as any).file as { originalname: string; buffer: Buffer; mimetype: string } | undefined;
   console.log(`[CONTACT] Nuova richiesta - tipo: "${formData?.requestType}", orderId: "${formData?.orderId}", email: "${formData?.email}"`);
 
   // 1. Salva nel DB in try-catch separato: non blocca il flusso se fallisce
@@ -1937,6 +1949,9 @@ app.post("/api/contact", async (req: Request, res: Response) => {
         phone: formData.phone,
         orderId: formData.orderId,
         message: formData.message,
+        attachment: uploadedFile
+          ? { filename: uploadedFile.originalname, content: uploadedFile.buffer }
+          : undefined,
       });
       console.log(`[CONTACT RIMBORSO] ✅ Email rimborso inviata`);
 

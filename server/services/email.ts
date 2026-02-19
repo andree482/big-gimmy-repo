@@ -1533,10 +1533,11 @@ interface RefundRequestData {
   phone?: string;
   orderId: string;
   message: string;
+  attachment?: { filename: string; content: Buffer };
 }
 
 export async function sendRefundRequestEmail(data: RefundRequestData): Promise<boolean> {
-  const { name, email, phone, orderId, message } = data;
+  const { name, email, phone, orderId, message, attachment } = data;
   const shortId = orderId.trim().toUpperCase();
 
   console.log(`[EMAIL REFUND] Invio email richiesta rimborso ordine #${shortId} da ${email}`);
@@ -1616,11 +1617,14 @@ export async function sendRefundRequestEmail(data: RefundRequestData): Promise<b
       console.log(`[EMAIL REFUND] ✅ Email richiesta rimborso inviata a ${email}`);
     }
 
-    // Email all'admin
+    // Email all'admin (con eventuale allegato)
     const { error: adminError } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
       subject: `🔴 Richiesta di Rimborso - Ordine #${shortId} - ${name}`,
+      ...(attachment && {
+        attachments: [{ filename: attachment.filename, content: attachment.content }],
+      }),
       html: `
         <!DOCTYPE html>
         <html lang="it">
