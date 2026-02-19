@@ -195,12 +195,10 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
         {label && <Label htmlFor={id}>{label}</Label>}
         <div className="flex gap-2">
           <Select value={countryCode} onValueChange={handleCountryChange}>
-            <SelectTrigger className="w-[110px] sm:w-[140px]">
+            <SelectTrigger className="w-[110px] sm:w-[140px] [&>span]:!flex [&>span]:items-center [&>span]:gap-1.5 [&>span]:overflow-visible">
               <SelectValue>
-                <span className="flex items-center gap-1.5">
-                  <span className="text-base leading-none">{currentCountry.flag}</span>
-                  <span className="text-sm">{currentCountry.code}</span>
-                </span>
+                <span className="text-base leading-none">{currentCountry.flag}</span>
+                <span className="text-sm">{currentCountry.code}</span>
               </SelectValue>
             </SelectTrigger>
             <SelectContent>

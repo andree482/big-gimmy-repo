@@ -429,17 +429,14 @@ export default function UserProfile({ onClose }: UserProfileProps) {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-2' : 'grid-cols-3'}`}>
           {!isAdmin && (
-            <TabsTrigger value="profile" className="flex items-center gap-2">
-              <User className="w-4 h-4" />
+            <TabsTrigger value="profile">
               Profilo
             </TabsTrigger>
           )}
-          <TabsTrigger value="addresses" className="flex items-center gap-2">
-            <MapPin className="w-4 h-4" />
+          <TabsTrigger value="addresses">
             Indirizzi
           </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
-            <Settings className="w-4 h-4" />
+          <TabsTrigger value="settings">
             Impostazioni
           </TabsTrigger>
         </TabsList>

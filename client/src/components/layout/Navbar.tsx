@@ -287,13 +287,14 @@ const Navbar = () => {
         }`}
       >
         <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col space-y-3">
+          <div className="flex flex-col">
+            {/* Nav links principali */}
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={handleNavClick}
-                className={`text-white hover:text-[#FFD100] transition-colors duration-200 py-2 font-montserrat font-semibold ${
+                className={`text-white hover:text-[#FFD100] transition-colors duration-200 py-2.5 font-montserrat font-semibold border-b border-white/10 ${
                   location === link.href ? "text-[#FFD100]" : ""
                 }`}
               >
@@ -301,143 +302,120 @@ const Navbar = () => {
               </Link>
             ))}
 
-            {/* Authentication Mobile */}
+            {/* Sezione utente */}
             {isLoading ? (
-              <div className="flex items-center gap-2 py-2 font-montserrat font-semibold text-white/80">
+              <div className="flex items-center gap-2 py-3 font-montserrat font-semibold text-white/80 border-b border-white/10">
                 <User className="w-5 h-5 animate-pulse" />
               </div>
             ) : isAuthenticated ? (
               <>
-                <div className="flex items-center gap-2 py-2 font-montserrat font-semibold text-[#FFD100]">
-                  <User className="w-5 h-5" />
-                  {user?.firstName || user?.email}
+                {/* Header utente */}
+                <div className="flex items-center justify-between py-3 mt-1">
+                  <div className="flex items-center gap-2 font-montserrat font-semibold text-[#FFD100]">
+                    <User className="w-5 h-5" />
+                    {user?.firstName || user?.email}
+                  </div>
+                  {/* Carrello + Preferiti in riga */}
+                  <div className="flex items-center gap-4">
+                    <Link
+                      href="/carrello"
+                      onClick={() => { handleNavClick(); setMobileMenuOpen(false); }}
+                      className={`relative transition-colors duration-200 ${location === "/carrello" ? "text-[#FFD100]" : "text-white hover:text-[#FFD100]"}`}
+                    >
+                      <ShoppingCart className="w-5 h-5" />
+                      {totalItems > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-[#FFD100] text-black text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                          {totalItems}
+                        </span>
+                      )}
+                    </Link>
+                    <Link
+                      href="/preferiti"
+                      onClick={() => { handleNavClick(); setMobileMenuOpen(false); }}
+                      className="text-white hover:text-[#FFD100] transition-colors duration-200"
+                    >
+                      <Heart className="w-5 h-5" />
+                    </Link>
+                  </div>
                 </div>
+
+                {/* Links utente non-admin */}
                 {!user?.isAdmin && (
-                  <>
+                  <div className="flex gap-4 pb-3 border-b border-white/10">
                     <Link
                       href="/profilo"
-                      onClick={() => {
-                        handleNavClick();
-                        setMobileMenuOpen(false);
-                      }}
-                      className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                      onClick={() => { handleNavClick(); setMobileMenuOpen(false); }}
+                      className="flex items-center gap-1.5 text-sm font-montserrat font-semibold transition-colors duration-200 text-white/80 hover:text-[#FFD100]"
                     >
-                      <User className="w-5 h-5" />
+                      <User className="w-4 h-4" />
                       Profilo
                     </Link>
                     <Link
                       href="/ordini"
-                      onClick={() => {
-                        handleNavClick();
-                        setMobileMenuOpen(false);
-                      }}
-                      className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                      onClick={() => { handleNavClick(); setMobileMenuOpen(false); }}
+                      className="flex items-center gap-1.5 text-sm font-montserrat font-semibold transition-colors duration-200 text-white/80 hover:text-[#FFD100]"
                     >
-                      <ShoppingCart className="w-5 h-5" />
+                      <ShoppingCart className="w-4 h-4" />
                       I miei ordini
                     </Link>
-                  </>
+                    <button
+                      onClick={handleLogout}
+                      disabled={isLogoutLoading}
+                      className="flex items-center gap-1.5 text-sm font-montserrat font-semibold transition-colors duration-200 text-white/80 hover:text-[#FFD100] ml-auto"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      {isLogoutLoading ? "Uscita..." : "Logout"}
+                    </button>
+                  </div>
                 )}
+
+                {/* Links admin */}
                 {user?.isAdmin && (
-                  <>
+                  <div className="flex gap-4 pb-3 border-b border-white/10">
                     <Link
                       href="/admin/ordini"
-                      onClick={() => {
-                        handleNavClick();
-                        setMobileMenuOpen(false);
-                      }}
-                      className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                      onClick={() => { handleNavClick(); setMobileMenuOpen(false); }}
+                      className="flex items-center gap-1.5 text-sm font-montserrat font-semibold transition-colors duration-200 text-white/80 hover:text-[#FFD100]"
                     >
-                      <BarChart3 className="w-5 h-5" />
-                      Gestione Ordini
+                      <BarChart3 className="w-4 h-4" />
+                      Ordini
                     </Link>
                     <Link
                       href="/admin/users"
-                      onClick={() => {
-                        handleNavClick();
-                        setMobileMenuOpen(false);
-                      }}
-                      className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                      onClick={() => { handleNavClick(); setMobileMenuOpen(false); }}
+                      className="flex items-center gap-1.5 text-sm font-montserrat font-semibold transition-colors duration-200 text-white/80 hover:text-[#FFD100]"
                     >
-                      <Users className="w-5 h-5" />
-                      Gestione Utenti
+                      <Users className="w-4 h-4" />
+                      Utenti
                     </Link>
-                  </>
+                    <button
+                      onClick={handleLogout}
+                      disabled={isLogoutLoading}
+                      className="flex items-center gap-1.5 text-sm font-montserrat font-semibold transition-colors duration-200 text-white/80 hover:text-[#FFD100] ml-auto"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      {isLogoutLoading ? "Uscita..." : "Logout"}
+                    </button>
+                  </div>
                 )}
-                <button
-                  onClick={handleLogout}
-                  disabled={isLogoutLoading}
-                  className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
-                >
-                  <LogOut className="w-5 h-5" />
-                  {isLogoutLoading ? "Disconnessione..." : "Logout"}
-                </button>
               </>
             ) : (
-              <>
+              /* Utente non autenticato */
+              <div className="flex gap-4 py-3 border-b border-white/10">
                 <button
-                  onClick={() => {
-                    handleLoginClick();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                  onClick={() => { handleLoginClick(); setMobileMenuOpen(false); }}
+                  className="flex items-center gap-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
                 >
                   <User className="w-5 h-5" />
                   Accedi
                 </button>
-              </>
-            )}
-
-            {/* Cart Mobile */}
-            <Link
-              href="/carrello"
-              onClick={() => {
-                handleNavClick();
-                setMobileMenuOpen(false);
-              }}
-              className={`flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 ${
-                location === "/carrello"
-                  ? "text-[#FFD100]"
-                  : "text-white hover:text-[#FFD100]"
-              }`}
-            >
-              <div className="relative">
-                <ShoppingCart className="w-5 h-5" />
-                {totalItems > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-[#FFD100] text-black text-xs font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                    {totalItems}
-                  </span>
-                )}
-              </div>
-              Carrello
-            </Link>
-
-            {/* Favorites Mobile */}
-            <Link
-              href="/preferiti"
-              onClick={() => {
-                handleNavClick();
-                setMobileMenuOpen(false);
-              }}
-              className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
-            >
-              <Heart className="w-5 h-5" />
-              Preferiti
-            </Link>
-
-            {!isAuthenticated && (
-              <>
                 <button
-                  onClick={() => {
-                    handleRegisterClick();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                  onClick={() => { handleRegisterClick(); setMobileMenuOpen(false); }}
+                  className="flex items-center gap-2 font-montserrat font-semibold transition-colors duration-200 text-[#FFD100] hover:text-[#FFD100]/80 ml-auto"
                 >
-                  <User className="w-5 h-5" />
                   Registrati
                 </button>
-              </>
+              </div>
             )}
           </div>
         </div>
