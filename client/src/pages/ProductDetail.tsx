@@ -5184,11 +5184,18 @@ export default function ProductDetail() {
           {/* Informazioni Prodotto */}
           <div className="space-y-6">
             <div>
-              {/* Brand badge prominente */}
-              <div className="mb-3">
+              {/* Brand badge prominente + Logo Creapure */}
+              <div className="mb-3 flex items-center justify-between">
                 <Badge variant="default" className="bg-[#FFD100] text-black font-semibold text-base px-3 py-1">
                   {product.brand_name || product.brand || 'BigGimmy'}
                 </Badge>
+                {product?.has_creapure && (
+                  <img
+                    src="/images/creapure-logo.png"
+                    alt="Certificato Creapure®"
+                    className="h-10 w-auto object-contain"
+                  />
+                )}
               </div>
 
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -5201,21 +5208,6 @@ export default function ProductDetail() {
                   {product.category_name}
                 </Badge>
               </div>
-
-              {/* Logo Creapure® - mostrato solo per prodotti certificati */}
-              {product?.hasCreapure && (
-                <div className="mb-4 flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg w-fit">
-                  <img
-                    src="/images/creapure-logo.png"
-                    alt="Certificato Creapure®"
-                    className="h-10 w-auto object-contain"
-                  />
-                  <div>
-                    <p className="text-xs font-semibold text-green-800">Certificato Creapure®</p>
-                    <p className="text-xs text-green-700">Creatina di qualità premium garantita</p>
-                  </div>
-                </div>
-              )}
 
               <p className="text-lg text-gray-600 mb-4">{product.description}</p>
 
