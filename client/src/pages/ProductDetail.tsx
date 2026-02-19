@@ -5184,11 +5184,18 @@ export default function ProductDetail() {
           {/* Informazioni Prodotto */}
           <div className="space-y-6">
             <div>
-              {/* Brand badge prominente */}
-              <div className="mb-3">
+              {/* Brand badge prominente + Logo Creapure */}
+              <div className="mb-3 flex items-center justify-between">
                 <Badge variant="default" className="bg-[#FFD100] text-black font-semibold text-base px-3 py-1">
                   {product.brand_name || product.brand || 'BigGimmy'}
                 </Badge>
+                {product?.has_creapure && (
+                  <img
+                    src="/images/creapure-logo.png"
+                    alt="Certificato Creapure®"
+                    className="h-10 w-auto object-contain"
+                  />
+                )}
               </div>
 
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -5201,6 +5208,7 @@ export default function ProductDetail() {
                   {product.category_name}
                 </Badge>
               </div>
+
               <p className="text-lg text-gray-600 mb-4">{product.description}</p>
 
               <div className="flex items-center gap-4 mb-6">
@@ -5407,7 +5415,7 @@ export default function ProductDetail() {
               <TabsContent value="nutrition" className="mt-0">
                 <Card>
                   <CardContent className="pt-6">
-                    {renderNutritionalInfo(product.slug, productDetails?.features || productDetails?.product_group_features)}
+                    {renderNutritionalInfo(product.slug, productDetails?.features)}
                   </CardContent>
                 </Card>
               </TabsContent>

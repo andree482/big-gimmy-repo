@@ -106,6 +106,7 @@ export const productGroups = pgTable("product_groups", {
   isNew: boolean("is_new").default(false),
   isBestSeller: boolean("is_best_seller").default(false),
   hasSpecialOffer: boolean("has_special_offer").default(false),
+  hasCreapure: boolean("has_creapure").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -129,6 +130,7 @@ export const products = pgTable("products", {
   isNew: boolean("is_new").default(false),
   isBestSeller: boolean("is_best_seller").default(false),
   hasSpecialOffer: boolean("has_special_offer").default(false),
+  hasCreapure: boolean("has_creapure").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -146,6 +148,7 @@ export const insertProductGroupSchema = createInsertSchema(productGroups).pick({
   isNew: true,
   isBestSeller: true,
   hasSpecialOffer: true,
+  hasCreapure: true,
 });
 
 export const insertProductSchema = createInsertSchema(products).pick({
@@ -166,6 +169,7 @@ export const insertProductSchema = createInsertSchema(products).pick({
   isNew: true,
   isBestSeller: true,
   hasSpecialOffer: true,
+  hasCreapure: true,
 });
 
 // Immagini dei prodotti

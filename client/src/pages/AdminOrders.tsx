@@ -45,7 +45,6 @@ interface ShippingAddress {
 interface Order {
   id: string;
   user_id: string;
-  snipcart_order_id: string;
   total: number;
   status: string;
   items: OrderItem[] | null;
@@ -213,6 +212,7 @@ export default function AdminOrders() {
   const [productsDialogOrder, setProductsDialogOrder] = useState<Order | null>(null);
   const [loadingInvoiceOrderId, setLoadingInvoiceOrderId] = useState<string | null>(null);
   const [loadingPickupAction, setLoadingPickupAction] = useState<string | null>(null);
+  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -789,9 +789,17 @@ export default function AdminOrders() {
                                 );
                               })()}
                               {order.notes && (
-                                <div className="flex items-center gap-1 text-yellow-600 mt-1" title={order.notes}>
-                                  <FileText className="h-3 w-3" />
-                                  <span className="truncate">Note</span>
+                                <div className="mt-1">
+                                  <button
+                                    onClick={() => setExpandedNoteId(expandedNoteId === order.id ? null : order.id)}
+                                    className="flex items-center gap-1 text-yellow-600 hover:text-yellow-800 cursor-pointer"
+                                  >
+                                    <FileText className="h-3 w-3" />
+                                    <span className="text-xs underline">Note</span>
+                                  </button>
+                                  {expandedNoteId === order.id && (
+                                    <p className="mt-1 text-xs text-gray-700 bg-yellow-50 border border-yellow-200 rounded p-1 max-w-[180px] whitespace-pre-wrap break-words">{order.notes}</p>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -807,9 +815,17 @@ export default function AdminOrders() {
                                 {order.shipping_address.postalCode} {order.shipping_address.city}
                               </p>
                               {order.notes && (
-                                <div className="flex items-center gap-1 text-yellow-600 mt-1" title={order.notes}>
-                                  <FileText className="h-3 w-3" />
-                                  <span className="truncate">Note</span>
+                                <div className="mt-1">
+                                  <button
+                                    onClick={() => setExpandedNoteId(expandedNoteId === order.id ? null : order.id)}
+                                    className="flex items-center gap-1 text-yellow-600 hover:text-yellow-800 cursor-pointer"
+                                  >
+                                    <FileText className="h-3 w-3" />
+                                    <span className="text-xs underline">Note</span>
+                                  </button>
+                                  {expandedNoteId === order.id && (
+                                    <p className="mt-1 text-xs text-gray-700 bg-yellow-50 border border-yellow-200 rounded p-1 max-w-[180px] whitespace-pre-wrap break-words">{order.notes}</p>
+                                  )}
                                 </div>
                               )}
                             </div>

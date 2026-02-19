@@ -1,8 +1,19 @@
 import { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import multer from "multer";
 import { storage } from "./storage.ts";
 import { insertContactSchema } from "@shared/schema";
 import { z } from "zod";
+
+// Multer: memoria, max 5 MB, solo per la route /api/contact
+const uploadAttachment = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
 import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply, sendTrackingEmail, sendWelcomeEmail, sendOrderConfirmationEmail, sendAdminOrderNotification, sendPasswordChangedEmail, sendRefundRequestEmail, sendPickupReadyEmail, sendOrderDeliveredEmail, sendRefundCompletedEmail } from './services/email.ts';
 import { syncAllImages } from "./utils/imageSync.ts";
 import session from 'express-session';
@@ -1313,7 +1324,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Sanitizza i dati rimuovendo informazioni sensibili
       const sanitized = (orders || []).map((o: any) => ({
         id: o.id,
-        snipcartOrderId: o.snipcart_order_id,
         total: o.total,
         status: o.status,
         items: o.items,
@@ -1801,7 +1811,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return {
             id: order.id,
             user_id: order.user_id,
-            snipcart_order_id: order.id,
             total: order.total_cents,
             status: order.status,
             items: formattedItems,
@@ -1868,8 +1877,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get all contacts endpoint (for admin purposes)
   // ROTTA PER RICEVERE IL MESSAGGIO DAL FORM (POST)
-app.post("/api/contact", async (req: Request, res: Response) => {
+app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Request, res: Response) => {
   const formData = req.body;
+  const uploadedFile = (req as any).file as { originalname: string; buffer: Buffer; mimetype: string } | undefined;
   console.log(`[CONTACT] Nuova richiesta - tipo: "${formData?.requestType}", orderId: "${formData?.orderId}", email: "${formData?.email}"`);
 
   // 1. Salva nel DB in try-catch separato: non blocca il flusso se fallisce
@@ -1893,31 +1903,36 @@ app.post("/api/contact", async (req: Request, res: Response) => {
       // Aggiorna stato ordine
       if (supabaseAdmin) {
         try {
-          const searchId = formData.orderId.trim().toUpperCase();
-          console.log(`[CONTACT RIMBORSO] Ricerca ordine con short ID: "${searchId}"`);
+          const searchId = formData.orderId.trim().toLowerCase();
+          console.log(`[CONTACT RIMBORSO] Ricerca ordine con ID: "${searchId}"`);
 
-          // Prova prima ricerca esatta per gli ultimi 8 caratteri
-          const { data: orders, error: searchError } = await (supabaseAdmin as any)
+          // Recupera tutti gli ordini e filtra lato JS per compatibilità con UUID e integer
+          const { data: allOrders, error: searchError } = await (supabaseAdmin as any)
             .from("orders")
-            .select("id, status")
-            .ilike("id", `%${searchId}%`);
+            .select("id, status");
 
           if (searchError) {
-            console.error("[CONTACT RIMBORSO] Errore ricerca ordine:", searchError);
-          } else if (orders && orders.length > 0) {
-            const order = orders[0];
-            console.log(`[CONTACT RIMBORSO] Ordine trovato: ${order.id} (stato attuale: ${order.status})`);
-            const { error: updateError } = await (supabaseAdmin as any)
-              .from("orders")
-              .update({ status: "richiesta_di_rimborso", updated_at: new Date().toISOString() })
-              .eq("id", order.id);
-            if (updateError) {
-              console.error("[CONTACT RIMBORSO] Errore aggiornamento stato:", updateError);
-            } else {
-              console.log(`[CONTACT RIMBORSO] ✅ Ordine ${order.id} aggiornato a richiesta_di_rimborso`);
-            }
+            console.error("[CONTACT RIMBORSO] Errore recupero ordini:", searchError);
           } else {
-            console.warn(`[CONTACT RIMBORSO] ⚠️ Nessun ordine trovato con ID contenente "${searchId}"`);
+            const order = (allOrders || []).find((o: any) => {
+              const orderId = String(o.id).toLowerCase();
+              return orderId === searchId || orderId.startsWith(searchId);
+            });
+
+            if (order) {
+              console.log(`[CONTACT RIMBORSO] Ordine trovato: ${order.id} (stato attuale: ${order.status})`);
+              const { error: updateError } = await (supabaseAdmin as any)
+                .from("orders")
+                .update({ status: "richiesta_di_rimborso", updated_at: new Date().toISOString() })
+                .eq("id", order.id);
+              if (updateError) {
+                console.error("[CONTACT RIMBORSO] Errore aggiornamento stato:", updateError);
+              } else {
+                console.log(`[CONTACT RIMBORSO] ✅ Ordine ${order.id} aggiornato a richiesta_di_rimborso`);
+              }
+            } else {
+              console.warn(`[CONTACT RIMBORSO] ⚠️ Nessun ordine trovato con ID "${searchId}"`);
+            }
           }
         } catch (dbError: any) {
           console.error("[CONTACT RIMBORSO] Errore DB:", dbError?.message || dbError);
@@ -1934,6 +1949,9 @@ app.post("/api/contact", async (req: Request, res: Response) => {
         phone: formData.phone,
         orderId: formData.orderId,
         message: formData.message,
+        attachment: uploadedFile
+          ? { filename: uploadedFile.originalname, content: uploadedFile.buffer }
+          : undefined,
       });
       console.log(`[CONTACT RIMBORSO] ✅ Email rimborso inviata`);
 
@@ -3063,7 +3081,6 @@ app.post("/api/contact", async (req: Request, res: Response) => {
 
           return {
             id: order.id,
-            snipcartOrderId: order.stripe_session_id,
             stripeSessionId: order.stripe_session_id || null,
             total: order.total_cents,
             status: order.status,
@@ -5160,6 +5177,37 @@ app.post("/api/contact", async (req: Request, res: Response) => {
           }
         } catch (emailError) {
           console.error("[STATUS] Errore invio email rimborso completato:", emailError);
+        }
+      }
+
+      // Se lo stato diventa "ritirato", invia email di conferma ritiro al cliente e all'admin
+      if (status === 'ritirato') {
+        try {
+          const { data: order } = await (supabaseAdmin as any)
+            .from("orders")
+            .select("id, user_id, fulfillment_type, pickup_store")
+            .eq("id", orderId)
+            .single();
+
+          if (order) {
+            const { data: userData } = await (supabaseAdmin as any)
+              .from("users")
+              .select("email, first_name")
+              .eq("id", order.user_id)
+              .single();
+
+            if (userData?.email) {
+              await sendOrderDeliveredEmail({
+                orderId: order.id,
+                userEmail: userData.email,
+                userName: userData.first_name || userData.email.split('@')[0],
+                fulfillmentType: 'ritiro',
+                pickupStore: order.pickup_store,
+              });
+            }
+          }
+        } catch (emailError) {
+          console.error("[STATUS] Errore invio email ritirato:", emailError);
         }
       }
 

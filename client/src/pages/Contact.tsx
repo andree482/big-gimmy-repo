@@ -2,11 +2,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { apiRequest } from "@/lib/queryClient";
-import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { stores } from "@/lib/constants";
-import { MapPin, Phone, Mail, Clock } from "lucide-react";
+import { MapPin, Phone, Clock } from "lucide-react";
 import { Link } from "wouter";
 
 const REQUEST_TYPES = [
@@ -42,6 +40,8 @@ type ContactFormValues = z.infer<typeof contactSchema>;
 const Contact = () => {
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   const {
     register,
@@ -64,69 +64,85 @@ const Contact = () => {
 
   const selectedRequestType = watch("requestType");
 
-  const contactMutation = useMutation({
-    mutationFn: (data: ContactFormValues) => {
-      return apiRequest("POST", "/api/contact", data);
-    },
-    onSuccess: (response) => {
-      // Verifico lo stato dell'invio email
-      const emailStatus = response.emailStatus || { 
-        adminNotified: false, 
-        userConfirmationSent: false,
-        simulationMode: false
-      };
-      
-      // Se è una richiesta di rimborso, mostra messaggio specifico
-      if (response.message?.includes('rimborso')) {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (file && file.size > 5 * 1024 * 1024) {
+      setAttachmentError("Il file supera il limite di 5 MB.");
+      setAttachmentFile(null);
+      e.target.value = "";
+    } else {
+      setAttachmentError(null);
+      setAttachmentFile(file);
+    }
+  };
+
+  const onSubmit = async (data: ContactFormValues) => {
+    setSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("name", data.name);
+      formData.append("email", data.email);
+      formData.append("phone", data.phone || "");
+      formData.append("requestType", data.requestType);
+      formData.append("orderId", data.orderId || "");
+      formData.append("message", data.message);
+      if (attachmentFile) {
+        formData.append("attachment", attachmentFile);
+      }
+
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.statusText);
+      }
+
+      const response = await res.json();
+      const emailStatus = response.emailStatus || { adminNotified: false, userConfirmationSent: false, simulationMode: false };
+
+      if (response.message?.includes("rimborso")) {
         toast({
           title: "Richiesta di rimborso inviata!",
           description: "Abbiamo ricevuto la tua richiesta di rimborso. Ti risponderemo entro 48 ore lavorative.",
         });
-        reset();
-        setSubmitting(false);
-        return;
-      }
-
-      // Se siamo in modalità simulazione, mostriamo un messaggio appropriato
-      if (emailStatus.simulationMode) {
+      } else if (emailStatus.simulationMode) {
         toast({
           title: "Messaggio ricevuto in modalità simulazione",
-          description: `Il tuo messaggio è stato salvato correttamente! In modalità di test non vengono inviate email reali, ma i dati vengono comunque salvati nel sistema.`,
+          description: "Il tuo messaggio è stato salvato correttamente!",
         });
       } else if (emailStatus.adminNotified && emailStatus.userConfirmationSent) {
         toast({
           title: "Messaggio inviato con successo!",
-          description: `Grazie per averci contattato! Ti abbiamo inviato un'email di conferma. Ti risponderemo al più presto.`,
+          description: "Grazie per averci contattato! Ti abbiamo inviato un'email di conferma.",
         });
       } else if (emailStatus.adminNotified) {
         toast({
           title: "Messaggio ricevuto",
-          description: "Abbiamo ricevuto il tuo messaggio, ma potrebbe esserci un problema con l'invio dell'email di conferma.",
+          description: "Abbiamo ricevuto il tuo messaggio, ma potrebbe esserci un problema con l'email di conferma.",
         });
       } else {
         toast({
           title: "Messaggio salvato",
-          description: "Il tuo messaggio è stato salvato, ma c'è stato un problema con il sistema di notifica. Ti contatteremo comunque al più presto.",
-          variant: "default",
+          description: "Il tuo messaggio è stato salvato. Ti contatteremo al più presto.",
         });
       }
-      
+
       reset();
-      setSubmitting(false);
-    },
-    onError: (error) => {
+      setAttachmentFile(null);
+      setAttachmentError(null);
+    } catch (error: any) {
       toast({
         title: "Errore",
         description: `Si è verificato un errore: ${error.message}`,
         variant: "destructive",
       });
+    } finally {
       setSubmitting(false);
-    },
-  });
-
-  const onSubmit = (data: ContactFormValues) => {
-    setSubmitting(true);
-    contactMutation.mutate(data);
+    }
   };
 
   return (
@@ -232,6 +248,56 @@ const Contact = () => {
                     />
                     {errors.orderId && (
                       <p className="text-red-500 text-sm mt-1">{errors.orderId.message}</p>
+                    )}
+                  </div>
+                )}
+                {selectedRequestType === "richiesta_di_rimborso" && (
+                  <div className="mb-4">
+                    <label htmlFor="attachment" className="block font-montserrat font-semibold mb-2">
+                      Allegato <span className="text-gray-400 font-normal text-sm">(opzionale · max 5 MB · PDF, JPG, PNG)</span>
+                    </label>
+                    <label
+                      htmlFor="attachment"
+                      className={`flex items-center gap-3 w-full px-4 py-3 border-2 border-dashed rounded-md cursor-pointer transition-colors ${
+                        attachmentError
+                          ? "border-red-400 bg-red-50"
+                          : attachmentFile
+                          ? "border-green-400 bg-green-50"
+                          : "border-gray-300 bg-gray-50 hover:border-[#FFD100] hover:bg-yellow-50"
+                      }`}
+                    >
+                      <span className="text-xl">{attachmentFile ? "📎" : "📁"}</span>
+                      <span className="text-sm text-gray-600">
+                        {attachmentFile
+                          ? attachmentFile.name
+                          : "Clicca per selezionare un file"}
+                      </span>
+                      {attachmentFile && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setAttachmentFile(null);
+                            setAttachmentError(null);
+                            const input = document.getElementById("attachment") as HTMLInputElement;
+                            if (input) input.value = "";
+                          }}
+                          className="ml-auto text-gray-400 hover:text-red-500 text-lg leading-none"
+                          title="Rimuovi allegato"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </label>
+                    <input
+                      type="file"
+                      id="attachment"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp"
+                      onChange={handleFileChange}
+                      className="sr-only"
+                    />
+                    {attachmentError && (
+                      <p className="text-red-500 text-sm mt-1">{attachmentError}</p>
                     )}
                   </div>
                 )}

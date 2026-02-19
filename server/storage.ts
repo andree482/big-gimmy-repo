@@ -168,6 +168,7 @@ export class MemStorage implements IStorage {
         isNew: products.isNew,
         isBestSeller: products.isBestSeller,
         hasSpecialOffer: products.hasSpecialOffer,
+        hasCreapure: products.hasCreapure,
         specialOfferText: products.specialOfferText,
         features: products.features,
         howToUse: products.howToUse,
@@ -856,7 +857,8 @@ export class DatabaseStorage implements IStorage {
              po.id as option_id, po.size as size_value, po.price_cents as price_cents,
              pi.src as image_url, pi.alt as image_alt,
              pg.name as product_group_name, pg.features as product_group_features,
-             p.features as features
+             p.features as features,
+             p.has_creapure
       FROM products p
       JOIN brands b ON p.brand_id = b.id
       JOIN product_categories pc ON p.category_id = pc.id
