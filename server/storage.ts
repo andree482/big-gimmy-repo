@@ -858,7 +858,7 @@ export class DatabaseStorage implements IStorage {
              pi.src as image_url, pi.alt as image_alt,
              pg.name as product_group_name, pg.features as product_group_features,
              p.features as features,
-             COALESCE(p.has_creapure, pg.has_creapure, FALSE) as has_creapure
+             p.has_creapure
       FROM products p
       JOIN brands b ON p.brand_id = b.id
       JOIN product_categories pc ON p.category_id = pc.id

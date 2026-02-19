@@ -5203,7 +5203,7 @@ export default function ProductDetail() {
               </div>
 
               {/* Logo Creapure® - mostrato solo per prodotti certificati */}
-              {(product?.hasCreapure || (productDetails as any)?.has_creapure) && (
+              {product?.hasCreapure && (
                 <div className="mb-4 flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg w-fit">
                   <img
                     src="/images/creapure-logo.png"
@@ -5423,7 +5423,7 @@ export default function ProductDetail() {
               <TabsContent value="nutrition" className="mt-0">
                 <Card>
                   <CardContent className="pt-6">
-                    {renderNutritionalInfo(product.slug, productDetails?.features || productDetails?.product_group_features)}
+                    {renderNutritionalInfo(product.slug, productDetails?.features)}
                   </CardContent>
                 </Card>
               </TabsContent>
