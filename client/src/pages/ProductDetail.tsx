@@ -5201,6 +5201,22 @@ export default function ProductDetail() {
                   {product.category_name}
                 </Badge>
               </div>
+
+              {/* Logo Creapure® - mostrato solo per prodotti certificati */}
+              {(product?.hasCreapure || (productDetails as any)?.has_creapure) && (
+                <div className="mb-4 flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg w-fit">
+                  <img
+                    src="/images/creapure-logo.png"
+                    alt="Certificato Creapure®"
+                    className="h-10 w-auto object-contain"
+                  />
+                  <div>
+                    <p className="text-xs font-semibold text-green-800">Certificato Creapure®</p>
+                    <p className="text-xs text-green-700">Creatina di qualità premium garantita</p>
+                  </div>
+                </div>
+              )}
+
               <p className="text-lg text-gray-600 mb-4">{product.description}</p>
 
               <div className="flex items-center gap-4 mb-6">
