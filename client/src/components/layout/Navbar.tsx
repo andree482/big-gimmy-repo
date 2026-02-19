@@ -282,8 +282,8 @@ const Navbar = () => {
 
       {/* Mobile Menu - CSS transitions invece di framer-motion */}
       <div
-        className={`lg:hidden bg-[#212121]/95 backdrop-blur-md border-t border-white/10 overflow-hidden transition-all duration-300 ease-out ${
-          mobileMenuOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+        className={`lg:hidden bg-[#212121]/95 backdrop-blur-md border-t border-white/10 transition-all duration-300 ease-out ${
+          mobileMenuOpen ? "max-h-[80vh] opacity-100 overflow-y-auto" : "max-h-0 opacity-0 overflow-hidden"
         }`}
       >
         <div className="container mx-auto px-4 py-4">
@@ -312,6 +312,32 @@ const Navbar = () => {
                   <User className="w-5 h-5" />
                   {user?.firstName || user?.email}
                 </div>
+                {!user?.isAdmin && (
+                  <>
+                    <Link
+                      href="/profilo"
+                      onClick={() => {
+                        handleNavClick();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                    >
+                      <User className="w-5 h-5" />
+                      Profilo
+                    </Link>
+                    <Link
+                      href="/ordini"
+                      onClick={() => {
+                        handleNavClick();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-2 py-2 font-montserrat font-semibold transition-colors duration-200 text-white hover:text-[#FFD100]"
+                    >
+                      <ShoppingCart className="w-5 h-5" />
+                      I miei ordini
+                    </Link>
+                  </>
+                )}
                 {user?.isAdmin && (
                   <>
                     <Link

@@ -30,8 +30,17 @@ const supabaseAdmin = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_R
   ? createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
   : null;
 
+// Throttle: evita di eseguire updateExpiredPendingOrders più di una volta ogni 5 minuti
+let lastExpiredOrdersCheck = 0;
+const EXPIRED_ORDERS_THROTTLE_MS = 5 * 60 * 1000; // 5 minuti
+
 // Funzione per aggiornare gli ordini in_attesa_di_pagamento scaduti (più di 10 minuti) a "fallito"
 async function updateExpiredPendingOrders(): Promise<number> {
+  const now = Date.now();
+  if (now - lastExpiredOrdersCheck < EXPIRED_ORDERS_THROTTLE_MS) {
+    return 0; // già eseguita di recente, salta
+  }
+  lastExpiredOrdersCheck = now;
   if (!supabaseAdmin) return 0;
 
   try {

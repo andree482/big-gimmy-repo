@@ -319,7 +319,7 @@ function OrderCard({ order }: { order: Order }) {
                 #{shortenOrderId(order.id)}
               </span>
               {order.items && order.items.length > 0 && (
-                <span className="text-sm text-gray-400">
+                <span className="text-sm text-gray-400 whitespace-nowrap">
                   ({order.items.length} {order.items.length === 1 ? 'articolo' : 'articoli'})
                 </span>
               )}

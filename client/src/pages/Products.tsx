@@ -269,7 +269,7 @@ const Products = () => {
           {/* Quick Category Links */}
           <div className="mb-8">
             <h2 className="text-xl font-bold mb-4">Cerca per categoria</h2>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
               {productCategories.map((category) => (
                 <Link
                   key={category.slug}

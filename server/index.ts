@@ -58,42 +58,46 @@ app.post("/api/webhook/stripe",
 
     console.log(`[STRIPE WEBHOOK] Evento ricevuto: ${event.type}`);
 
-    // Gestisci l'evento
-    switch (event.type) {
-      case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session;
-        await handleSuccessfulPayment(session);
-        break;
-      }
-      case "checkout.session.expired": {
-        // Sessione scaduta senza completare il pagamento
-        const session = event.data.object as Stripe.Checkout.Session;
-        await handleFailedPayment(session, "cancellato");
-        break;
-      }
-      case "checkout.session.async_payment_failed": {
-        // Pagamento asincrono fallito
-        const session = event.data.object as Stripe.Checkout.Session;
-        await handleFailedPayment(session, "fallito");
-        break;
-      }
-      case "payment_intent.payment_failed": {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        console.error("[STRIPE WEBHOOK] Pagamento fallito:", paymentIntent.id);
-        // Se c'è un order_id nei metadata, aggiorna l'ordine
-        if (paymentIntent.metadata?.order_id && supabaseAdminForWebhook) {
-          await supabaseAdminForWebhook
-            .from("orders")
-            .update({ status: "fallito", updated_at: new Date().toISOString() })
-            .eq("id", paymentIntent.metadata.order_id);
-        }
-        break;
-      }
-      default:
-        console.log(`[STRIPE WEBHOOK] Evento non gestito: ${event.type}`);
-    }
-
+    // Rispondi SUBITO a Stripe (entro pochi ms) per evitare timeout e retry
     res.json({ received: true });
+
+    // Gestisci l'evento in background (non blocca la risposta HTTP)
+    setImmediate(async () => {
+      try {
+        switch (event.type) {
+          case "checkout.session.completed": {
+            const session = event.data.object as Stripe.Checkout.Session;
+            await handleSuccessfulPayment(session);
+            break;
+          }
+          case "checkout.session.expired": {
+            const session = event.data.object as Stripe.Checkout.Session;
+            await handleFailedPayment(session, "cancellato");
+            break;
+          }
+          case "checkout.session.async_payment_failed": {
+            const session = event.data.object as Stripe.Checkout.Session;
+            await handleFailedPayment(session, "fallito");
+            break;
+          }
+          case "payment_intent.payment_failed": {
+            const paymentIntent = event.data.object as Stripe.PaymentIntent;
+            console.error("[STRIPE WEBHOOK] Pagamento fallito:", paymentIntent.id);
+            if (paymentIntent.metadata?.order_id && supabaseAdminForWebhook) {
+              await supabaseAdminForWebhook
+                .from("orders")
+                .update({ status: "fallito", updated_at: new Date().toISOString() })
+                .eq("id", paymentIntent.metadata.order_id);
+            }
+            break;
+          }
+          default:
+            console.log(`[STRIPE WEBHOOK] Evento non gestito: ${event.type}`);
+        }
+      } catch (err) {
+        console.error("[STRIPE WEBHOOK] Errore elaborazione evento in background:", err);
+      }
+    });
   }
 );
 

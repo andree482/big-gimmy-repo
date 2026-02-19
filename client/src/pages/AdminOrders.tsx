@@ -468,7 +468,7 @@ export default function AdminOrders() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4 items-end">
+            <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Stato ordine

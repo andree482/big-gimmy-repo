@@ -28,9 +28,10 @@ export const pool = new Pool({
 });
 
 // ✅ Gestisce errori del pool
+// NOTA: NON usare process.exit() qui! Supabase chiude le connessioni idle
+// periodicamente e questo causerebbe il crash del server con conseguente 502.
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
-  process.exit(-1);
+  console.error('Unexpected error on idle client (ignorato, il pool si riconnetterà):', err.message);
 });
 
 // ✅ Inizializza Drizzle ORM

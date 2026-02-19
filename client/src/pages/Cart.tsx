@@ -83,10 +83,10 @@ export default function Cart() {
               {/* Lista prodotti */}
               <div className="lg:col-span-2 space-y-6">
                 {cartItems.map((item) => (
-                  <Card key={`${item.product_option_id}-${item.variant || ''}`} className="p-6 shadow-md">
-                    <div className="flex items-start gap-6">
+                  <Card key={`${item.product_option_id}-${item.variant || ''}`} className="p-4 sm:p-6 shadow-md">
+                    <div className="flex items-start gap-3 sm:gap-6">
 
-                      <div className="w-28 h-28 bg-gray-100 rounded-lg overflow-hidden">
+                      <div className="w-20 h-20 sm:w-28 sm:h-28 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
                         {item.image ? (
                           <img
                             src={item.image}
@@ -94,31 +94,87 @@ export default function Cart() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <ShoppingCart className="w-12 h-12 text-gray-400 mx-auto mt-8" />
+                          <ShoppingCart className="w-10 h-10 text-gray-400 mx-auto mt-5 sm:mt-8" />
                         )}
                       </div>
 
-                      <div className="flex-1">
-                        <h3 className="text-xl font-semibold mb-2">
-                          {item.name}
-                        </h3>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="text-base sm:text-xl font-semibold mb-1 sm:mb-2">
+                            {item.name}
+                          </h3>
+                          {/* Prezzo totale visibile subito su mobile */}
+                          <p className="text-base sm:text-xl font-bold sm:hidden flex-shrink-0">
+                            {formatEuropeanPrice(item.price * item.quantity)}
+                          </p>
+                        </div>
 
                         {item.variant && item.variant.trim() && (
-                          <p className="text-sm text-gray-700">
+                          <p className="text-xs sm:text-sm text-gray-700 mb-1">
                             Gusto:{" "}
-                            <span className="bg-gray-200 px-2 py-1 rounded">
+                            <span className="bg-gray-200 px-1.5 py-0.5 rounded text-xs">
                               {item.variant}
                             </span>
                           </p>
                         )}
 
-                        <p className="text-sm mt-2 text-gray-700">
-                          Prezzo unitario:{" "}
+                        <p className="text-xs sm:text-sm mt-1 sm:mt-2 text-gray-700">
+                          Unitario:{" "}
                           <strong>{formatEuropeanPrice(item.price)}</strong>
                         </p>
+
+                        {/* Controlli quantità + elimina su mobile */}
+                        <div className="flex items-center gap-3 mt-3 sm:hidden">
+                          <div className="flex items-center bg-gray-200 rounded-lg p-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() =>
+                                handleUpdateQuantity(
+                                  item.product_option_id,
+                                  item.quantity - 1,
+                                  item.product_id,
+                                  item.variant
+                                )
+                              }
+                            >
+                              <Minus className="w-3 h-3" />
+                            </Button>
+                            <span className="px-3 font-semibold text-sm">
+                              {item.quantity}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() =>
+                                handleUpdateQuantity(
+                                  item.product_option_id,
+                                  item.quantity + 1,
+                                  item.product_id,
+                                  item.variant
+                                )
+                              }
+                            >
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleRemoveItem(item.product_option_id, item.product_id, item.variant)
+                            }
+                            className="text-red-600 hover:bg-red-100 h-8 w-8 p-0"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </div>
 
-                      <div className="flex flex-col items-end gap-4">
+                      {/* Controlli desktop */}
+                      <div className="hidden sm:flex flex-col items-end gap-4">
                         <div className="flex items-center bg-gray-200 rounded-lg p-2">
                           <Button
                             variant="outline"
