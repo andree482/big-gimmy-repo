@@ -13,7 +13,7 @@ import aboutImg3 from "../assets/about_img3_new.jpeg";
 import aboutImg4 from "../assets/about_img4.jpeg";
 
 // Immagini per le categorie prodotti
-import categoryProteine from "../assets/category-proteine.png";
+import categoryProteine from "../../../attached_assets/nuove_foto_ancora/W251_essential-100-whey-900-g-cacao_singolo.png";
 import categoryAminoacidi from "../assets/category-aminoacidi.jpg";
 import categoryAlimentiFit from "../assets/category-alimenti-fit.jpg";
 
