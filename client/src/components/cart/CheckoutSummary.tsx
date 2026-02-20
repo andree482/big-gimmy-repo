@@ -35,7 +35,8 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
     const qualifiesForFreeShipping = totalAfterDiscount >= FREE_SHIPPING_THRESHOLD;
     const shippingNeeded = Math.max(0, FREE_SHIPPING_THRESHOLD - totalAfterDiscount);
     const isPickup = fulfillmentType === 'ritiro';
-    const shippingCost = isPickup ? 0 : (qualifiesForFreeShipping ? 0 : 12);
+    // TEST: spedizione sempre gratuita (commentare per ripristinare)
+    const shippingCost = 0; // isPickup ? 0 : (qualifiesForFreeShipping ? 0 : 12);
     const freeShippingProgress = totalAfterDiscount >= FREE_SHIPPING_THRESHOLD ? 100 : Math.max(0, (totalAfterDiscount / FREE_SHIPPING_THRESHOLD) * 100);
     const finalTotal = totalAfterDiscount + shippingCost;
 
@@ -49,7 +50,8 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
       shippingCost,
       freeShippingProgress,
       finalTotal,
-      canCheckout: totalAfterDiscount >= MINIMUM_ORDER
+      // TEST: minimo d'ordine disabilitato (commentare per ripristinare)
+      canCheckout: true, // totalAfterDiscount >= MINIMUM_ORDER
     };
   }, [cartTotal, fulfillmentType]);
 
