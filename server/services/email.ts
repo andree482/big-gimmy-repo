@@ -1018,6 +1018,14 @@ export async function sendPickupReadyEmail(data: PickupReadyEmailData): Promise<
     return true;
   }
 
+  // ⚠️ DIAGNOSTICA: controlla se la chiave API è di test (re_test_...)
+  // In modalità test Resend consegna solo all'email dell'account verificato (admin),
+  // tutte le altre email vengono accettate ma non consegnate.
+  const apiKey = process.env.RESEND_API_KEY || '';
+  if (apiKey.startsWith('re_test_')) {
+    console.warn('[EMAIL PICKUP] ⚠️ Stai usando una chiave API di TEST di Resend. Le email vengono consegnate SOLO all\'account verificato (admin). Usa una chiave di produzione per inviare ai clienti.');
+  }
+
   try {
     const { error } = await resend.emails.send({
       from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,

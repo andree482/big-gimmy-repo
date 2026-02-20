@@ -55,7 +55,7 @@ export function useCart() {
             const variant = `${flavor} ${size}`.trim();
             const image = po.image;
             const quantity = Number(row.quantity ?? 1);
-            const name = String(row.name ?? "");
+            const name = String(po.products?.name ?? row.name ?? "");
             const productId = Number(row.product_id ?? 0);
             return { product_option_id: id, product_id: productId, name, price, variant, quantity, image } as CartItem;
           });

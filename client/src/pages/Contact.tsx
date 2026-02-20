@@ -48,6 +48,7 @@ const Contact = () => {
     handleSubmit,
     reset,
     watch,
+    setError,
     formState: { errors }
   } = useForm<ContactFormValues>({
     resolver: zodResolver(contactSchema),
@@ -107,8 +108,12 @@ const Contact = () => {
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || res.statusText);
+        const json = await res.json().catch(() => null);
+        if (res.status === 400 && json?.field === "orderId") {
+          setError("orderId", { type: "manual", message: json.message });
+          return;
+        }
+        throw new Error(json?.message || res.statusText);
       }
 
       const response = await res.json();
