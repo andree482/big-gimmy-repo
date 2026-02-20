@@ -40,7 +40,7 @@ type ContactFormValues = z.infer<typeof contactSchema>;
 const Contact = () => {
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
-  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   const {
@@ -48,6 +48,7 @@ const Contact = () => {
     handleSubmit,
     reset,
     watch,
+    setError,
     formState: { errors }
   } = useForm<ContactFormValues>({
     resolver: zodResolver(contactSchema),
@@ -65,15 +66,27 @@ const Contact = () => {
   const selectedRequestType = watch("requestType");
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    if (file && file.size > 5 * 1024 * 1024) {
-      setAttachmentError("Il file supera il limite di 5 MB.");
-      setAttachmentFile(null);
-      e.target.value = "";
-    } else {
-      setAttachmentError(null);
-      setAttachmentFile(file);
+    const selected = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (selected.length === 0) return;
+
+    const combined = [...attachmentFiles, ...selected];
+    if (combined.length > 4) {
+      setAttachmentError("Puoi allegare al massimo 4 foto.");
+      return;
     }
+    const totalSize = combined.reduce((sum, f) => sum + f.size, 0);
+    if (totalSize > 8 * 1024 * 1024) {
+      setAttachmentError("La dimensione totale delle foto non può superare 8 MB.");
+      return;
+    }
+    setAttachmentError(null);
+    setAttachmentFiles(combined);
+  };
+
+  const removeFile = (index: number) => {
+    setAttachmentFiles(prev => prev.filter((_, i) => i !== index));
+    setAttachmentError(null);
   };
 
   const onSubmit = async (data: ContactFormValues) => {
@@ -86,9 +99,7 @@ const Contact = () => {
       formData.append("requestType", data.requestType);
       formData.append("orderId", data.orderId || "");
       formData.append("message", data.message);
-      if (attachmentFile) {
-        formData.append("attachment", attachmentFile);
-      }
+      attachmentFiles.forEach(f => formData.append("attachments", f));
 
       const res = await fetch("/api/contact", {
         method: "POST",
@@ -97,8 +108,12 @@ const Contact = () => {
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || res.statusText);
+        const json = await res.json().catch(() => null);
+        if (res.status === 400 && json?.field === "orderId") {
+          setError("orderId", { type: "manual", message: json.message });
+          return;
+        }
+        throw new Error(json?.message || res.statusText);
       }
 
       const response = await res.json();
@@ -132,7 +147,7 @@ const Contact = () => {
       }
 
       reset();
-      setAttachmentFile(null);
+      setAttachmentFiles([]);
       setAttachmentError(null);
     } catch (error: any) {
       toast({
@@ -253,46 +268,49 @@ const Contact = () => {
                 )}
                 {selectedRequestType === "richiesta_di_rimborso" && (
                   <div className="mb-4">
-                    <label htmlFor="attachment" className="block font-montserrat font-semibold mb-2">
-                      Allegato <span className="text-gray-400 font-normal text-sm">(opzionale · max 5 MB · PDF, JPG, PNG)</span>
+                    <label className="block font-montserrat font-semibold mb-2">
+                      Foto <span className="text-gray-400 font-normal text-sm">(opzionale · max 4 foto · totale 8 MB · JPG, PNG, WebP)</span>
                     </label>
-                    <label
-                      htmlFor="attachment"
-                      className={`flex items-center gap-3 w-full px-4 py-3 border-2 border-dashed rounded-md cursor-pointer transition-colors ${
-                        attachmentError
-                          ? "border-red-400 bg-red-50"
-                          : attachmentFile
-                          ? "border-green-400 bg-green-50"
-                          : "border-gray-300 bg-gray-50 hover:border-[#FFD100] hover:bg-yellow-50"
-                      }`}
-                    >
-                      <span className="text-xl">{attachmentFile ? "📎" : "📁"}</span>
-                      <span className="text-sm text-gray-600">
-                        {attachmentFile
-                          ? attachmentFile.name
-                          : "Clicca per selezionare un file"}
-                      </span>
-                      {attachmentFile && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setAttachmentFile(null);
-                            setAttachmentError(null);
-                            const input = document.getElementById("attachment") as HTMLInputElement;
-                            if (input) input.value = "";
-                          }}
-                          className="ml-auto text-gray-400 hover:text-red-500 text-lg leading-none"
-                          title="Rimuovi allegato"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </label>
+                    {/* Lista file già selezionati */}
+                    {attachmentFiles.length > 0 && (
+                      <ul className="mb-2 space-y-1">
+                        {attachmentFiles.map((f, i) => (
+                          <li key={i} className="flex items-center gap-2 bg-green-50 border border-green-200 rounded px-3 py-1.5 text-sm text-gray-700">
+                            <span>📎</span>
+                            <span className="flex-1 truncate">{f.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeFile(i)}
+                              className="text-gray-400 hover:text-red-500 text-lg leading-none flex-shrink-0"
+                              title="Rimuovi foto"
+                            >
+                              ×
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {/* Pulsante aggiungi (visibile solo se meno di 4 file) */}
+                    {attachmentFiles.length < 4 && (
+                      <label
+                        htmlFor="attachments"
+                        className={`flex items-center gap-3 w-full px-4 py-3 border-2 border-dashed rounded-md cursor-pointer transition-colors ${
+                          attachmentError
+                            ? "border-red-400 bg-red-50"
+                            : "border-gray-300 bg-gray-50 hover:border-[#FFD100] hover:bg-yellow-50"
+                        }`}
+                      >
+                        <span className="text-xl">📁</span>
+                        <span className="text-sm text-gray-600">
+                          {attachmentFiles.length === 0 ? "Clicca per aggiungere foto" : `Aggiungi altra foto (${attachmentFiles.length}/4)`}
+                        </span>
+                      </label>
+                    )}
                     <input
                       type="file"
-                      id="attachment"
-                      accept=".pdf,.jpg,.jpeg,.png,.webp"
+                      id="attachments"
+                      accept=".jpg,.jpeg,.png,.webp"
+                      multiple
                       onChange={handleFileChange}
                       className="sr-only"
                     />

@@ -208,7 +208,11 @@ export async function getCart() {
         flavor,
         size,
         price_cents,
-        image
+        image,
+        products(
+          id,
+          name
+        )
       )
     `)
     .eq('user_id', user.id);

@@ -5,12 +5,12 @@ import { storage } from "./storage.ts";
 import { insertContactSchema } from "@shared/schema";
 import { z } from "zod";
 
-// Multer: memoria, max 5 MB, solo per la route /api/contact
+// Multer: memoria, max 8 MB per file, max 4 foto, solo per la route /api/contact
 const uploadAttachment = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     cb(null, allowed.includes(file.mimetype));
   },
 });
@@ -1886,9 +1886,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get all contacts endpoint (for admin purposes)
   // ROTTA PER RICEVERE IL MESSAGGIO DAL FORM (POST)
-app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Request, res: Response) => {
+app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: Request, res: Response) => {
   const formData = req.body;
-  const uploadedFile = (req as any).file as { originalname: string; buffer: Buffer; mimetype: string } | undefined;
+  const uploadedFiles = ((req as any).files as { originalname: string; buffer: Buffer; mimetype: string }[]) || [];
   console.log(`[CONTACT] Nuova richiesta - tipo: "${formData?.requestType}", orderId: "${formData?.orderId}", email: "${formData?.email}"`);
 
   // 1. Salva nel DB in try-catch separato: non blocca il flusso se fallisce
@@ -1922,32 +1922,39 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
 
           if (searchError) {
             console.error("[CONTACT RIMBORSO] Errore recupero ordini:", searchError);
-          } else {
-            const order = (allOrders || []).find((o: any) => {
-              const orderId = String(o.id).toLowerCase();
-              return orderId === searchId || orderId.startsWith(searchId);
-            });
+            return res.status(500).json({ success: false, message: "Errore durante la verifica del numero ordine. Riprova." });
+          }
 
-            if (order) {
-              console.log(`[CONTACT RIMBORSO] Ordine trovato: ${order.id} (stato attuale: ${order.status})`);
-              const { error: updateError } = await (supabaseAdmin as any)
-                .from("orders")
-                .update({ status: "richiesta_di_rimborso", updated_at: new Date().toISOString() })
-                .eq("id", order.id);
-              if (updateError) {
-                console.error("[CONTACT RIMBORSO] Errore aggiornamento stato:", updateError);
-              } else {
-                console.log(`[CONTACT RIMBORSO] ✅ Ordine ${order.id} aggiornato a richiesta_di_rimborso`);
-              }
-            } else {
-              console.warn(`[CONTACT RIMBORSO] ⚠️ Nessun ordine trovato con ID "${searchId}"`);
-            }
+          const order = (allOrders || []).find((o: any) => {
+            const id = String(o.id).toLowerCase();
+            return id === searchId || id.startsWith(searchId);
+          });
+
+          if (!order) {
+            console.warn(`[CONTACT RIMBORSO] ⚠️ Nessun ordine trovato con ID "${searchId}"`);
+            return res.status(400).json({
+              success: false,
+              message: `Numero ordine "${formData.orderId.trim().toUpperCase()}" non trovato. Controlla il numero e riprova.`,
+              field: "orderId",
+            });
+          }
+
+          console.log(`[CONTACT RIMBORSO] Ordine trovato: ${order.id} (stato attuale: ${order.status})`);
+          const { error: updateError } = await (supabaseAdmin as any)
+            .from("orders")
+            .update({ status: "richiesta_di_rimborso" })
+            .eq("id", order.id);
+          if (updateError) {
+            console.error("[CONTACT RIMBORSO] Errore aggiornamento stato:", updateError);
+          } else {
+            console.log(`[CONTACT RIMBORSO] ✅ Ordine ${order.id} aggiornato a richiesta_di_rimborso`);
           }
         } catch (dbError: any) {
           console.error("[CONTACT RIMBORSO] Errore DB:", dbError?.message || dbError);
+          return res.status(500).json({ success: false, message: "Errore durante la verifica del numero ordine. Riprova." });
         }
       } else {
-        console.warn("[CONTACT RIMBORSO] supabaseAdmin non disponibile, salto aggiornamento stato");
+        console.warn("[CONTACT RIMBORSO] supabaseAdmin non disponibile, salto verifica ordine");
       }
 
       // Invia email rimborso (cliente + admin)
@@ -1958,9 +1965,7 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
         phone: formData.phone,
         orderId: formData.orderId,
         message: formData.message,
-        attachment: uploadedFile
-          ? { filename: uploadedFile.originalname, content: uploadedFile.buffer }
-          : undefined,
+        attachments: uploadedFiles.map(f => ({ filename: f.originalname, content: f.buffer })),
       });
       console.log(`[CONTACT RIMBORSO] ✅ Email rimborso inviata`);
 
@@ -3133,10 +3138,10 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
         return res.status(500).json({ success: false, message: "Database non configurato" });
       }
 
-      // Recupera l'ordine verificando che appartenga all'utente
+      // Recupera l'ordine verificando che appartenga all'utente (inclusi dati per ricreare la sessione)
       const { data: order, error } = await (supabaseAdmin as any)
         .from("orders")
-        .select("id, user_id, status, stripe_session_id, created_at")
+        .select("id, user_id, status, stripe_session_id, created_at, total_cents, fulfillment_type, pickup_store, shipping_address_id, notes, stripe_customer_id")
         .eq("id", orderId)
         .eq("user_id", user.id)
         .single();
@@ -3150,46 +3155,92 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
         return res.status(400).json({ success: false, message: "L'ordine non è in attesa di pagamento" });
       }
 
-      // Verifica che non siano passati più di 10 minuti
-      const orderCreatedAt = new Date(order.created_at).getTime();
-      const tenMinutesInMs = 10 * 60 * 1000;
-      if (Date.now() - orderCreatedAt > tenMinutesInMs) {
-        // Aggiorna l'ordine a fallito
-        await (supabaseAdmin as any)
-          .from("orders")
-          .update({ status: "fallito", updated_at: new Date().toISOString() })
-          .eq("id", orderId);
-
-        return res.status(400).json({ success: false, message: "Sessione di pagamento scaduta", expired: true });
-      }
-
-      if (!order.stripe_session_id) {
-        return res.status(400).json({ success: false, message: "Sessione Stripe non disponibile" });
-      }
-
-      // Recupera la sessione Stripe per ottenere l'URL
       const stripeSecret = process.env.STRIPE_SECRET_KEY;
       if (!stripeSecret) {
         return res.status(500).json({ success: false, message: "Stripe non configurato" });
       }
-
       const stripe = new Stripe(stripeSecret);
-      const stripeSession = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
 
-      if (!stripeSession.url) {
-        return res.status(400).json({ success: false, message: "URL di checkout non disponibile" });
+      // Se esiste già una sessione Stripe, prova a riutilizzarla
+      if (order.stripe_session_id) {
+        const stripeSession = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
+
+        if (stripeSession.status === "complete") {
+          return res.status(400).json({ success: false, message: "Pagamento già completato" });
+        }
+
+        // Sessione ancora aperta: restituisce direttamente l'URL
+        if (stripeSession.status === "open" && stripeSession.url) {
+          return res.json({ success: true, checkoutUrl: stripeSession.url });
+        }
+
+        // Sessione scaduta: ricrea sotto
       }
 
-      // Verifica che la sessione Stripe sia ancora valida
-      if (stripeSession.status === "expired" || stripeSession.status === "complete") {
-        return res.status(400).json({
-          success: false,
-          message: stripeSession.status === "complete" ? "Pagamento già completato" : "Sessione scaduta",
-          expired: stripeSession.status === "expired"
-        });
+      // Sessione mancante o scaduta: ricrea una nuova sessione Stripe per lo stesso ordine
+      console.log(`[ORDERS] Ricreo sessione Stripe per ordine ${orderId}`);
+
+      const { data: orderItems } = await (supabaseAdmin as any)
+        .from("order_items")
+        .select(`
+          quantity,
+          unit_price_cents,
+          product_options (
+            id,
+            label,
+            products (
+              id,
+              name
+            )
+          )
+        `)
+        .eq("order_id", orderId);
+
+      if (!orderItems || orderItems.length === 0) {
+        return res.status(400).json({ success: false, message: "Nessun prodotto trovato nell'ordine" });
       }
 
-      return res.json({ success: true, checkoutUrl: stripeSession.url });
+      const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = orderItems.map((item: any) => {
+        const productName = item.product_options?.products?.name || "Prodotto";
+        const optionLabel = item.product_options?.label || "";
+        return {
+          price_data: {
+            currency: "eur",
+            product_data: {
+              name: `${productName}${optionLabel ? ` - ${optionLabel}` : ""}`.trim(),
+            },
+            unit_amount: item.unit_price_cents,
+          },
+          quantity: item.quantity,
+        };
+      });
+
+      const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
+      const newSession = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        line_items,
+        success_url: `${baseUrl}/checkout-success?session_id=${orderId}`,
+        cancel_url: `${baseUrl}/carrello`,
+        ...(order.stripe_customer_id
+          ? { customer: order.stripe_customer_id }
+          : undefined
+        ),
+        metadata: {
+          order_id: orderId,
+          user_id: user.id,
+          fulfillment_type: order.fulfillment_type || "spedizione",
+          pickup_store: order.pickup_store || "",
+        },
+      });
+
+      // Aggiorna il nuovo stripe_session_id nel DB
+      await (supabaseAdmin as any)
+        .from("orders")
+        .update({ stripe_session_id: newSession.id })
+        .eq("id", orderId);
+
+      return res.json({ success: true, checkoutUrl: newSession.url });
     } catch (error: any) {
       console.error("[ORDERS] Errore recupero checkout URL:", error?.message || error);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
@@ -3219,7 +3270,7 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
       // Cerca l'ordine tramite ID, verificando che appartenga all'utente
       const { data: order, error } = await (supabaseAdmin as any)
         .from("orders")
-        .select("id, user_id, status, currency, total_cents, created_at, stripe_session_id")
+        .select("id, user_id, status, currency, total_cents, created_at, stripe_session_id, fulfillment_type, pickup_store")
         .eq("id", sessionId)
         .eq("user_id", user.id)
         .single();
@@ -3442,7 +3493,9 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
                       userName: customerName,
                       total: order.total_cents,
                       items: emailItems,
-                      shippingAddress: shippingAddr || undefined
+                      shippingAddress: shippingAddr || undefined,
+                      fulfillmentType: order.fulfillment_type || 'spedizione',
+                      pickupStore: order.pickup_store || undefined,
                     });
                     console.log(`[ORDERS] ✅ Email conferma ordine inviata a ${customerEmail} (via fallback)`);
 
@@ -3455,7 +3508,9 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
                         userName: customerName,
                         total: order.total_cents,
                         items: emailItems,
-                        shippingAddress: shippingAddr || undefined
+                        shippingAddress: shippingAddr || undefined,
+                        fulfillmentType: order.fulfillment_type || 'spedizione',
+                        pickupStore: order.pickup_store || undefined,
                       });
                       console.log(`[ORDERS] ✅ Email notifica admin inviata (via fallback), risultato: ${adminEmailResult}`);
                     } catch (adminEmailError) {
@@ -5043,7 +5098,7 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
   app.put("/api/admin/orders/:orderId/status", ensureAuth, ensureAdmin, async (req: Request, res: Response) => {
     try {
       const { orderId } = req.params;
-      const { status } = req.body;
+      const { status, refundAmountCents } = req.body;
 
       // Valori enum validi per lo status (italiano snake_case)
       const validStatuses = [
@@ -5159,12 +5214,20 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
         }
       }
 
-      // Se lo stato diventa "rimborsato", invia email di rimborso completato al cliente e all'admin
+      // Se lo stato diventa "rimborsato", salva l'importo rimborsato e invia email
       if (status === 'rimborsato') {
+        // Salva l'importo rimborsato se fornito
+        if (refundAmountCents !== undefined && refundAmountCents !== null) {
+          await (supabaseAdmin as any)
+            .from("orders")
+            .update({ refund_amount_cents: refundAmountCents })
+            .eq("id", orderId);
+        }
+
         try {
           const { data: order } = await (supabaseAdmin as any)
             .from("orders")
-            .select("id, user_id, total_cents")
+            .select("id, user_id, total_cents, refund_amount_cents")
             .eq("id", orderId)
             .single();
 
@@ -5176,11 +5239,14 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
               .single();
 
             if (userData?.email) {
+              const orderTotal = order.total_cents || 0;
+              const refundAmount = order.refund_amount_cents ?? orderTotal;
               await sendRefundCompletedEmail({
                 orderId: order.id,
                 userEmail: userData.email,
                 userName: userData.first_name || userData.email.split('@')[0],
-                total: order.total_cents || 0,
+                orderTotal,
+                refundAmount,
               });
             }
           }

@@ -4,7 +4,7 @@ import { CheckCircle, Package, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQueryClient } from "@tanstack/react-query";
-import { clearCart } from "@/services/cart";
+import { useCartContext } from "@/components/cart/CartProvider";
 
 interface OrderDetails {
   id: string;
@@ -22,6 +22,7 @@ export default function CheckoutSuccess() {
   const [loading, setLoading] = useState(true);
   const queryClient = useQueryClient();
   const cartClearedRef = useRef(false);
+  const { clearCart } = useCartContext();
 
   useEffect(() => {
     // Recupera dettagli ordine tramite session_id
@@ -41,8 +42,9 @@ export default function CheckoutSuccess() {
             if (data.order.status === "pagato" && !cartClearedRef.current) {
               cartClearedRef.current = true;
               try {
+                // clearCart dall'hook aggiorna sia Supabase che lo state locale (badge)
                 await clearCart();
-                // Invalida le query del carrello per aggiornare l'UI
+                localStorage.removeItem("biggimmy-cart");
                 queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
                 queryClient.invalidateQueries({ queryKey: ["cart"] });
                 console.log("[CHECKOUT SUCCESS] Carrello svuotato con successo");
