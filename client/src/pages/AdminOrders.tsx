@@ -213,6 +213,8 @@ export default function AdminOrders() {
   const [loadingInvoiceOrderId, setLoadingInvoiceOrderId] = useState<string | null>(null);
   const [loadingPickupAction, setLoadingPickupAction] = useState<string | null>(null);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
+  const [refundDialogOrder, setRefundDialogOrder] = useState<Order | null>(null);
+  const [refundAmountInput, setRefundAmountInput] = useState<string>("");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -236,17 +238,31 @@ export default function AdminOrders() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
-      return apiRequest("PUT", `/api/admin/orders/${orderId}/status`, { status });
+    mutationFn: async ({ orderId, status, refundAmountCents }: { orderId: string; status: string; refundAmountCents?: number }) => {
+      return apiRequest("PUT", `/api/admin/orders/${orderId}/status`, { status, refundAmountCents });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['/api/admin/orders'] });
       await queryClient.refetchQueries({ queryKey: ['/api/admin/orders'] });
+      setRefundDialogOrder(null);
+      setRefundAmountInput("");
     },
   });
 
-  const handleStatusChange = (orderId: string, newStatus: string) => {
-    updateStatusMutation.mutate({ orderId, status: newStatus });
+  const handleStatusChange = (order: Order, newStatus: string) => {
+    if (newStatus === "rimborsato") {
+      setRefundDialogOrder(order);
+      setRefundAmountInput((order.total / 100).toFixed(2));
+      return;
+    }
+    updateStatusMutation.mutate({ orderId: order.id, status: newStatus });
+  };
+
+  const handleConfirmRefund = () => {
+    if (!refundDialogOrder) return;
+    const amountCents = Math.round(parseFloat(refundAmountInput.replace(",", ".")) * 100);
+    if (isNaN(amountCents) || amountCents <= 0) return;
+    updateStatusMutation.mutate({ orderId: refundDialogOrder.id, status: "rimborsato", refundAmountCents: amountCents });
   };
 
   const openTrackingDialog = (order: Order) => {
@@ -719,7 +735,7 @@ export default function AdminOrders() {
                           <div>
                             <Select
                               value={order.status}
-                              onValueChange={(value) => handleStatusChange(order.id, value)}
+                              onValueChange={(value) => handleStatusChange(order, value)}
                               disabled={updateStatusMutation.isPending}
                             >
                               <SelectTrigger className={`w-[180px] h-8 text-xs ${statusColors[order.status] || 'bg-gray-100 text-gray-800'} border-0`}>
@@ -977,6 +993,55 @@ export default function AdminOrders() {
               className="bg-[#FFD100] text-black hover:bg-[#e6bc00]"
             >
               {updateTrackingMutation.isPending ? "Salvataggio..." : "Salva"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog conferma rimborso con importo */}
+      <Dialog open={!!refundDialogOrder} onOpenChange={(open) => { if (!open) { setRefundDialogOrder(null); setRefundAmountInput(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Conferma rimborso</DialogTitle>
+            <DialogDescription>
+              Inserisci l'importo che hai rimborsato su Stripe per l'ordine #{refundDialogOrder?.id?.substring(0, 8)}.
+              Il cliente e l'admin riceveranno un'email con questo importo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="p-3 bg-gray-50 rounded-lg text-sm">
+              <span className="text-gray-500">Totale ordine: </span>
+              <span className="font-semibold">€{refundDialogOrder ? (refundDialogOrder.total / 100).toFixed(2).replace(".", ",") : "—"}</span>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="refundAmount">Importo rimborsato su Stripe (€)</Label>
+              <Input
+                id="refundAmount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={refundAmountInput}
+                onChange={(e) => setRefundAmountInput(e.target.value)}
+                placeholder="Es. 88.00"
+              />
+              {refundDialogOrder && refundAmountInput && !isNaN(parseFloat(refundAmountInput.replace(",", "."))) &&
+                parseFloat(refundAmountInput.replace(",", ".")) < refundDialogOrder.total / 100 && (
+                <p className="text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded">
+                  Rimborso parziale: €{(refundDialogOrder.total / 100 - parseFloat(refundAmountInput.replace(",", "."))).toFixed(2).replace(".", ",")} non rimborsati (es. spese di spedizione).
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRefundDialogOrder(null); setRefundAmountInput(""); }}>
+              Annulla
+            </Button>
+            <Button
+              onClick={handleConfirmRefund}
+              disabled={!refundAmountInput || isNaN(parseFloat(refundAmountInput.replace(",", "."))) || parseFloat(refundAmountInput.replace(",", ".")) <= 0 || updateStatusMutation.isPending}
+              className="bg-green-600 text-white hover:bg-green-700"
+            >
+              {updateStatusMutation.isPending ? "Elaborazione..." : "Conferma rimborso"}
             </Button>
           </DialogFooter>
         </DialogContent>

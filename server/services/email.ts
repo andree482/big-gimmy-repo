@@ -1533,11 +1533,11 @@ interface RefundRequestData {
   phone?: string;
   orderId: string;
   message: string;
-  attachment?: { filename: string; content: Buffer };
+  attachments?: { filename: string; content: Buffer }[];
 }
 
 export async function sendRefundRequestEmail(data: RefundRequestData): Promise<boolean> {
-  const { name, email, phone, orderId, message, attachment } = data;
+  const { name, email, phone, orderId, message, attachments } = data;
   const shortId = orderId.trim().toUpperCase();
 
   console.log(`[EMAIL REFUND] Invio email richiesta rimborso ordine #${shortId} da ${email}`);
@@ -1622,8 +1622,8 @@ export async function sendRefundRequestEmail(data: RefundRequestData): Promise<b
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
       subject: `🔴 Richiesta di Rimborso - Ordine #${shortId} - ${name}`,
-      ...(attachment && {
-        attachments: [{ filename: attachment.filename, content: attachment.content }],
+      ...(attachments && attachments.length > 0 && {
+        attachments: attachments.map(a => ({ filename: a.filename, content: a.content })),
       }),
       html: `
         <!DOCTYPE html>
@@ -1714,13 +1714,17 @@ interface RefundCompletedData {
   orderId: string;
   userEmail: string;
   userName: string;
-  total: number; // in centesimi
+  orderTotal: number;   // totale originale dell'ordine in centesimi
+  refundAmount: number; // importo effettivamente rimborsato su Stripe in centesimi
 }
 
 export async function sendRefundCompletedEmail(data: RefundCompletedData): Promise<boolean> {
-  const { orderId, userEmail, userName, total } = data;
+  const { orderId, userEmail, userName, orderTotal, refundAmount } = data;
   const shortId = orderId.trim().toUpperCase();
-  const totalFormatted = (total / 100).toFixed(2).replace('.', ',');
+  const orderTotalFormatted = (orderTotal / 100).toFixed(2).replace('.', ',');
+  const refundFormatted = (refundAmount / 100).toFixed(2).replace('.', ',');
+  const isPartialRefund = refundAmount < orderTotal;
+  const shippingNotRefunded = isPartialRefund ? ((orderTotal - refundAmount) / 100).toFixed(2).replace('.', ',') : null;
 
   console.log(`[EMAIL RIMBORSATO] Invio email rimborso completato ordine #${shortId} a ${userEmail}`);
 
@@ -1756,23 +1760,40 @@ export async function sendRefundCompletedEmail(data: RefundCompletedData): Promi
             </div>
             <div style="padding: 35px 30px;">
               <p style="color: #4a4a4a; font-size: 16px; line-height: 1.7; margin: 0 0 25px 0;">
-                Ciao <strong>${userName}</strong>, ti informiamo che il rimborso per l'ordine <strong>#${shortId}</strong> è stato approvato ed elaborato.
+                Ciao <strong>${userName}</strong>, ti informiamo che il rimborso per l'ordine <strong>#${shortId}</strong> è stato approvato ed elaborato su Stripe.
               </p>
 
               <table style="width: 100%; border-collapse: collapse; background: #e8f5e9; border-radius: 8px; margin-bottom: 25px;">
                 <tr>
                   <td style="padding: 20px;">
-                    <h3 style="color: #2e7d32; font-size: 16px; margin: 0 0 12px 0;">💰 Dettagli rimborso</h3>
+                    <h3 style="color: #2e7d32; font-size: 16px; margin: 0 0 15px 0;">💰 Dettagli rimborso</h3>
                     <table style="width: 100%; border-collapse: collapse;">
                       <tr>
-                        <td style="padding: 5px 0; color: #555; font-size: 14px; width: 140px;">Ordine:</td>
-                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">#${shortId}</td>
+                        <td style="padding: 6px 0; color: #555; font-size: 14px; width: 170px;">Numero ordine:</td>
+                        <td style="padding: 6px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">#${shortId}</td>
                       </tr>
                       <tr>
-                        <td style="padding: 5px 0; color: #555; font-size: 14px;">Importo rimborsato:</td>
-                        <td style="padding: 5px 0; color: #2e7d32; font-size: 16px; font-weight: 700;">€${totalFormatted}</td>
+                        <td style="padding: 6px 0; color: #555; font-size: 14px;">Totale ordine:</td>
+                        <td style="padding: 6px 0; color: #4a4a4a; font-size: 14px;">€${orderTotalFormatted}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 8px 0 6px 0; color: #555; font-size: 14px; border-top: 1px solid #c8e6c9;">Importo rimborsato:</td>
+                        <td style="padding: 8px 0 6px 0; color: #2e7d32; font-size: 18px; font-weight: 700; border-top: 1px solid #c8e6c9;">€${refundFormatted}</td>
                       </tr>
                     </table>
+                    ${isPartialRefund ? `
+                    <div style="margin-top: 12px; padding: 10px 14px; background: #fff8e1; border-left: 3px solid #f9a825; border-radius: 0 6px 6px 0;">
+                      <p style="color: #6d4c00; font-size: 13px; margin: 0; line-height: 1.5;">
+                        ℹ️ Il rimborso è parziale: le spese di spedizione (€${shippingNotRefunded}) non sono state rimborsate in quanto il servizio di spedizione era già stato erogato.
+                      </p>
+                    </div>
+                    ` : `
+                    <div style="margin-top: 12px; padding: 10px 14px; background: #f1f8e9; border-left: 3px solid #7cb342; border-radius: 0 6px 6px 0;">
+                      <p style="color: #33691e; font-size: 13px; margin: 0; line-height: 1.5;">
+                        ✔️ Rimborso completo: l'intero importo dell'ordine è stato rimborsato.
+                      </p>
+                    </div>
+                    `}
                   </td>
                 </tr>
               </table>
@@ -1831,7 +1852,7 @@ export async function sendRefundCompletedEmail(data: RefundCompletedData): Promi
                   <td style="padding: 15px 20px;">
                     <table style="width: 100%; border-collapse: collapse;">
                       <tr>
-                        <td style="padding: 5px 0; color: #666; font-size: 13px; width: 140px;">Cliente:</td>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px; width: 160px;">Cliente:</td>
                         <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">${userName}</td>
                       </tr>
                       <tr>
@@ -1843,16 +1864,31 @@ export async function sendRefundCompletedEmail(data: RefundCompletedData): Promi
                         <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">#${shortId}</td>
                       </tr>
                       <tr>
-                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Importo:</td>
-                        <td style="padding: 5px 0; color: #2e7d32; font-size: 15px; font-weight: 700;">€${totalFormatted}</td>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Totale ordine:</td>
+                        <td style="padding: 5px 0; color: #4a4a4a; font-size: 14px;">€${orderTotalFormatted}</td>
                       </tr>
+                      <tr>
+                        <td style="padding: 8px 0 5px 0; color: #666; font-size: 13px; border-top: 1px solid #dee2e6;">Importo rimborsato su Stripe:</td>
+                        <td style="padding: 8px 0 5px 0; color: #2e7d32; font-size: 16px; font-weight: 700; border-top: 1px solid #dee2e6;">€${refundFormatted}</td>
+                      </tr>
+                      ${isPartialRefund ? `
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Tipo rimborso:</td>
+                        <td style="padding: 5px 0; font-size: 13px; color: #e65100; font-weight: 600;">Parziale (spedizione €${shippingNotRefunded} non rimborsata)</td>
+                      </tr>
+                      ` : `
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Tipo rimborso:</td>
+                        <td style="padding: 5px 0; font-size: 13px; color: #2e7d32; font-weight: 600;">Completo</td>
+                      </tr>
+                      `}
                     </table>
                   </td>
                 </tr>
               </table>
 
               <p style="color: #555; font-size: 13px; margin: 0;">
-                Il cliente è stato notificato che riceverà il pagamento entro 10 giorni lavorativi.
+                Il cliente è stato notificato via email che riceverà il pagamento entro 10 giorni lavorativi.
               </p>
             </div>
             <div style="background: #f5f5f5; padding: 15px 30px; text-align: center;">

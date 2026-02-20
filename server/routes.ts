@@ -5,12 +5,12 @@ import { storage } from "./storage.ts";
 import { insertContactSchema } from "@shared/schema";
 import { z } from "zod";
 
-// Multer: memoria, max 5 MB, solo per la route /api/contact
+// Multer: memoria, max 8 MB per file, max 4 foto, solo per la route /api/contact
 const uploadAttachment = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     cb(null, allowed.includes(file.mimetype));
   },
 });
@@ -1886,9 +1886,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get all contacts endpoint (for admin purposes)
   // ROTTA PER RICEVERE IL MESSAGGIO DAL FORM (POST)
-app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Request, res: Response) => {
+app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: Request, res: Response) => {
   const formData = req.body;
-  const uploadedFile = (req as any).file as { originalname: string; buffer: Buffer; mimetype: string } | undefined;
+  const uploadedFiles = ((req as any).files as { originalname: string; buffer: Buffer; mimetype: string }[]) || [];
   console.log(`[CONTACT] Nuova richiesta - tipo: "${formData?.requestType}", orderId: "${formData?.orderId}", email: "${formData?.email}"`);
 
   // 1. Salva nel DB in try-catch separato: non blocca il flusso se fallisce
@@ -1924,15 +1924,18 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
             console.error("[CONTACT RIMBORSO] Errore recupero ordini:", searchError);
           } else {
             const order = (allOrders || []).find((o: any) => {
-              const orderId = String(o.id).toLowerCase();
-              return orderId === searchId || orderId.startsWith(searchId);
+              const id = String(o.id).toLowerCase();
+              return id === searchId
+                || id.startsWith(searchId)
+                || id.endsWith(searchId)
+                || id.includes(searchId);
             });
 
             if (order) {
               console.log(`[CONTACT RIMBORSO] Ordine trovato: ${order.id} (stato attuale: ${order.status})`);
               const { error: updateError } = await (supabaseAdmin as any)
                 .from("orders")
-                .update({ status: "richiesta_di_rimborso", updated_at: new Date().toISOString() })
+                .update({ status: "richiesta_di_rimborso" })
                 .eq("id", order.id);
               if (updateError) {
                 console.error("[CONTACT RIMBORSO] Errore aggiornamento stato:", updateError);
@@ -1958,9 +1961,7 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
         phone: formData.phone,
         orderId: formData.orderId,
         message: formData.message,
-        attachment: uploadedFile
-          ? { filename: uploadedFile.originalname, content: uploadedFile.buffer }
-          : undefined,
+        attachments: uploadedFiles.map(f => ({ filename: f.originalname, content: f.buffer })),
       });
       console.log(`[CONTACT RIMBORSO] ✅ Email rimborso inviata`);
 
@@ -3219,7 +3220,7 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
       // Cerca l'ordine tramite ID, verificando che appartenga all'utente
       const { data: order, error } = await (supabaseAdmin as any)
         .from("orders")
-        .select("id, user_id, status, currency, total_cents, created_at, stripe_session_id")
+        .select("id, user_id, status, currency, total_cents, created_at, stripe_session_id, fulfillment_type, pickup_store")
         .eq("id", sessionId)
         .eq("user_id", user.id)
         .single();
@@ -3442,7 +3443,9 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
                       userName: customerName,
                       total: order.total_cents,
                       items: emailItems,
-                      shippingAddress: shippingAddr || undefined
+                      shippingAddress: shippingAddr || undefined,
+                      fulfillmentType: order.fulfillment_type || 'spedizione',
+                      pickupStore: order.pickup_store || undefined,
                     });
                     console.log(`[ORDERS] ✅ Email conferma ordine inviata a ${customerEmail} (via fallback)`);
 
@@ -3455,7 +3458,9 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
                         userName: customerName,
                         total: order.total_cents,
                         items: emailItems,
-                        shippingAddress: shippingAddr || undefined
+                        shippingAddress: shippingAddr || undefined,
+                        fulfillmentType: order.fulfillment_type || 'spedizione',
+                        pickupStore: order.pickup_store || undefined,
                       });
                       console.log(`[ORDERS] ✅ Email notifica admin inviata (via fallback), risultato: ${adminEmailResult}`);
                     } catch (adminEmailError) {
@@ -5043,7 +5048,7 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
   app.put("/api/admin/orders/:orderId/status", ensureAuth, ensureAdmin, async (req: Request, res: Response) => {
     try {
       const { orderId } = req.params;
-      const { status } = req.body;
+      const { status, refundAmountCents } = req.body;
 
       // Valori enum validi per lo status (italiano snake_case)
       const validStatuses = [
@@ -5159,12 +5164,20 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
         }
       }
 
-      // Se lo stato diventa "rimborsato", invia email di rimborso completato al cliente e all'admin
+      // Se lo stato diventa "rimborsato", salva l'importo rimborsato e invia email
       if (status === 'rimborsato') {
+        // Salva l'importo rimborsato se fornito
+        if (refundAmountCents !== undefined && refundAmountCents !== null) {
+          await (supabaseAdmin as any)
+            .from("orders")
+            .update({ refund_amount_cents: refundAmountCents })
+            .eq("id", orderId);
+        }
+
         try {
           const { data: order } = await (supabaseAdmin as any)
             .from("orders")
-            .select("id, user_id, total_cents")
+            .select("id, user_id, total_cents, refund_amount_cents")
             .eq("id", orderId)
             .single();
 
@@ -5176,11 +5189,14 @@ app.post("/api/contact", uploadAttachment.single("attachment"), async (req: Requ
               .single();
 
             if (userData?.email) {
+              const orderTotal = order.total_cents || 0;
+              const refundAmount = order.refund_amount_cents ?? orderTotal;
               await sendRefundCompletedEmail({
                 orderId: order.id,
                 userEmail: userData.email,
                 userName: userData.first_name || userData.email.split('@')[0],
-                total: order.total_cents || 0,
+                orderTotal,
+                refundAmount,
               });
             }
           }

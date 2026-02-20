@@ -42,6 +42,8 @@ export default function CheckoutSuccess() {
               cartClearedRef.current = true;
               try {
                 await clearCart();
+                // Pulisce anche il carrello guest in localStorage
+                localStorage.removeItem("biggimmy-cart");
                 // Invalida le query del carrello per aggiornare l'UI
                 queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
                 queryClient.invalidateQueries({ queryKey: ["cart"] });

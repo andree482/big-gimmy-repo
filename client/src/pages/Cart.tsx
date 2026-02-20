@@ -84,6 +84,10 @@ export default function Cart() {
               <div className="lg:col-span-2 space-y-6">
                 {cartItems.map((item) => (
                   <Card key={`${item.product_option_id}-${item.variant || ''}`} className="p-4 sm:p-6 shadow-md">
+                    {/* Nome prodotto come header della card */}
+                    <h3 className="text-base sm:text-lg font-semibold border-b pb-2 mb-3">
+                      {item.name}
+                    </h3>
                     <div className="flex items-start gap-3 sm:gap-6">
 
                       <div className="w-20 h-20 sm:w-28 sm:h-28 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
@@ -100,9 +104,6 @@ export default function Cart() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="text-base sm:text-xl font-semibold mb-1 sm:mb-2">
-                            {item.name}
-                          </h3>
                           {/* Prezzo totale visibile subito su mobile */}
                           <p className="text-base sm:text-xl font-bold sm:hidden flex-shrink-0">
                             {formatEuropeanPrice(item.price * item.quantity)}
