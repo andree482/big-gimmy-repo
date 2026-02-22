@@ -10,9 +10,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Package, Store, MapPin, Clock, Edit } from "lucide-react";
+import { Package, Store, MapPin, Clock, Edit, FileText } from "lucide-react";
+
+export interface FatturaData {
+  tipo: "privato" | "azienda";
+  intestatario: string;
+  indirizzo: string;
+  cap: string;
+  citta: string;
+  provincia: string;
+  codice_fiscale: string;
+  partita_iva: string;
+  pec: string;
+  sdi: string;
+}
 
 export type FulfillmentType = "spedizione" | "ritiro";
 export type PickupStore = "torino" | "aosta";
@@ -35,8 +49,8 @@ interface CheckoutFulfillmentModalProps {
   onClose: () => void;
   cartTotal: number;
   shippingCost: number;
-  onSelectShipping: () => void;
-  onSelectPickup: (store: PickupStore, notes: string) => void;
+  onSelectShipping: (fatturaData?: FatturaData) => void;
+  onSelectPickup: (store: PickupStore, notes: string, fatturaData?: FatturaData) => void;
 }
 
 export function CheckoutFulfillmentModal({
@@ -51,13 +65,36 @@ export function CheckoutFulfillmentModal({
   const [pickupStore, setPickupStore] = useState<PickupStore>("torino");
   const [notes, setNotes] = useState("");
   const [acceptRecesso, setAcceptRecesso] = useState(false);
+  const [wantsFattura, setWantsFattura] = useState(false);
+  const [fatturaData, setFatturaData] = useState<FatturaData>({
+    tipo: "privato",
+    intestatario: "",
+    indirizzo: "",
+    cap: "",
+    citta: "",
+    provincia: "",
+    codice_fiscale: "",
+    partita_iva: "",
+    pec: "",
+    sdi: "",
+  });
+
+  const isFatturaValid = !wantsFattura || (
+    fatturaData.intestatario.trim() !== "" &&
+    fatturaData.indirizzo.trim() !== "" &&
+    fatturaData.cap.trim() !== "" &&
+    fatturaData.citta.trim() !== "" &&
+    (fatturaData.tipo === "privato" ? fatturaData.codice_fiscale.trim() !== "" : fatturaData.partita_iva.trim() !== "")
+  );
 
   const handleConfirm = () => {
+    if (!isFatturaValid) return;
+    const fattura = wantsFattura ? fatturaData : undefined;
     if (fulfillmentType === "spedizione") {
-      onSelectShipping();
+      onSelectShipping(fattura);
     } else {
       if (!acceptRecesso) return;
-      onSelectPickup(pickupStore, notes);
+      onSelectPickup(pickupStore, notes, fattura);
     }
   };
 
@@ -228,6 +265,172 @@ export function CheckoutFulfillmentModal({
               </p>
             </div>
           )}
+
+          {/* Sezione richiesta fattura */}
+          <div className="pt-2 border-t space-y-4">
+            <div className="flex items-start space-x-3">
+              <Checkbox
+                id="wantsFattura"
+                checked={wantsFattura}
+                onCheckedChange={(checked) => setWantsFattura(checked === true)}
+                className="mt-1"
+              />
+              <Label htmlFor="wantsFattura" className="text-sm leading-relaxed cursor-pointer flex items-center gap-2">
+                <FileText className="h-4 w-4 text-gray-500" />
+                Desidero ricevere fattura (inserisci i tuoi dati fiscali)
+              </Label>
+            </div>
+
+            {wantsFattura && (
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3 border">
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  I dati verranno riportati sulla ricevuta Stripe. Per fattura elettronica conforme SDI, ti contatteremo via email dopo l'ordine.
+                </p>
+
+                {/* Tipo: Privato / Azienda */}
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium text-gray-700">Tipo</Label>
+                  <RadioGroup
+                    value={fatturaData.tipo}
+                    onValueChange={(v) => setFatturaData((d) => ({ ...d, tipo: v as "privato" | "azienda" }))}
+                    className="flex gap-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="privato" id="fattura-privato" />
+                      <Label htmlFor="fattura-privato" className="text-sm cursor-pointer">Privato</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="azienda" id="fattura-azienda" />
+                      <Label htmlFor="fattura-azienda" className="text-sm cursor-pointer">Azienda / Professionista</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* Intestatario */}
+                <div className="space-y-1">
+                  <Label htmlFor="fattura-intestatario" className="text-xs font-medium text-gray-700">
+                    {fatturaData.tipo === "azienda" ? "Ragione sociale *" : "Nome e Cognome *"}
+                  </Label>
+                  <Input
+                    id="fattura-intestatario"
+                    value={fatturaData.intestatario}
+                    onChange={(e) => setFatturaData((d) => ({ ...d, intestatario: e.target.value }))}
+                    placeholder={fatturaData.tipo === "azienda" ? "Es. Big Gimmy Srl" : "Es. Mario Rossi"}
+                    className="h-8 text-sm"
+                  />
+                </div>
+
+                {/* CF o P.IVA */}
+                {fatturaData.tipo === "privato" ? (
+                  <div className="space-y-1">
+                    <Label htmlFor="fattura-cf" className="text-xs font-medium text-gray-700">Codice Fiscale *</Label>
+                    <Input
+                      id="fattura-cf"
+                      value={fatturaData.codice_fiscale}
+                      onChange={(e) => setFatturaData((d) => ({ ...d, codice_fiscale: e.target.value.toUpperCase() }))}
+                      placeholder="Es. RSSMRA85M01H501Z"
+                      maxLength={16}
+                      className="h-8 text-sm font-mono"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <Label htmlFor="fattura-piva" className="text-xs font-medium text-gray-700">Partita IVA *</Label>
+                    <Input
+                      id="fattura-piva"
+                      value={fatturaData.partita_iva}
+                      onChange={(e) => setFatturaData((d) => ({ ...d, partita_iva: e.target.value }))}
+                      placeholder="Es. 01234567890"
+                      maxLength={11}
+                      className="h-8 text-sm font-mono"
+                    />
+                  </div>
+                )}
+
+                {/* Indirizzo */}
+                <div className="space-y-1">
+                  <Label htmlFor="fattura-indirizzo" className="text-xs font-medium text-gray-700">Indirizzo *</Label>
+                  <Input
+                    id="fattura-indirizzo"
+                    value={fatturaData.indirizzo}
+                    onChange={(e) => setFatturaData((d) => ({ ...d, indirizzo: e.target.value }))}
+                    placeholder="Es. Via Roma, 1"
+                    className="h-8 text-sm"
+                  />
+                </div>
+
+                {/* CAP, Città, Provincia */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="fattura-cap" className="text-xs font-medium text-gray-700">CAP *</Label>
+                    <Input
+                      id="fattura-cap"
+                      value={fatturaData.cap}
+                      onChange={(e) => setFatturaData((d) => ({ ...d, cap: e.target.value }))}
+                      placeholder="Es. 10100"
+                      maxLength={5}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1 col-span-2">
+                    <Label htmlFor="fattura-citta" className="text-xs font-medium text-gray-700">Città *</Label>
+                    <Input
+                      id="fattura-citta"
+                      value={fatturaData.citta}
+                      onChange={(e) => setFatturaData((d) => ({ ...d, citta: e.target.value }))}
+                      placeholder="Es. Torino"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="fattura-prov" className="text-xs font-medium text-gray-700">Provincia</Label>
+                    <Input
+                      id="fattura-prov"
+                      value={fatturaData.provincia}
+                      onChange={(e) => setFatturaData((d) => ({ ...d, provincia: e.target.value.toUpperCase() }))}
+                      placeholder="TO"
+                      maxLength={2}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  {fatturaData.tipo === "azienda" && (
+                    <div className="space-y-1">
+                      <Label htmlFor="fattura-sdi" className="text-xs font-medium text-gray-700">Codice SDI</Label>
+                      <Input
+                        id="fattura-sdi"
+                        value={fatturaData.sdi}
+                        onChange={(e) => setFatturaData((d) => ({ ...d, sdi: e.target.value.toUpperCase() }))}
+                        placeholder="Es. XXXXXXX"
+                        maxLength={7}
+                        className="h-8 text-sm font-mono"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {fatturaData.tipo === "azienda" && (
+                  <div className="space-y-1">
+                    <Label htmlFor="fattura-pec" className="text-xs font-medium text-gray-700">PEC (opzionale)</Label>
+                    <Input
+                      id="fattura-pec"
+                      value={fatturaData.pec}
+                      onChange={(e) => setFatturaData((d) => ({ ...d, pec: e.target.value }))}
+                      placeholder="Es. azienda@pec.it"
+                      type="email"
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                )}
+
+                {!isFatturaValid && (
+                  <p className="text-xs text-red-500">Compila tutti i campi obbligatori (*) per procedere.</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -236,7 +439,7 @@ export function CheckoutFulfillmentModal({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={fulfillmentType === "ritiro" && !acceptRecesso}
+            disabled={(fulfillmentType === "ritiro" && !acceptRecesso) || !isFatturaValid}
             className="w-full sm:w-auto bg-[#FFD100] hover:bg-[#e6bc00] text-black font-semibold"
           >
             {fulfillmentType === "spedizione"

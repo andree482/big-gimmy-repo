@@ -1,4 +1,4 @@
-import { MapPin, Phone, Clock, Link as LinkIcon } from "lucide-react";
+import { MapPin, Phone, Clock, Link as LinkIcon, Instagram } from "lucide-react";
 import { useState } from "react";
 import Lightbox from "@/components/ui/lightbox";
 import { OptimizedImage } from "@/components/ui/OptimizedImage";
@@ -110,9 +110,17 @@ const Stores = () => {
                     href="https://maps.app.goo.gl/6P97G3cR8YUHY9Zx7"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mb-4 flex items-center text-blue-600 hover:text-blue-800 hover:underline"
+                    className="mb-3 flex items-center text-blue-600 hover:text-blue-800 hover:underline"
                   >
                     <LinkIcon className="h-5 w-5 mr-2 text-[#FFD100]" /> Visualizza su Google Maps
+                  </a>
+                  <a
+                    href="https://www.instagram.com/biggimmyintegratori/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mb-4 flex items-center text-pink-600 hover:text-pink-800 hover:underline"
+                  >
+                    <Instagram className="h-5 w-5 mr-2 text-[#FFD100]" /> Seguici su Instagram
                   </a>
                 </div>
 
@@ -207,9 +215,17 @@ const Stores = () => {
                     href="https://maps.app.goo.gl/zTbmgiNPYLdd6QQ69"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mb-4 flex items-center text-blue-600 hover:text-blue-800 hover:underline"
+                    className="mb-3 flex items-center text-blue-600 hover:text-blue-800 hover:underline"
                   >
                     <LinkIcon className="h-5 w-5 mr-2 text-[#FFD100]" /> Visualizza su Google Maps
+                  </a>
+                  <a
+                    href="https://www.instagram.com/biggimmyintegratori2/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mb-4 flex items-center text-pink-600 hover:text-pink-800 hover:underline"
+                  >
+                    <Instagram className="h-5 w-5 mr-2 text-[#FFD100]" /> Seguici su Instagram
                   </a>
                 </div>
 

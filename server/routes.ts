@@ -4848,10 +4848,16 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
             if (existingCustomers.data.length > 0) {
               stripeCustomerId = existingCustomers.data[0].id;
               console.log(`[CHECKOUT] Customer Stripe esistente trovato: ${stripeCustomerId}`);
+              // Aggiorna locale italiano se non già impostato
+              const existingLocales = existingCustomers.data[0].preferred_locales || [];
+              if (!existingLocales.includes("it")) {
+                await stripe.customers.update(stripeCustomerId, { preferred_locales: ["it"] });
+              }
             } else {
               // Crea nuovo customer
               const newCustomer = await stripe.customers.create({
                 email: user.email,
+                preferred_locales: ["it"],
                 metadata: {
                   user_id: user.id,
                 },
@@ -4962,10 +4968,37 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
           }
         }
 
+        // Dati fiscali per fattura (opzionali, se il cliente la richiede)
+        const fatturaData = req.body.fattura_data as {
+          tipo?: string;
+          intestatario?: string;
+          indirizzo?: string;
+          cap?: string;
+          citta?: string;
+          provincia?: string;
+          codice_fiscale?: string;
+          partita_iva?: string;
+          pec?: string;
+          sdi?: string;
+        } | undefined;
+
+        const fatturaCustomFields: { name: string; value: string }[] = [];
+        if (fatturaData) {
+          if (fatturaData.intestatario) fatturaCustomFields.push({ name: "Intestatario", value: fatturaData.intestatario });
+          if (fatturaData.codice_fiscale) fatturaCustomFields.push({ name: "Codice Fiscale", value: fatturaData.codice_fiscale });
+          if (fatturaData.partita_iva) fatturaCustomFields.push({ name: "Partita IVA", value: fatturaData.partita_iva });
+          if (fatturaData.indirizzo && fatturaData.cap && fatturaData.citta) {
+            fatturaCustomFields.push({ name: "Indirizzo fattura", value: `${fatturaData.indirizzo}, ${fatturaData.cap} ${fatturaData.citta} (${fatturaData.provincia || ''})` });
+          }
+          if (fatturaData.pec) fatturaCustomFields.push({ name: "PEC", value: fatturaData.pec });
+          if (fatturaData.sdi) fatturaCustomFields.push({ name: "Codice SDI", value: fatturaData.sdi });
+        }
+
         const sessionStripe = await stripe.checkout.sessions.create({
           mode: "payment",
           payment_method_types: ["card"],
           line_items,
+          locale: "it",
           success_url: `${successUrl}?session_id=${orderId || '{CHECKOUT_SESSION_ID}'}`,
           cancel_url: cancelUrl,
           // Usa customer esistente o passa email per crearne uno nuovo
@@ -4973,14 +5006,19 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
             ? { customer: stripeCustomerId }
             : { customer_email: user.email || undefined }
           ),
-          // Abilita emissione automatica fattura dopo il pagamento
+          // Abilita emissione automatica ricevuta/fattura dopo il pagamento
           invoice_creation: {
             enabled: true,
             invoice_data: {
               metadata: {
                 order_id: orderId || "",
                 user_id: user.id,
+                richiede_fattura: fatturaData ? "si" : "no",
               },
+              ...(fatturaCustomFields.length > 0 && {
+                custom_fields: fatturaCustomFields,
+                footer: "Documento emesso su richiesta. Per fattura fiscale conforme SDI contattare info@biggimmy.it",
+              }),
             },
           },
           metadata: {
@@ -4991,6 +5029,10 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
             notes: notes ? String(notes).slice(0, 500) : "",
             fulfillment_type: fulfillmentType,
             pickup_store: pickupStore || "",
+            richiede_fattura: fatturaData ? "si" : "no",
+            fattura_intestatario: fatturaData?.intestatario?.slice(0, 200) || "",
+            fattura_cf: fatturaData?.codice_fiscale?.slice(0, 20) || "",
+            fattura_piva: fatturaData?.partita_iva?.slice(0, 20) || "",
           },
         });
 
