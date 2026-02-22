@@ -124,6 +124,19 @@ export function useCart() {
     }
 
     if (isAuthenticated && user) {
+      // Aggiornamento ottimistico: mostra subito il nome corretto senza aspettare il server
+      setItems((current) => {
+        const existing = current.find((i) => i.product_option_id === newItem.product_option_id);
+        if (existing) {
+          return current.map((i) =>
+            i.product_option_id === newItem.product_option_id
+              ? { ...i, quantity: i.quantity + newItem.quantity }
+              : i
+          );
+        }
+        return [...current, newItem];
+      });
+
       try {
         if (!Number.isFinite(newItem.product_option_id) || newItem.product_option_id <= 0) {
           throw new Error("Missing product_option_id");
@@ -141,13 +154,14 @@ export function useCart() {
           const variant = `${flavor} ${size}`.trim();
           const image = po.image;
           const quantity = Number(row.quantity ?? 1);
-          const name = String(row.name ?? "");
-          const productId = Number(row.product_id ?? newItem.product_id ?? 0);
+          const products = (po as any).products || {};
+          const name = String(products.name ?? row.name ?? "");
+          const productId = Number(row.product_id ?? products.id ?? newItem.product_id ?? 0);
           return { product_option_id: id, product_id: productId, name, price, variant, quantity, image } as CartItem;
         });
         setItems(mapped);
       } catch (_) {
-        // Se fallisce, non alterare il carrello
+        // Se fallisce, il carrello rimane con l'aggiornamento ottimistico
       }
     } else {
       // Guest cart
@@ -200,8 +214,9 @@ export function useCart() {
           const variantStr = `${flavor} ${size}`.trim();
           const image = po.image;
           const quantity = Number(row.quantity ?? 1);
-          const name = String(row.name ?? "");
-          const productId = Number(row.product_id ?? 0);
+          const products = (po as any).products || {};
+          const name = String(products.name ?? row.name ?? "");
+          const productId = Number(row.product_id ?? products.id ?? 0);
           return { product_option_id: id, product_id: productId, name, price, variant: variantStr, quantity, image } as CartItem;
         });
         setItems(mapped);
@@ -252,8 +267,9 @@ export function useCart() {
           const variantStr = `${flavor} ${size}`.trim();
           const image = po.image;
           const qty = Number(row.quantity ?? 1);
-          const name = String(row.name ?? "");
-          const productId = Number(row.product_id ?? 0);
+          const products = (po as any).products || {};
+          const name = String(products.name ?? row.name ?? "");
+          const productId = Number(row.product_id ?? products.id ?? 0);
           return { product_option_id: id, product_id: productId, name, price, variant: variantStr, quantity: qty, image } as CartItem;
         });
         setItems(mapped);

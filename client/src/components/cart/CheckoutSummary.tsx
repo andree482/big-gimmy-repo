@@ -4,7 +4,7 @@ import { ShoppingCart, Percent, Target, Store, MapPin, Clock } from "lucide-reac
 import { useAuth } from "@/hooks/useAuth";
 import { CheckoutAuthModal } from "./CheckoutAuthModal";
 import { CheckoutAddressModal } from "./CheckoutAddressModal";
-import { CheckoutFulfillmentModal, STORE_INFO, type FulfillmentType, type PickupStore } from "./CheckoutFulfillmentModal";
+import { CheckoutFulfillmentModal, STORE_INFO, type FulfillmentType, type PickupStore, type FatturaData } from "./CheckoutFulfillmentModal";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,6 +25,7 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>("spedizione");
   const [pickupStore, setPickupStore] = useState<PickupStore | null>(null);
+  const [pendingFatturaData, setPendingFatturaData] = useState<FatturaData | undefined>(undefined);
   const { toast } = useToast();
 
   const calculations = useMemo(() => {
@@ -35,7 +36,8 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
     const qualifiesForFreeShipping = totalAfterDiscount >= FREE_SHIPPING_THRESHOLD;
     const shippingNeeded = Math.max(0, FREE_SHIPPING_THRESHOLD - totalAfterDiscount);
     const isPickup = fulfillmentType === 'ritiro';
-    const shippingCost = isPickup ? 0 : (qualifiesForFreeShipping ? 0 : 12);
+    // TEST: spedizione sempre gratuita (commentare per ripristinare)
+    const shippingCost = 0; // isPickup ? 0 : (qualifiesForFreeShipping ? 0 : 12);
     const freeShippingProgress = totalAfterDiscount >= FREE_SHIPPING_THRESHOLD ? 100 : Math.max(0, (totalAfterDiscount / FREE_SHIPPING_THRESHOLD) * 100);
     const finalTotal = totalAfterDiscount + shippingCost;
 
@@ -49,14 +51,18 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
       shippingCost,
       freeShippingProgress,
       finalTotal,
-      canCheckout: totalAfterDiscount >= MINIMUM_ORDER
+      // TEST: minimo d'ordine disabilitato (commentare per ripristinare)
+      canCheckout: true, // totalAfterDiscount >= MINIMUM_ORDER
     };
   }, [cartTotal, fulfillmentType]);
 
-  const doCheckout = async (body: Record<string, unknown>) => {
+  const doCheckout = async (body: Record<string, unknown>, fatturaData?: FatturaData) => {
     try {
       setLoadingCheckout(true);
-      const resp = await apiRequest("POST", "/api/checkout", body);
+      const resp = await apiRequest("POST", "/api/checkout", {
+        ...body,
+        ...(fatturaData ? { fattura_data: fatturaData } : {}),
+      });
       const url = resp?.url;
       if (typeof url === "string" && url.length > 0) {
         sessionStorage.setItem('checkout_in_progress', 'true');
@@ -274,14 +280,15 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
           onClose={() => setShowFulfillmentModal(false)}
           cartTotal={calculations.finalTotal}
           shippingCost={calculations.shippingCost}
-          onSelectShipping={() => {
+          onSelectShipping={(fatturaData?: FatturaData) => {
             setShowFulfillmentModal(false);
             setFulfillmentType('spedizione');
             setPickupStore(null);
+            setPendingFatturaData(fatturaData);
             // Apri il modal per selezione indirizzo
             setShowAddressModal(true);
           }}
-          onSelectPickup={async (store: PickupStore, notes: string) => {
+          onSelectPickup={async (store: PickupStore, notes: string, fatturaData?: FatturaData) => {
             setShowFulfillmentModal(false);
             setFulfillmentType('ritiro');
             setPickupStore(store);
@@ -290,7 +297,7 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
               fulfillment_type: 'ritiro',
               pickup_store: store,
               notes: notes,
-            });
+            }, fatturaData);
           }}
         />
 
@@ -305,7 +312,7 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
               shipping_address_id: addressId,
               fulfillment_type: 'spedizione',
               notes: notes,
-            });
+            }, pendingFatturaData);
           }}
         />
 

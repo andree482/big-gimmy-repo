@@ -433,6 +433,75 @@ export class DatabaseStorage implements IStorage {
     return finalProducts;
   }
 
+  // Mappa di sinonimi: parola cercata → termini aggiuntivi da includere nella ricerca
+  private readonly KEYWORD_ALIASES: Record<string, string[]> = {
+    // Barrette
+    "barrette":      ["bar", "barretta", "crispy", "protein bar"],
+    "barretta":      ["bar", "barrette", "crispy", "protein bar"],
+    // Proteine
+    "proteine":      ["protein", "whey", "casein", "caseina", "isolate", "concentrate"],
+    "proteina":      ["protein", "whey", "casein", "caseina"],
+    "whey":          ["proteine", "protein", "siero"],
+    // Creatina
+    "creatina":      ["creatine", "creapure", "monohydrate", "monoidrato"],
+    "creatine":      ["creatina", "creapure", "monohydrate"],
+    // Aminoacidi
+    "aminoacidi":    ["amino", "bcaa", "eaa", "aminoacido", "glutammina", "glutamine"],
+    "aminoacido":    ["amino", "bcaa", "eaa", "aminoacidi"],
+    "bcaa":          ["aminoacidi", "amino", "leucina", "leucine"],
+    "eaa":           ["aminoacidi", "amino", "essential"],
+    // Vitamine
+    "vitamine":      ["vitamin", "vitamina", "multivitamin", "multivitaminico"],
+    "vitamina":      ["vitamin", "vitamine", "multivitamin"],
+    "vitamina c":    ["ascorbic", "ascorbico", "vitamin c"],
+    "vitamina d":    ["vitamin d", "colecalciferolo"],
+    // Minerali
+    "magnesio":      ["magnesium", "mag"],
+    "zinco":         ["zinc", "zn"],
+    "ferro":         ["iron", "ferrum"],
+    "calcio":        ["calcium", "ca"],
+    "potassio":      ["potassium"],
+    // Pre-workout / Energia
+    "pre workout":   ["preworkout", "pre-workout", "energia", "energy", "caffeina", "caffeine", "booster"],
+    "preworkout":    ["pre workout", "pre-workout", "energia", "energy", "booster"],
+    "energia":       ["energy", "caffeina", "caffeine", "preworkout", "pre workout"],
+    "caffeina":      ["caffeine", "energia", "energy", "coffee"],
+    // Massa / Gainer
+    "massa":         ["gainer", "mass", "weight gainer", "carboidrati"],
+    "gainer":        ["massa", "mass", "weight", "carboidrati"],
+    // Dimagrire / Fat burner
+    "dimagrire":     ["fat burner", "fatburner", "diet", "dieta", "brucia grassi", "thermogenic"],
+    "brucia grassi": ["fat burner", "thermogenic", "dimagrire", "diet"],
+    "dieta":         ["diet", "dimagrire", "fat burner", "light"],
+    // Omega / Fish oil
+    "omega":         ["fish oil", "olio di pesce", "omega 3", "omega3", "epa", "dha"],
+    "omega3":        ["omega 3", "fish oil", "olio di pesce", "epa", "dha"],
+    // Collagene
+    "collagene":     ["collagen", "collageno"],
+    // Melatonina / Sonno
+    "melatonina":    ["melatonin", "sonno", "sleep"],
+    "sonno":         ["melatonina", "melatonin", "sleep", "relax"],
+    // Articolazioni
+    "articolazioni": ["joint", "glucosamina", "glucosamine", "condroitina", "chondroitin"],
+    // Idratazione
+    "idratazione":   ["isotonic", "isotonico", "sali minerali", "electrolyte", "elettroliti"],
+    "sali minerali": ["electrolyte", "elettroliti", "idratazione", "isotonic"],
+    // Snack
+    "snack":         ["bar", "barretta", "barrette", "wafer", "biscuit", "biscotto", "cookie"],
+  };
+
+  private expandSearchTerms(query: string): string[] {
+    const normalized = query.trim().toLowerCase();
+    const terms = new Set<string>([normalized]);
+    for (const [key, aliases] of Object.entries(this.KEYWORD_ALIASES)) {
+      if (normalized.includes(key) || key.includes(normalized)) {
+        aliases.forEach(a => terms.add(a));
+        terms.add(key);
+      }
+    }
+    return Array.from(terms);
+  }
+
   async searchProducts(searchQuery?: string, filters?: {
     brandSlug?: string;
     categorySlug?: string;
@@ -480,8 +549,13 @@ export class DatabaseStorage implements IStorage {
       whereParts.push(sql`b.slug = ${filters.brandSlug}`);
     }
     if (searchQuery && searchQuery.trim()) {
-      const searchTerm = `%${searchQuery.trim()}%`;
-      whereParts.push(sql`(p.name ILIKE ${searchTerm} OR b.name ILIKE ${searchTerm})`);
+      const expandedTerms = this.expandSearchTerms(searchQuery);
+      console.log(`🔑 Termini espansi per "${searchQuery}":`, expandedTerms);
+      const termConditions = expandedTerms.map(term => {
+        const like = `%${term}%`;
+        return sql`(p.name ILIKE ${like} OR b.name ILIKE ${like} OR pc.name ILIKE ${like} OR pc.slug ILIKE ${like})`;
+      });
+      whereParts.push(sql`(${sql.join(termConditions, sql` OR `)})`);
     }
     
     // Build complete query
