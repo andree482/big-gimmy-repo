@@ -1,9 +1,44 @@
 import { google } from 'googleapis';
-import { db } from './db';
 import { productOptions, products, brands } from '../shared/schema';
 import { eq } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
+import pkg from 'pg';
+const { Pool } = pkg;
+import { drizzle } from 'drizzle-orm/node-postgres';
+import * as schema from '../shared/schema';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+// Determina quale DB usare in base all'argomento "sito privato"
+const PRIVATE_SITE_FLAG = 'sito privato';
+
+function createDb(usePrivate: boolean) {
+  const connectionString = usePrivate
+    ? process.env.DATABASE_URL_PRIVATO
+    : process.env.DATABASE_URL;
+
+  if (!connectionString) {
+    const varName = usePrivate ? 'DATABASE_URL_PRIVATO' : 'DATABASE_URL';
+    console.error(`❌ Variabile d'ambiente ${varName} non trovata nel file .env`);
+    process.exit(1);
+  }
+
+  const pool = new Pool({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 15000,
+    max: 5,
+    idleTimeoutMillis: 30000,
+    allowExitOnIdle: true,
+  });
+
+  const label = usePrivate ? 'SITO PRIVATO' : 'DB PRINCIPALE';
+  console.log(`🗄️  Connessione a: [${label}] ${connectionString.split('@')[1]}`);
+
+  return drizzle(pool, { schema });
+}
 
 // Configurazione Google Sheets
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
@@ -45,7 +80,7 @@ async function authenticate() {
 }
 
 // Esporta prezzi attuali su Google Sheets
-async function exportPricesToGoogleSheets(spreadsheetId: string, sheetName: string = 'Prezzi Prodotti') {
+async function exportPricesToGoogleSheets(db: ReturnType<typeof createDb>, spreadsheetId: string, sheetName: string = 'Prezzi Prodotti') {
   console.log("📤 Esportazione prezzi su Google Sheets...");
 
   try {
@@ -145,7 +180,7 @@ async function exportPricesToGoogleSheets(spreadsheetId: string, sheetName: stri
 }
 
 // Aggiorna prezzi dal Google Sheets
-async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: string = 'Prezzi Prodotti') {
+async function updatePricesFromGoogleSheets(db: ReturnType<typeof createDb>, spreadsheetId: string, sheetName: string = 'Prezzi Prodotti') {
   console.log("📊 Aggiornamento prezzi da Google Sheets...");
 
   try {
@@ -267,39 +302,31 @@ async function updatePricesFromGoogleSheets(spreadsheetId: string, sheetName: st
 const args = process.argv.slice(2);
 const command = args[0];
 const spreadsheetId = args[1];
-const sheetName = args[2] || 'Prezzi Prodotti';
 
-if (command === 'export') {
+// Controlla se il terzo argomento è "sito privato" (flag speciale) o un nome foglio
+const thirdArg = args[2] || '';
+const usePrivateDb = thirdArg.toLowerCase() === PRIVATE_SITE_FLAG;
+const sheetName = usePrivateDb ? 'Prezzi Prodotti - Sito Privato' : (thirdArg || 'Prezzi Prodotti');
+
+if (command === 'export' || command === 'update') {
   if (!spreadsheetId) {
-    console.error("❌ Specifica l'ID del Google Sheets: npm run prices-sheets export <spreadsheet-id>");
+    console.error(`❌ Specifica l'ID del Google Sheets: npm run prices-sheets ${command} <spreadsheet-id> ["sito privato"]`);
     console.log("💡 L'ID del foglio si trova nell'URL: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit");
     process.exit(1);
   }
 
-  exportPricesToGoogleSheets(spreadsheetId, sheetName)
+  const db = createDb(usePrivateDb);
+  const action = command === 'export'
+    ? exportPricesToGoogleSheets(db, spreadsheetId, sheetName)
+    : updatePricesFromGoogleSheets(db, spreadsheetId, sheetName);
+
+  action
     .then(() => {
-      console.log("✅ Esportazione completata!");
+      console.log(`✅ ${command === 'export' ? 'Esportazione' : 'Aggiornamento'} completato!`);
       process.exit(0);
     })
     .catch((error) => {
-      console.error("❌ Errore durante l'esportazione:", error);
-      process.exit(1);
-    });
-
-} else if (command === 'update') {
-  if (!spreadsheetId) {
-    console.error("❌ Specifica l'ID del Google Sheets: npm run prices-sheets update <spreadsheet-id>");
-    console.log("💡 L'ID del foglio si trova nell'URL: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit");
-    process.exit(1);
-  }
-
-  updatePricesFromGoogleSheets(spreadsheetId, sheetName)
-    .then(() => {
-      console.log("✅ Aggiornamento completato!");
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("❌ Errore durante l'aggiornamento:", error);
+      console.error(`❌ Errore:`, error);
       process.exit(1);
     });
 
@@ -308,20 +335,17 @@ if (command === 'export') {
 📊 Script di gestione prezzi tramite Google Sheets
 
 Comandi disponibili:
-  npm run prices-sheets export <spreadsheet-id> [sheet-name]  - Esporta prezzi su Google Sheets
-  npm run prices-sheets update <spreadsheet-id> [sheet-name]  - Aggiorna prezzi da Google Sheets
+  npm run prices-sheets export <spreadsheet-id> ["sito privato"]  - Esporta prezzi su Google Sheets
+  npm run prices-sheets update <spreadsheet-id> ["sito privato"]  - Aggiorna prezzi da Google Sheets
+
+  Senza "sito privato"  → usa DATABASE_URL        (DB principale)
+  Con    "sito privato" → usa DATABASE_URL_PRIVATO (secondo sito)
 
 Esempi:
   npm run prices-sheets export 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms
-  npm run prices-sheets update 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms "Prezzi 2025"
+  npm run prices-sheets export 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms "sito privato"
+  npm run prices-sheets update 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms "sito privato"
 
-Setup iniziale:
-1. Crea un progetto su Google Cloud Console
-2. Abilita l'API Google Sheets
-3. Crea credenziali Service Account
-4. Scarica il file JSON delle credenziali come 'google-credentials.json'
-5. Condividi il Google Sheets con l'email del Service Account
-
-💡 L'ID del foglio si trova nell'URL: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit
+💡 Aggiungi DATABASE_URL_PRIVATO=... nel file .env per il secondo sito
   `);
 }
