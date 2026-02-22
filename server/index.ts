@@ -689,7 +689,20 @@ if (app.get("env") === "development") {
     console.log(`   GET  /attached_assets/* - Static assets`);
     console.log('=================================');
 
-    // Avvia automaticamente Price Watcher se configurato
+    // Avvia automaticamente Price Watcher se SPREADSHEET_ID è configurato
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+    if (spreadsheetId) {
+      try {
+        const { PriceWatcher } = await import('./priceWatcher');
+        const intervalMinutes = parseInt(process.env.PRICE_WATCHER_INTERVAL_MINUTES || '5');
+        (global as any).priceWatcher = new PriceWatcher(spreadsheetId);
+        (global as any).priceWatcher.start(intervalMinutes);
+      } catch (e: any) {
+        console.error(`❌ Impossibile avviare PriceWatcher:`, e?.message || e);
+      }
+    } else {
+      console.log(`⚠️  PriceWatcher non avviato — imposta SPREADSHEET_ID nelle variabili d'ambiente`);
+    }
 
     // ================================
     // SCHEDULER: Reminder automatici ritiro in negozio
