@@ -41,10 +41,11 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     try {
-      const productId   = parseInt(row[0]);
-      const flavor      = row[3]?.toString() || '';
-      const size        = row[4]?.toString() || '';
-      const newPrice    = parseFloat(row[5]);          // Colonna F — Prezzo Attuale
+      const productId    = parseInt(row[0]);
+      const flavor       = row[3]?.toString() || '';
+      const size         = row[4]?.toString() || '';
+      const rawPriceStr  = row[5]?.toString()?.trim() || '';  // Colonna F — stringa originale (es. "42,00")
+      const newPrice     = parseFloat(rawPriceStr.replace(',', '.'));  // converte in numero JS
       const availability = row[7]?.toString()?.trim()?.toUpperCase();
 
       if (!productId || isNaN(newPrice) || newPrice <= 0) {
@@ -85,10 +86,10 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
         const label = [flavor, size].filter(Boolean).join(' / ') || '(nessuna variante)';
         if (updates.priceCents !== undefined) {
           console.log(`   ✏️  prod ${productId} [${label}]: ${targetOption.priceCents}¢ → ${priceInCents}¢`);
-          // Aggiorna colonna G (Prezzo Aggiornato) nel foglio con il valore applicato
+          // Aggiorna colonna G (Prezzo Aggiornato) nel foglio con la stringa originale di F
           sheetWritebacks.push({
             range: `'${sheetName}'!G${i + 1}`,
-            values: [[newPrice]],
+            values: [[rawPriceStr]],
           });
         }
         if (updates.inStock !== undefined) {
@@ -106,7 +107,7 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
       await sheets.spreadsheets.values.batchUpdate({
         spreadsheetId,
         requestBody: {
-          valueInputOption: 'RAW',
+          valueInputOption: 'USER_ENTERED',
           data: sheetWritebacks,
         },
       });
