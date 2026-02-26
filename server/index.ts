@@ -694,7 +694,7 @@ if (app.get("env") === "development") {
     if (spreadsheetId) {
       try {
         const { PriceWatcher } = await import('./priceWatcher');
-        const intervalMinutes = parseInt(process.env.PRICE_WATCHER_INTERVAL_MINUTES || '5');
+        const intervalMinutes = parseInt(process.env.PRICE_CHECK_INTERVAL || '5');
         (global as any).priceWatcher = new PriceWatcher(spreadsheetId);
         (global as any).priceWatcher.start(intervalMinutes);
       } catch (e: any) {
