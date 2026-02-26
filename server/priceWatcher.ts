@@ -77,7 +77,15 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
       }
 
       if (Object.keys(updates).length > 0) {
-        await db.update(productOptions).set(updates).where(eq(productOptions.id, targetOption.id));
+        const updated = await db.update(productOptions).set(updates).where(eq(productOptions.id, targetOption.id)).returning({ id: productOptions.id, priceCents: productOptions.priceCents });
+        if (updated.length === 0) {
+          console.warn(`⚠️  [PriceWatcher] UPDATE eseguito ma 0 righe modificate — productId=${productId}, optionId=${targetOption.id}`);
+          errorCount++;
+          if (updates.priceCents !== undefined) updatedCount--;
+          if (updates.inStock !== undefined) availabilityUpdatedCount--;
+        } else {
+          console.log(`   ✏️  option ${targetOption.id} (prod ${productId}): ${targetOption.priceCents}¢ → ${updated[0].priceCents}¢`);
+        }
       }
     } catch {
       errorCount++;
