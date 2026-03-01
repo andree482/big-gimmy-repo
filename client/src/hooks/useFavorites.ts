@@ -34,15 +34,8 @@ export function useFavorites({ userId }: UseFavoritesProps = {}) {
       }
       return await apiRequest("POST", "/api/favorites", { userId, productId });
     },
-    onSuccess: (data, { productId }) => {
-      // Invalidate favorites list
+    onSuccess: (_data, _vars) => {
       queryClient.invalidateQueries({ queryKey: [`/api/favorites/${userId}`] });
-      
-      // Update individual favorite status cache
-      queryClient.setQueryData([`/api/favorites/${userId}/${productId}`], {
-        success: true,
-        isFavorite: true,
-      });
 
       toast({
         title: "Aggiunto ai preferiti ✨",
@@ -69,15 +62,8 @@ export function useFavorites({ userId }: UseFavoritesProps = {}) {
       }
       return await apiRequest("DELETE", "/api/favorites", { userId, productId });
     },
-    onSuccess: (data, { productId }) => {
-      // Invalidate favorites list
+    onSuccess: (_data, _vars) => {
       queryClient.invalidateQueries({ queryKey: [`/api/favorites/${userId}`] });
-      
-      // Update individual favorite status cache
-      queryClient.setQueryData([`/api/favorites/${userId}/${productId}`], {
-        success: true,
-        isFavorite: false,
-      });
 
       toast({
         title: "Rimosso dai preferiti",
@@ -125,16 +111,26 @@ export function useFavorites({ userId }: UseFavoritesProps = {}) {
     },
   });
 
-  // Check if product is favorite
+  // Check if product is favorite — deriva dalla lista bulk già caricata, nessuna chiamata API per-prodotto
   const useIsFavorite = (productId?: number) => {
-    return useQuery<FavoriteStatusResponse>({
-      queryKey: [`/api/favorites/${userId}/${productId}`],
-      enabled: !!userId && !!productId,
-      staleTime: 1000 * 60 * 5, // 5 minutes
+    const { data: favoritesData, isLoading } = useQuery<FavoritesResponse>({
+      queryKey: [`/api/favorites/${userId}`],
+      enabled: !!userId,
+      staleTime: 1000 * 60 * 5,
     });
+
+    const isFavorite =
+      productId != null
+        ? (favoritesData?.favorites || []).some((f: any) => f.id === productId)
+        : false;
+
+    return {
+      data: { success: true, isFavorite } as FavoriteStatusResponse,
+      isLoading,
+    };
   };
 
-  // Toggle favorite status (optimized - no prefetch)
+  // Toggle favorite status — optimistic update sulla lista bulk
   const toggleFavorite = async (productId: number) => {
     if (!userId) {
       toast({
@@ -146,39 +142,30 @@ export function useFavorites({ userId }: UseFavoritesProps = {}) {
       return;
     }
 
+    const listKey = [`/api/favorites/${userId}`];
+
+    // Snapshot della lista attuale per eventuale rollback
+    const previousList = queryClient.getQueryData<FavoritesResponse>(listKey);
+    const currentFavs: any[] = previousList?.favorites || [];
+    const isCurrentlyFavorite = currentFavs.some((f: any) => f.id === productId);
+
+    // Optimistic update: aggiorna subito la lista in cache
+    queryClient.setQueryData<FavoritesResponse>(listKey, {
+      favorites: isCurrentlyFavorite
+        ? currentFavs.filter((f: any) => f.id !== productId)
+        : [...currentFavs, { id: productId }],
+    });
+
     try {
-      // Get current status from cache (instant, no network call)
-      const currentStatus = queryClient.getQueryData<FavoriteStatusResponse>([
-        `/api/favorites/${userId}/${productId}`
-      ]);
-
-      // Optimistic update: assume opposite of current state
-      const willBeFavorite = !currentStatus?.isFavorite;
-
-      // Immediately update UI
-      queryClient.setQueryData([`/api/favorites/${userId}/${productId}`], {
-        success: true,
-        isFavorite: willBeFavorite,
-      });
-
-      // Then make the actual API call
-      if (currentStatus?.isFavorite) {
+      if (isCurrentlyFavorite) {
         await removeFromFavoritesMutation.mutateAsync({ productId });
       } else {
         await addToFavoritesMutation.mutateAsync({ productId });
       }
     } catch (error) {
       console.error("Error toggling favorite:", error);
-      // Revert optimistic update on error
-      const currentStatus = queryClient.getQueryData<FavoriteStatusResponse>([
-        `/api/favorites/${userId}/${productId}`
-      ]);
-      if (currentStatus) {
-        queryClient.setQueryData([`/api/favorites/${userId}/${productId}`], {
-          success: true,
-          isFavorite: !currentStatus.isFavorite,
-        });
-      }
+      // Rollback in caso di errore
+      queryClient.setQueryData<FavoritesResponse>(listKey, previousList);
     }
   };
 

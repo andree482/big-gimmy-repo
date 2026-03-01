@@ -83,6 +83,8 @@ const priceForCart =
             height={256}
             objectFit="contain"
             objectPosition="center center"
+            priority={true}
+            fetchpriority="high"
           />
         </div>
         {product.isBestSeller && (

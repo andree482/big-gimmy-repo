@@ -93,8 +93,8 @@ export const OptimizedImage = ({
     objectPosition: objectPosition
   };
 
-  const imgClassName = `w-full h-full transition-opacity duration-300 ${
-    isLoaded && !hasError ? 'opacity-100' : 'opacity-0'
+  const imgClassName = `w-full h-full ${priority ? '' : 'transition-opacity duration-150'} ${
+    priority || (isLoaded && !hasError) ? 'opacity-100' : 'opacity-0'
   }`;
 
   return (
@@ -127,7 +127,8 @@ export const OptimizedImage = ({
               onLoad={handleLoad}
               onError={handleError}
               loading={priority ? 'eager' : 'lazy'}
-              decoding="async"
+              fetchPriority={fetchpriority}
+              decoding={priority ? 'sync' : 'async'}
               width={width}
               height={height}
             />
@@ -141,7 +142,8 @@ export const OptimizedImage = ({
             onLoad={handleLoad}
             onError={handleError}
             loading={priority ? 'eager' : 'lazy'}
-            decoding="async"
+            fetchPriority={fetchpriority}
+            decoding={priority ? 'sync' : 'async'}
             width={width}
             height={height}
           />
