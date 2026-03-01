@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { productCategories } from "@/lib/constants";
@@ -239,6 +239,31 @@ const Products = () => {
       return response.json();
     },
   });
+
+  // Preload delle prime 8 immagini non appena i prodotti sono disponibili
+  useEffect(() => {
+    if (!products || products.length === 0) return;
+    const firstEight = products.slice(0, 8);
+    firstEight.forEach((product: any) => {
+      let src = '';
+      if (product.images && product.images.length > 0 && product.images[0].src) {
+        src = product.images[0].src;
+      } else if (product.primaryImage) {
+        src = product.primaryImage;
+      } else if (product.slug) {
+        src = getProductImagePath(product.slug);
+      } else if (product.id) {
+        src = getProductImagePath(product.id.toString());
+      }
+      if (!src || src.includes('placeholder')) return;
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'image';
+      link.href = src;
+      link.setAttribute('fetchpriority', 'high');
+      document.head.appendChild(link);
+    });
+  }, [products]);
 
   const handleSearch = (filters: any) => {
     setSearchFilters(filters);
