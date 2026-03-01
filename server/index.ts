@@ -508,11 +508,17 @@ if (supabaseUrl && supabaseKey) {
 
 export { supabase };
 
-// Serve attached assets statically
-app.use('/attached_assets', express.static(path.resolve(process.cwd(), 'attached_assets')));
+// Serve attached assets statically - cache 30 giorni
+app.use('/attached_assets', express.static(path.resolve(process.cwd(), 'attached_assets'), {
+  maxAge: '30d',
+  etag: false,
+}));
 
-// Serve product images statically
-app.use('/images', express.static(path.resolve(process.cwd(), 'public/images')));
+// Serve product images statically - cache 30 giorni
+app.use('/images', express.static(path.resolve(process.cwd(), 'public/images'), {
+  maxAge: '30d',
+  etag: false,
+}));
 
 // Logging middleware
 app.use((req, res, next) => {
