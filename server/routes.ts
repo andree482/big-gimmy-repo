@@ -5477,6 +5477,40 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
     }
   });
 
+  // ============================================================
+  // CONSENT LOG — registro del consenso cookie (art. 7 GDPR)
+  // Nessun dato identificativo: no IP loggato, no user_id obbligatorio
+  // ============================================================
+  app.post("/api/consent-log", async (req: Request, res: Response) => {
+    try {
+      const { status, preferences, bannerVersion, sessionId, userAgent } = req.body;
+
+      if (!status || !['accepted', 'rejected', 'dismissed', 'custom'].includes(status)) {
+        return res.status(400).json({ success: false, message: "Status non valido" });
+      }
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+
+      await supabase.from('consent_logs').insert({
+        session_id: sessionId ?? null,
+        status,
+        preferences: preferences ?? null,
+        banner_version: bannerVersion ?? '1.0',
+        user_agent: userAgent ?? null,
+      });
+
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("[CONSENT LOG] Errore:", err);
+      // Non bloccare l'utente se il log fallisce — è un'operazione best-effort
+      return res.json({ success: false });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

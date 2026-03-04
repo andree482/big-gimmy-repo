@@ -50,7 +50,7 @@ export default function CookieConsentBanner() {
   };
 
   const handleSavePreferences = () => {
-    setCookiePreferences(preferences);
+    setCookiePreferences(preferences, true); // true = logga sul server
     setIsVisible(false);
   };
 
@@ -79,8 +79,8 @@ export default function CookieConsentBanner() {
                   Utilizzo dei Cookie
                 </h3>
                 <p className="text-sm text-gray-700 leading-relaxed">
-                  BigGimmy utilizza cookie tecnici necessari per il funzionamento del sito e cookie analitici per migliorare la tua esperienza di navigazione.
-                  Puoi accettare tutti i cookie, rifiutarli o semplicemente chiudere questo banner per continuare la navigazione.
+                  BigGimmy utilizza cookie tecnici necessari per il funzionamento del sito e, previo consenso, cookie analitici (Google Analytics) per migliorare la tua esperienza di navigazione.
+                  Puoi accettare, rifiutare o personalizzare le tue scelte. Chiudere questo banner equivale a rifiutare i cookie non necessari.
                 </p>
                 <Link href="/cookie-policy" className="inline-flex items-center gap-1 text-amber-700 hover:text-amber-800 text-sm font-medium mt-2 hover:underline transition-colors">
                   <Info className="w-3 h-3" />
@@ -155,7 +155,7 @@ export default function CookieConsentBanner() {
                   <BarChart3 className="w-5 h-5 text-blue-500 mt-0.5" />
                   <div>
                     <h4 className="font-medium text-gray-900">Cookie Analitici</h4>
-                    <p className="text-sm text-gray-600">Ci aiutano a migliorare il sito analizzando l'utilizzo</p>
+                    <p className="text-sm text-gray-600">Google Analytics — analizzano l'utilizzo in forma anonimizzata</p>
                   </div>
                 </div>
                 <label className="flex items-center cursor-pointer">

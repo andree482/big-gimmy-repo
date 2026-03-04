@@ -119,10 +119,41 @@ export default function PrivacyPolicy() {
         <section className="mb-8">
           <h2 className="font-bold text-2xl mb-4">MODALITÀ DI TRATTAMENTO</h2>
           <p>
-            I dati personali sono trattati con strumenti automatizzati per il tempo strettamente necessario a conseguire 
-            gli scopi per cui sono stati raccolti. Specifiche misure di sicurezza sono osservate per prevenire la perdita 
+            I dati personali sono trattati con strumenti automatizzati per il tempo strettamente necessario a conseguire
+            gli scopi per cui sono stati raccolti. Specifiche misure di sicurezza sono osservate per prevenire la perdita
             dei dati, usi illeciti o non corretti ed accessi non autorizzati.
           </p>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="font-bold text-2xl mb-4">TEMPI DI CONSERVAZIONE</h2>
+          <p>
+            I dati personali sono conservati per i seguenti periodi, al termine dei quali vengono cancellati o anonimizzati:
+          </p>
+          <ul className="list-disc pl-6 space-y-2 mt-3">
+            <li>
+              <strong>Dati di navigazione</strong> (log di accesso, IP): conservati per un massimo di <strong>30 giorni</strong>,
+              salvo necessità di accertamento di reati informatici.
+            </li>
+            <li>
+              <strong>Dati degli utenti registrati</strong> (anagrafica, indirizzo, storico ordini): conservati per tutta la
+              durata del rapporto contrattuale e per i successivi <strong>10 anni</strong> ai fini fiscali e amministrativi
+              (D.P.R. 633/1972 e D.P.R. 600/1973).
+            </li>
+            <li>
+              <strong>Dati dei moduli di contatto</strong>: conservati per <strong>12 mesi</strong> dalla ricezione,
+              salvo che la richiesta non dia luogo a un rapporto contrattuale.
+            </li>
+            <li>
+              <strong>Preferenze cookie e registro del consenso</strong>: conservati per <strong>12 mesi</strong> dalla
+              data di espressione del consenso, dopodiché viene richiesto il rinnovo.
+            </li>
+            <li>
+              <strong>Dati di pagamento</strong>: non conservati direttamente da BIG GIMMY INTEGRATORI.
+              Il trattamento avviene esclusivamente tramite Stripe, Inc., certificato PCI-DSS.
+              Per i relativi tempi di conservazione consultare l'<a href="https://stripe.com/it/privacy" target="_blank" rel="noopener noreferrer" className="text-yellow-600 hover:underline">Informativa Privacy di Stripe</a>.
+            </li>
+          </ul>
         </section>
 
         <section className="mb-8">

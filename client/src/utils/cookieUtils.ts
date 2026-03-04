@@ -4,9 +4,13 @@ export type CookieConsentStatus = 'accepted' | 'rejected' | 'dismissed' | null;
 const COOKIE_CONSENT_KEY = 'biggimmy_cookie_consent';
 const COOKIE_PREFERENCES_KEY = 'biggimmy_cookie_preferences';
 const BANNER_DISMISSED_AT_KEY = 'biggimmy_banner_dismissed_at';
+const CONSENT_DATE_KEY = 'biggimmy_consent_date';
+// Versione del banner: aggiornare ad ogni modifica sostanziale del banner o della policy
+export const BANNER_VERSION = '1.1';
 
-// Dopo 6 mesi dal "dismiss" il banner viene riproposto (Linee Guida Garante 2021)
-const DISMISS_EXPIRY_MONTHS = 6;
+// Scadenze (Linee Guida Garante 2021)
+const DISMISS_EXPIRY_MONTHS = 6;   // dismiss → banner riappare dopo 6 mesi
+const CONSENT_EXPIRY_MONTHS = 12;  // accepted/rejected → rinnovo consenso dopo 12 mesi
 
 export interface CookiePreferences {
   necessary: boolean;
@@ -32,8 +36,10 @@ export function setCookieConsent(status: CookieConsentStatus) {
 
   if (status) {
     localStorage.setItem(COOKIE_CONSENT_KEY, status);
+    localStorage.setItem(CONSENT_DATE_KEY, new Date().toISOString());
   } else {
     localStorage.removeItem(COOKIE_CONSENT_KEY);
+    localStorage.removeItem(CONSENT_DATE_KEY);
   }
 }
 
@@ -53,16 +59,42 @@ export function getCookiePreferences(): CookiePreferences {
   return defaultPreferences;
 }
 
-export function setCookiePreferences(preferences: Partial<CookiePreferences>) {
+export function setCookiePreferences(preferences: Partial<CookiePreferences>, logToServer = false) {
   if (typeof window === 'undefined') return;
 
   const current = getCookiePreferences();
   const updated = { ...current, ...preferences, necessary: true };
 
   localStorage.setItem(COOKIE_PREFERENCES_KEY, JSON.stringify(updated));
-
-  // Apply cookie preferences
   applyCookiePreferences(updated);
+
+  // Logga solo quando l'utente salva esplicitamente dal pannello preferenze
+  if (logToServer) {
+    logConsentToServer('custom', updated);
+  }
+}
+
+// Registra il consenso sul server per audit GDPR (art. 7 — onere della prova)
+// Fire-and-forget: non blocca l'utente in caso di errore
+async function logConsentToServer(
+  status: CookieConsentStatus,
+  preferences: CookiePreferences
+) {
+  try {
+    await fetch('/api/consent-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status,
+        preferences,
+        bannerVersion: BANNER_VERSION,
+        sessionId: sessionStorage.getItem('site_access_gate') ?? undefined,
+        userAgent: navigator.userAgent,
+      }),
+    });
+  } catch {
+    // Silenzioso: il log è best-effort, non deve bloccare l'UX
+  }
 }
 
 export function acceptAllCookies() {
@@ -75,11 +107,13 @@ export function acceptAllCookies() {
 
   setCookieConsent('accepted');
   setCookiePreferences(allAccepted);
+  logConsentToServer('accepted', allAccepted);
 }
 
 export function rejectAllCookies() {
   setCookieConsent('rejected');
   setCookiePreferences(defaultPreferences);
+  logConsentToServer('rejected', defaultPreferences);
 }
 
 export function dismissCookieBanner() {
@@ -96,6 +130,7 @@ export function resetCookieConsent() {
   localStorage.removeItem(COOKIE_CONSENT_KEY);
   localStorage.removeItem(COOKIE_PREFERENCES_KEY);
   localStorage.removeItem(BANNER_DISMISSED_AT_KEY);
+  localStorage.removeItem(CONSENT_DATE_KEY);
   disableGoogleAnalytics();
 }
 
@@ -155,7 +190,10 @@ function disableGoogleAnalytics() {
   }
 }
 
-// Mostra il banner se: consenso mai espresso OPPURE dismiss scaduto (>6 mesi)
+// Mostra il banner se:
+// - consenso mai espresso
+// - dismiss scaduto (>6 mesi)
+// - consenso accepted/rejected scaduto (>12 mesi) → rinnovo periodico richiesto dal Garante
 export function shouldShowCookieBanner(): boolean {
   const consent = getCookieConsent();
   if (consent === null) return true;
@@ -163,9 +201,17 @@ export function shouldShowCookieBanner(): boolean {
   if (consent === 'dismissed') {
     const dismissedAt = localStorage.getItem(BANNER_DISMISSED_AT_KEY);
     if (!dismissedAt) return true;
-    const expiryDate = new Date(dismissedAt);
-    expiryDate.setMonth(expiryDate.getMonth() + DISMISS_EXPIRY_MONTHS);
-    return new Date() > expiryDate;
+    const expiry = new Date(dismissedAt);
+    expiry.setMonth(expiry.getMonth() + DISMISS_EXPIRY_MONTHS);
+    return new Date() > expiry;
+  }
+
+  if (consent === 'accepted' || consent === 'rejected') {
+    const consentDate = localStorage.getItem(CONSENT_DATE_KEY);
+    if (!consentDate) return true;
+    const expiry = new Date(consentDate);
+    expiry.setMonth(expiry.getMonth() + CONSENT_EXPIRY_MONTHS);
+    return new Date() > expiry;
   }
 
   return false;
