@@ -1,9 +1,10 @@
 import { Link } from "wouter";
-import { 
-  Facebook, 
+import {
+  Facebook,
   Instagram
 } from "lucide-react";
 import Logo from "../ui/Logo";
+import { resetCookieConsent } from "@/utils/cookieUtils";
 
 const Footer = () => {
   return (
@@ -40,6 +41,12 @@ const Footer = () => {
               <Link href="/privacy-policy" className="hover:text-[#FFD100] transition-all text-center py-2">Privacy</Link>
               <Link href="/cookie-policy" className="hover:text-[#FFD100] transition-all text-center py-2">Cookie</Link>
               <Link href="/diritto-recesso" className="hover:text-[#FFD100] transition-all text-center py-2">Recesso</Link>
+              <button
+                onClick={() => { resetCookieConsent(); window.location.reload(); }}
+                className="hover:text-[#FFD100] transition-all text-center py-2 bg-transparent border-none text-white text-sm cursor-pointer"
+              >
+                Preferenze Cookie
+              </button>
             </div>
           </div>
         </div>
@@ -91,7 +98,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-gray-700 mt-6 md:mt-8 pt-6 md:pt-8 text-center">
-          <div className="mb-4 hidden md:flex justify-center space-x-6">
+          <div className="mb-4 hidden md:flex justify-center space-x-6 flex-wrap gap-y-2">
             <Link href="/privacy-policy" className="text-white hover:text-[#FFD100] transition-all">
               Privacy Policy
             </Link>
@@ -101,6 +108,12 @@ const Footer = () => {
             <Link href="/diritto-recesso" className="text-white hover:text-[#FFD100] transition-all">
               Diritto di Recesso
             </Link>
+            <button
+              onClick={() => { resetCookieConsent(); window.location.reload(); }}
+              className="text-white hover:text-[#FFD100] transition-all bg-transparent border-none cursor-pointer text-sm underline"
+            >
+              Gestisci preferenze cookie
+            </button>
           </div>
           <p className="text-sm md:text-base">&copy; {new Date().getFullYear()} BigGimmy. Tutti i diritti riservati. P.IVA 09256080012</p>
         </div>

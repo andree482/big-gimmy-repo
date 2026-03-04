@@ -5,6 +5,8 @@ vite.config.ts.*
 *.tar.gz
 .vercel
 .env
+*.env
+!.env.example
 *.log
 .trae
 .claude/

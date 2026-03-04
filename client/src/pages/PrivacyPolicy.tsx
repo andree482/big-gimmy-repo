@@ -6,7 +6,7 @@ export default function PrivacyPolicy() {
       <h1 className="text-3xl font-bold mb-8 text-center">Privacy Policy</h1>
       
       <div className="prose prose-lg max-w-none">
-        <p className="font-semibold text-xl mb-4">Ultimo aggiornamento: {new Date().toLocaleDateString('it-IT')}</p>
+        <p className="font-semibold text-xl mb-4">Ultimo aggiornamento: 04/03/2026</p>
         
         <section className="mb-8">
           <p>

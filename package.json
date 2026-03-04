@@ -32,6 +32,8 @@
     "test:session:expiry": "cross-env PORT=8099 SESSION_MAX_AGE_MS=1500 tsx scripts/testSessionExpiryShort.ts"
   },
   "dependencies": {
+    "@fontsource/montserrat": "^5.2.8",
+    "@fontsource/open-sans": "^5.2.7",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",

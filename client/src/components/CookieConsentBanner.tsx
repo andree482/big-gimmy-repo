@@ -236,10 +236,10 @@ export default function CookieConsentBanner() {
                 Salva Preferenze
               </button>
               <button
-                onClick={handleAcceptAll}
-                className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 active:scale-[0.98] text-gray-800 font-medium rounded-lg transition-all duration-200"
+                onClick={handleRejectAll}
+                className="flex-1 px-6 py-2.5 bg-gray-200 hover:bg-gray-300 active:scale-[0.98] text-gray-800 font-medium rounded-lg transition-all duration-200"
               >
-                Accetta Tutti
+                Rifiuta Tutti
               </button>
             </div>
           </div>

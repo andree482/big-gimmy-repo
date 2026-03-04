@@ -6,7 +6,7 @@ export default function CookiePolicy() {
       <h1 className="text-3xl font-bold mb-8 text-center">Cookie Policy</h1>
       
       <div className="prose prose-lg max-w-none">
-        <p className="font-semibold text-xl mb-4">Ultimo aggiornamento: {new Date().toLocaleDateString('it-IT')}</p>
+        <p className="font-semibold text-xl mb-4">Ultimo aggiornamento: 04/03/2026</p>
         
         <section className="mb-8">
           <p>
@@ -116,6 +116,88 @@ export default function CookiePolicy() {
             Per l'esercizio di tali diritti, l'utente può rivolgersi al Titolare del trattamento inviando una comunicazione 
             scritta all'indirizzo e-mail biggimmy@gmail.com o mediante raccomandata A/R all'indirizzo: BIG GIMMY INTEGRATORI, 
             Corso Torino, 85, 10090 Buttigliera Alta (TO).
+          </p>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="font-bold text-2xl mb-4">ELENCO DETTAGLIATO DEI COOKIE</h2>
+          <p className="mb-4">
+            Di seguito l'elenco completo dei cookie utilizzati dal Sito, con indicazione di provider, finalità e durata.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse border border-gray-300">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border border-gray-300 p-2 text-left font-semibold">Nome cookie</th>
+                  <th className="border border-gray-300 p-2 text-left font-semibold">Provider</th>
+                  <th className="border border-gray-300 p-2 text-left font-semibold">Finalità</th>
+                  <th className="border border-gray-300 p-2 text-left font-semibold">Durata</th>
+                  <th className="border border-gray-300 p-2 text-left font-semibold">Tipo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border border-gray-300 p-2">biggimmy_cookie_consent</td>
+                  <td className="border border-gray-300 p-2">Big Gimmy</td>
+                  <td className="border border-gray-300 p-2">Memorizza la scelta dell'utente sulle preferenze cookie</td>
+                  <td className="border border-gray-300 p-2">6 mesi</td>
+                  <td className="border border-gray-300 p-2">Tecnico</td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="border border-gray-300 p-2">biggimmy_cookie_preferences</td>
+                  <td className="border border-gray-300 p-2">Big Gimmy</td>
+                  <td className="border border-gray-300 p-2">Memorizza le preferenze granulari per categoria di cookie</td>
+                  <td className="border border-gray-300 p-2">6 mesi</td>
+                  <td className="border border-gray-300 p-2">Tecnico</td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-300 p-2">sb-[id]-auth-token</td>
+                  <td className="border border-gray-300 p-2">Supabase</td>
+                  <td className="border border-gray-300 p-2">Mantiene la sessione dell'utente autenticato</td>
+                  <td className="border border-gray-300 p-2">Sessione / Persistente</td>
+                  <td className="border border-gray-300 p-2">Tecnico</td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="border border-gray-300 p-2">__stripe_mid</td>
+                  <td className="border border-gray-300 p-2">Stripe, Inc.</td>
+                  <td className="border border-gray-300 p-2">Identificativo dispositivo per la prevenzione delle frodi nei pagamenti</td>
+                  <td className="border border-gray-300 p-2">1 anno</td>
+                  <td className="border border-gray-300 p-2">Tecnico (necessario per i pagamenti)</td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-300 p-2">__stripe_sid</td>
+                  <td className="border border-gray-300 p-2">Stripe, Inc.</td>
+                  <td className="border border-gray-300 p-2">Identificativo sessione di pagamento sicura</td>
+                  <td className="border border-gray-300 p-2">30 minuti</td>
+                  <td className="border border-gray-300 p-2">Tecnico (necessario per i pagamenti)</td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="border border-gray-300 p-2">_ga</td>
+                  <td className="border border-gray-300 p-2">Google LLC</td>
+                  <td className="border border-gray-300 p-2">Distingue gli utenti per le statistiche di Google Analytics (IP anonimizzato)</td>
+                  <td className="border border-gray-300 p-2">2 anni</td>
+                  <td className="border border-gray-300 p-2">Analitico (solo con consenso)</td>
+                </tr>
+                <tr>
+                  <td className="border border-gray-300 p-2">_gid</td>
+                  <td className="border border-gray-300 p-2">Google LLC</td>
+                  <td className="border border-gray-300 p-2">Distingue gli utenti per le statistiche di Google Analytics</td>
+                  <td className="border border-gray-300 p-2">24 ore</td>
+                  <td className="border border-gray-300 p-2">Analitico (solo con consenso)</td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="border border-gray-300 p-2">_gat</td>
+                  <td className="border border-gray-300 p-2">Google LLC</td>
+                  <td className="border border-gray-300 p-2">Limita il numero di richieste al server di Google Analytics</td>
+                  <td className="border border-gray-300 p-2">1 minuto</td>
+                  <td className="border border-gray-300 p-2">Analitico (solo con consenso)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-4 text-sm text-gray-600">
+            Per informazioni sui cookie di Stripe: <a href="https://stripe.com/it/privacy" target="_blank" rel="noopener noreferrer" className="text-yellow-600 hover:underline">Informativa Privacy Stripe</a>.
+            Per informazioni sui cookie di Google Analytics: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-yellow-600 hover:underline">Informativa Privacy Google</a>.
           </p>
         </section>
 
