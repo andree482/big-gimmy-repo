@@ -362,10 +362,11 @@ export default function AdminOrders() {
     }
   };
 
-  // Calcolo prodotto più venduto
+  // Calcolo prodotto più venduto (solo ordini andati a buon fine)
+  const EXCLUDED_STATUSES = ['fallito', 'cancellato', 'rimborsato', 'richiesta_di_rimborso'];
   const topProduct = (() => {
     const productMap: Record<string, { name: string; variant: string; image: string | null; count: number }> = {};
-    for (const order of orders) {
+    for (const order of orders.filter((o: Order) => !EXCLUDED_STATUSES.includes(o.status))) {
       const items = Array.isArray(order.items) ? order.items : [];
       for (const item of items) {
         const key = `${item.name}||${item.variant || ''}`;
