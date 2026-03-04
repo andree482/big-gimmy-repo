@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2, Mail } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Email non valida'),
@@ -35,9 +36,18 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
     setIsLoading(true);
     
     try {
-      // Simula invio email (backend non implementato)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      const redirectTo = `${window.location.origin}/reset-password`;
+      const { error } = await supabase.auth.resetPasswordForEmail(data.email, { redirectTo });
+
+      if (error) {
+        toast({
+          title: 'Errore',
+          description: error.message,
+          variant: 'destructive',
+        });
+        return;
+      }
+
       setIsSuccess(true);
       toast({
         title: 'Email inviata',
