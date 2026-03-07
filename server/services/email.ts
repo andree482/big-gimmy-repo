@@ -220,7 +220,7 @@ export async function sendUserConfirmation(formData: ContactFormData): Promise<b
               </p>
 
               <div style="text-align: center; margin: 35px 0 20px 0;">
-                <a href="https://www.biggimmyintegratori.com/prodotti"
+                <a href="https://big-gimmy-1.onrender.com/prodotti"
                    style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 35px;
                           text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 15px rgba(255,209,0,0.3);">
                   Scopri i Prodotti
@@ -396,7 +396,7 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
 
               <!-- CTA Button -->
               <div style="text-align: center; margin-top: 30px;">
-                <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://www.biggimmyintegratori.com'}/ordini"
+                <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://big-gimmy-1.onrender.com'}/ordini"
                    style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
                   📋 Visualizza i tuoi ordini
                 </a>
@@ -590,7 +590,7 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
                     <p style="color: #666; font-size: 14px; margin: 0 0 20px 0;">
                       ${adminActionText}
                     </p>
-                    <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://www.biggimmyintegratori.com'}/admin/ordini"
+                    <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://big-gimmy-1.onrender.com'}/admin/ordini"
                        style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
                       📦 Gestisci Ordini
                     </a>
@@ -677,7 +677,7 @@ export async function sendWelcomeEmail(userData: { email: string; firstName?: st
                 <li>Salvare i tuoi indirizzi per checkout più veloci</li>
               </ul>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="https://www.biggimmyintegratori.com/prodotti"
+                <a href="https://big-gimmy-1.onrender.com/prodotti"
                    style="display: inline-block; background: #FFD100; color: #212121; padding: 15px 30px;
                           text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
                   Scopri i Nostri Prodotti
@@ -1087,7 +1087,7 @@ export async function sendPickupReadyEmail(data: PickupReadyEmailData): Promise<
 
               <!-- CTA Button -->
               <div style="text-align: center; margin-top: 30px;">
-                <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://www.biggimmyintegratori.com'}/ordini"
+                <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://big-gimmy-1.onrender.com'}/ordini"
                    style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
                   📋 Visualizza i tuoi ordini
                 </a>
@@ -1265,7 +1265,7 @@ export async function sendOrderDeliveredEmail(data: OrderDeliveredEmailData): Pr
             </tr>
           </table>
           <div style="text-align: center; margin-top: 30px;">
-            <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://www.biggimmyintegratori.com'}/ordini"
+            <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://big-gimmy-1.onrender.com'}/ordini"
                style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
               📋 Visualizza i tuoi ordini
             </a>
@@ -1435,7 +1435,7 @@ export async function sendPickupReminderEmail(data: PickupReminderEmailData): Pr
             </tr>
           </table>
           <div style="text-align: center; margin-top: 30px;">
-            <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://www.biggimmyintegratori.com'}/ordini"
+            <a href="${process.env.APP_URL || process.env.ORIGIN || 'https://big-gimmy-1.onrender.com'}/ordini"
                style="display: inline-block; background: linear-gradient(135deg, #FFD100 0%, #FFC000 100%); color: #1a1a1a; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
               📋 Visualizza i tuoi ordini
             </a>
