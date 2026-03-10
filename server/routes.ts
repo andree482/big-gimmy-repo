@@ -3187,7 +3187,8 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
           unit_price_cents,
           product_options (
             id,
-            label,
+            flavor,
+            size,
             products (
               id,
               name
@@ -3202,7 +3203,7 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
 
       const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = orderItems.map((item: any) => {
         const productName = item.product_options?.products?.name || "Prodotto";
-        const optionLabel = item.product_options?.label || "";
+        const optionLabel = [item.product_options?.flavor, item.product_options?.size].filter(Boolean).join(' / ');
         return {
           price_data: {
             currency: "eur",
@@ -3319,7 +3320,8 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
                       unit_price_cents,
                       product_option_id,
                       product_options (
-                        label,
+                        flavor,
+                        size,
                         product_id
                       )
                     `)
@@ -3341,7 +3343,8 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
                         product_options (
                           id,
                           price_cents,
-                          label,
+                          flavor,
+                          size,
                           product_id
                         )
                       `)
@@ -3381,7 +3384,8 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
                           unit_price_cents: item.product_options?.price_cents || 0,
                           product_option_id: item.product_option_id,
                           product_options: {
-                            label: item.product_options?.label,
+                            flavor: item.product_options?.flavor,
+                            size: item.product_options?.size,
                             product_id: item.product_options?.product_id
                           }
                         }));
@@ -3478,7 +3482,7 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
                       // Altrimenti usa i dati dal DB
                       const productId = item.product_options?.product_id;
                       const productName = productId ? productNames[productId] : null;
-                      const optionLabel = item.product_options?.label || '';
+                      const optionLabel = [item.product_options?.flavor, item.product_options?.size].filter(Boolean).join(' / ');
                       return {
                         name: `${productName || 'Prodotto'}${optionLabel ? ` - ${optionLabel}` : ''}`,
                         quantity: item.quantity,
