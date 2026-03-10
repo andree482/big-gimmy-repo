@@ -349,7 +349,8 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
             unit_price_cents,
             product_option_id,
             product_options (
-              label,
+              flavor,
+              size,
               product_id
             )
           `)
@@ -407,7 +408,7 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
           const emailItems = (orderItems || []).map((item: any) => {
             const productId = item.product_options?.product_id;
             const productName = productId ? productNames[productId] : null;
-            const optionLabel = item.product_options?.label || '';
+            const optionLabel = [item.product_options?.flavor, item.product_options?.size].filter(Boolean).join(' / ');
             return {
               name: `${productName || 'Prodotto'}${optionLabel ? ` - ${optionLabel}` : ''}`,
               quantity: item.quantity,
