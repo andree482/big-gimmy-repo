@@ -14,6 +14,15 @@ const uploadAttachment = multer({
     cb(null, allowed.includes(file.mimetype));
   },
 });
+
+// Multer: solo PDF, max 10 MB, per upload fatture elettroniche
+const uploadFattura = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    cb(null, file.mimetype === 'application/pdf');
+  },
+});
 import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply, sendTrackingEmail, sendWelcomeEmail, sendOrderConfirmationEmail, sendAdminOrderNotification, sendPasswordChangedEmail, sendRefundRequestEmail, sendPickupReadyEmail, sendOrderDeliveredEmail, sendRefundCompletedEmail } from './services/email.ts';
 import { syncAllImages } from "./utils/imageSync.ts";
 import session from 'express-session';
@@ -1724,6 +1733,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           pickup_store,
           pickup_ready_at,
           pickup_collected_at,
+          richiede_fattura,
+          fattura_intestatario,
+          fattura_cf,
+          fattura_piva,
+          fattura_pec,
+          fattura_sdi,
+          fattura_emessa,
+          fattura_numero,
+          fattura_url,
+          fattura_data_emissione,
           users:user_id (email)
         `)
         .order("created_at", { ascending: false });
@@ -1834,6 +1853,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             pickup_store: order.pickup_store || null,
             pickup_ready_at: order.pickup_ready_at || null,
             pickup_collected_at: order.pickup_collected_at || null,
+            richiede_fattura: order.richiede_fattura || false,
+            fattura_intestatario: order.fattura_intestatario || null,
+            fattura_cf: order.fattura_cf || null,
+            fattura_piva: order.fattura_piva || null,
+            fattura_pec: order.fattura_pec || null,
+            fattura_sdi: order.fattura_sdi || null,
+            fattura_emessa: order.fattura_emessa || false,
+            fattura_numero: order.fattura_numero || null,
+            fattura_url: order.fattura_url || null,
+            fattura_data_emissione: order.fattura_data_emissione || null,
           };
         })
       );
@@ -2986,7 +3015,10 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
           tracking_number,
           carrier,
           fulfillment_type,
-          pickup_store
+          pickup_store,
+          richiede_fattura,
+          fattura_emessa,
+          fattura_url
         `)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
@@ -3107,6 +3139,9 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
             carrier: order.carrier || null,
             fulfillmentType: order.fulfillment_type || 'spedizione',
             pickupStore: order.pickup_store || null,
+            richiede_fattura: order.richiede_fattura || false,
+            fattura_emessa: order.fattura_emessa || false,
+            fattura_url: order.fattura_url || null,
           };
         })
       );
@@ -5110,7 +5145,7 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
             let trackingUrl = '';
             const carrierLower = (carrier || '').toLowerCase();
             if (carrierLower === 'bartolini' || carrierLower === 'brt') {
-              trackingUrl = `https://vas.brt.it/vas/sped_det_show.hsm?referer=sped_numspe_par.htm&lingua=IT&numero_spedizione=${tracking_number}`;
+              trackingUrl = `https://www.fermopoint.it/prenotazione/${tracking_number}`;
             }
 
             await sendTrackingEmail({
@@ -5473,6 +5508,143 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
       return res.json({ success: true, message: "Ritiro confermato, ordine consegnato" });
     } catch (err) {
       console.error("[PICKUP] Errore PUT confirm-pickup:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // PUT segna fattura come emessa (con numero fattura opzionale)
+  app.put("/api/admin/orders/:orderId/segna-fattura-emessa", ensureAuth, ensureAdmin, async (req: Request, res: Response) => {
+    try {
+      const { orderId } = req.params;
+      const { fattura_numero } = req.body;
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      const { error } = await (supabaseAdmin as any)
+        .from("orders")
+        .update({
+          fattura_emessa: true,
+          fattura_numero: fattura_numero || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderId);
+
+      if (error) {
+        console.error("[FATTURA] Errore aggiornamento fattura_emessa:", error);
+        return res.status(500).json({ success: false, message: "Errore aggiornamento" });
+      }
+
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("[FATTURA] Errore PUT segna-fattura-emessa:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // Upload PDF fattura elettronica (admin)
+  app.post("/api/admin/orders/:orderId/upload-fattura", ensureAuth, ensureAdmin, uploadFattura.single('fattura'), async (req: Request, res: Response) => {
+    try {
+      const { orderId } = req.params;
+      const { fattura_numero, fattura_data_emissione } = req.body;
+      const file = (req as any).file;
+
+      if (!file) {
+        return res.status(400).json({ success: false, message: "Nessun file PDF caricato" });
+      }
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      // Assicura che il bucket 'fatture' esista
+      const { error: bucketError } = await (supabaseAdmin as any).storage.createBucket('fatture', { public: true });
+      // Ignora errore se il bucket esiste già
+      if (bucketError && !bucketError.message?.includes('already exists') && !bucketError.message?.includes('duplicate')) {
+        console.warn("[FATTURA UPLOAD] Bucket create warning:", bucketError.message);
+      }
+
+      const fileName = `${orderId}/${Date.now()}.pdf`;
+      const { error: uploadError } = await (supabaseAdmin as any).storage
+        .from('fatture')
+        .upload(fileName, file.buffer, { contentType: 'application/pdf', upsert: true });
+
+      if (uploadError) {
+        console.error("[FATTURA UPLOAD] Errore upload Supabase Storage:", uploadError);
+        return res.status(500).json({ success: false, message: "Errore caricamento file" });
+      }
+
+      const { data: urlData } = (supabaseAdmin as any).storage
+        .from('fatture')
+        .getPublicUrl(fileName);
+
+      const fattura_url = urlData.publicUrl;
+
+      const updateData: Record<string, any> = {
+        fattura_emessa: true,
+        fattura_url,
+        updated_at: new Date().toISOString(),
+      };
+      if (fattura_numero) updateData.fattura_numero = fattura_numero;
+      if (fattura_data_emissione) updateData.fattura_data_emissione = fattura_data_emissione;
+
+      const { error: dbError } = await (supabaseAdmin as any)
+        .from("orders")
+        .update(updateData)
+        .eq("id", orderId);
+
+      if (dbError) {
+        console.error("[FATTURA UPLOAD] Errore aggiornamento DB:", dbError);
+        return res.status(500).json({ success: false, message: "Errore salvataggio dati" });
+      }
+
+      return res.json({ success: true, fattura_url });
+    } catch (err) {
+      console.error("[FATTURA UPLOAD] Errore:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // Recupera URL fattura elettronica caricata (cliente)
+  app.get("/api/orders/:orderId/fattura", async (req: Request, res: Response) => {
+    try {
+      const sess = req.session as any;
+      const auth = await getAuthFromToken(req);
+      const user = auth ? { authenticated: true, id: auth.id } : sess?.user;
+
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+
+      const { orderId } = req.params;
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      const { data: order, error } = await (supabaseAdmin as any)
+        .from("orders")
+        .select("id, user_id, fattura_url, fattura_emessa, richiede_fattura")
+        .eq("id", orderId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (error || !order) {
+        return res.status(404).json({ success: false, message: "Ordine non trovato" });
+      }
+
+      if (!order.richiede_fattura) {
+        return res.status(400).json({ success: false, message: "Questo ordine non ha una fattura elettronica" });
+      }
+
+      if (!order.fattura_url) {
+        return res.status(404).json({ success: false, message: "Fattura non ancora disponibile. Verrà caricata a breve." });
+      }
+
+      return res.json({ success: true, fattura_url: order.fattura_url });
+    } catch (err) {
+      console.error("[FATTURA CLIENTE] Errore:", err);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
     }
   });

@@ -48,6 +48,14 @@ interface OrderEmailData {
   };
   fulfillmentType?: 'spedizione' | 'ritiro';
   pickupStore?: string | null;
+  fatturaDati?: {
+    richiede_fattura: boolean;
+    intestatario?: string | null;
+    piva?: string | null;
+    cf?: string | null;
+    sdi?: string | null;
+    pec?: string | null;
+  };
 }
 
 // Dati negozi per le email
@@ -255,7 +263,7 @@ export async function sendUserConfirmation(formData: ContactFormData): Promise<b
  * Invia conferma ordine dopo pagamento
  */
 export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Promise<boolean> {
-  const { orderId, userEmail, userName, total, items, shippingAddress, fulfillmentType, pickupStore } = orderData;
+  const { orderId, userEmail, userName, total, items, shippingAddress, fulfillmentType, pickupStore, fatturaDati } = orderData;
   const isPickup = fulfillmentType === 'ritiro';
   const storeInfo = pickupStore ? STORE_INFO[pickupStore] : null;
 
@@ -326,6 +334,26 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
       ? '📧 Ti invieremo un\'email quando il tuo ordine sarà pronto per il ritiro.'
       : '📧 Riceverai un\'email con il codice di tracciamento non appena il pacco sarà spedito.';
 
+    const fatturaHTML = fatturaDati?.richiede_fattura ? `
+      <table style="width: 100%; border-collapse: collapse; margin-top: 25px; background: #fff3e0; border-radius: 8px; border: 1px solid #ffe0b2;">
+        <tr>
+          <td style="padding: 20px;">
+            <h3 style="color: #e65100; font-size: 15px; margin: 0 0 12px 0;">🧾 Fattura Elettronica Richiesta</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              ${fatturaDati.intestatario ? `<tr><td style="padding: 4px 0; color: #666; width: 130px;">Intestatario:</td><td style="padding: 4px 0; color: #1a1a1a; font-weight: 600;">${fatturaDati.intestatario}</td></tr>` : ''}
+              ${fatturaDati.piva ? `<tr><td style="padding: 4px 0; color: #666;">P.IVA:</td><td style="padding: 4px 0; color: #1a1a1a; font-family: monospace;">${fatturaDati.piva}</td></tr>` : ''}
+              ${fatturaDati.cf ? `<tr><td style="padding: 4px 0; color: #666;">Cod. Fiscale:</td><td style="padding: 4px 0; color: #1a1a1a; font-family: monospace;">${fatturaDati.cf}</td></tr>` : ''}
+              ${fatturaDati.sdi ? `<tr><td style="padding: 4px 0; color: #666;">Codice SDI:</td><td style="padding: 4px 0; color: #1a1a1a; font-family: monospace;">${fatturaDati.sdi}</td></tr>` : ''}
+              ${fatturaDati.pec ? `<tr><td style="padding: 4px 0; color: #666;">PEC:</td><td style="padding: 4px 0; color: #1a1a1a;">${fatturaDati.pec}</td></tr>` : ''}
+            </table>
+            <p style="color: #bf360c; font-size: 12px; margin: 12px 0 0 0;">
+              La tua fattura elettronica verrà emessa e inviata tramite il Sistema di Interscambio (SdI) all'indirizzo SDI/PEC indicato. Sarà disponibile anche nella tua area ordini non appena caricata.
+            </p>
+          </td>
+        </tr>
+      </table>
+    ` : '';
+
     const { error } = await resend.emails.send({
       from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [userEmail],
@@ -382,6 +410,8 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
               </table>
 
               ${shippingHTML}
+
+              ${fatturaHTML}
 
               <!-- Info Box -->
               <table style="width: 100%; border-collapse: collapse; margin-top: 25px;">
@@ -442,7 +472,7 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
  * Invia notifica all'admin quando arriva un nuovo ordine pagato
  */
 export async function sendAdminOrderNotification(orderData: OrderEmailData): Promise<boolean> {
-  const { orderId, userEmail, userName, total, items, shippingAddress, fulfillmentType, pickupStore } = orderData;
+  const { orderId, userEmail, userName, total, items, shippingAddress, fulfillmentType, pickupStore, fatturaDati } = orderData;
   const isPickup = fulfillmentType === 'ritiro';
   const storeInfo = pickupStore ? STORE_INFO[pickupStore] : null;
 
@@ -507,6 +537,26 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
     const adminActionText = isPickup
       ? 'Ricordati di preparare l\'ordine per il ritiro!'
       : 'Ricordati di preparare e spedire l\'ordine!';
+
+    const adminFatturaHTML = fatturaDati?.richiede_fattura ? `
+      <table style="width: 100%; border-collapse: collapse; margin-top: 25px; background: #fff3e0; border-radius: 8px; border: 2px solid #ff6f00;">
+        <tr>
+          <td style="padding: 20px;">
+            <h3 style="color: #e65100; font-size: 16px; margin: 0 0 14px 0; text-transform: uppercase; letter-spacing: 0.5px;">🧾 RICHIESTA FATTURA ELETTRONICA</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+              ${fatturaDati.intestatario ? `<tr><td style="padding: 6px 0; color: #666; width: 130px; font-weight: 500;">Intestatario:</td><td style="padding: 6px 0; color: #1a1a1a; font-weight: 700; font-size: 15px;">${fatturaDati.intestatario}</td></tr>` : ''}
+              ${fatturaDati.piva ? `<tr><td style="padding: 6px 0; color: #666; font-weight: 500;">P.IVA:</td><td style="padding: 6px 0; color: #1a1a1a; font-family: monospace; font-size: 15px;">${fatturaDati.piva}</td></tr>` : ''}
+              ${fatturaDati.cf ? `<tr><td style="padding: 6px 0; color: #666; font-weight: 500;">Cod. Fiscale:</td><td style="padding: 6px 0; color: #1a1a1a; font-family: monospace;">${fatturaDati.cf}</td></tr>` : ''}
+              ${fatturaDati.sdi ? `<tr><td style="padding: 6px 0; color: #666; font-weight: 500;">Codice SDI:</td><td style="padding: 6px 0; color: #1a1a1a; font-family: monospace; font-weight: 700;">${fatturaDati.sdi}</td></tr>` : ''}
+              ${fatturaDati.pec ? `<tr><td style="padding: 6px 0; color: #666; font-weight: 500;">PEC:</td><td style="padding: 6px 0; color: #1a1a1a;">${fatturaDati.pec}</td></tr>` : ''}
+            </table>
+            <p style="color: #bf360c; font-size: 13px; margin: 14px 0 0 0; font-weight: 600;">
+              ⚠️ Emetti la fattura elettronica su Aruba e caricala dalla dashboard ordini.
+            </p>
+          </td>
+        </tr>
+      </table>
+    ` : '';
 
     const { error } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
@@ -582,6 +632,8 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
               </table>
 
               ${shippingHTML}
+
+              ${adminFatturaHTML}
 
               <!-- Action -->
               <table style="width: 100%; border-collapse: collapse; margin-top: 30px;">

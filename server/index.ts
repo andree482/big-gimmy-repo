@@ -149,7 +149,31 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
   const stripeInvoiceId = typeof session.invoice === 'string' ? session.invoice : null;
   const stripeCustomerId = typeof session.customer === 'string' ? session.customer : null;
 
-  console.log(`[STRIPE WEBHOOK] Pagamento completato per user: ${userId}, orderId: ${orderId}, invoiceId: ${stripeInvoiceId}`);
+  // Dati fattura elettronica (salvati nei metadata della sessione)
+  const richiede_fattura = session.metadata?.richiede_fattura === "si";
+  const fattura_intestatario = session.metadata?.fattura_intestatario || null;
+  const fattura_cf = session.metadata?.fattura_cf || null;
+  const fattura_piva = session.metadata?.fattura_piva || null;
+  // PEC e SDI sono nei custom_fields della sessione Stripe (non nei metadata)
+  // Li recuperiamo dal campo invoice_creation se disponibili
+  let fattura_pec: string | null = null;
+  let fattura_sdi: string | null = null;
+  if (richiede_fattura) {
+    try {
+      const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
+        expand: ['invoice']
+      });
+      const customFields = (fullSession as any).invoice_creation?.invoice_data?.custom_fields || [];
+      for (const field of customFields) {
+        if (field.name === "PEC") fattura_pec = field.value;
+        if (field.name === "Codice SDI") fattura_sdi = field.value;
+      }
+    } catch (e: any) {
+      console.warn("[STRIPE WEBHOOK] Errore recupero custom_fields:", e?.message);
+    }
+  }
+
+  console.log(`[STRIPE WEBHOOK] Pagamento completato per user: ${userId}, orderId: ${orderId}, invoiceId: ${stripeInvoiceId}, richiede_fattura: ${richiede_fattura}`);
 
   if (!userId) {
     console.error("[STRIPE WEBHOOK] user_id mancante nei metadata");
@@ -176,7 +200,13 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
           stripe_customer_id: stripeCustomerId,
           total_cents: session.amount_total || 0,
           currency: session.currency?.toUpperCase() || "EUR",
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          richiede_fattura,
+          fattura_intestatario,
+          fattura_cf,
+          fattura_piva,
+          fattura_pec,
+          fattura_sdi,
         })
         .eq("id", orderId)
         .select()
@@ -281,6 +311,12 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
           notes: notes || null,
           fulfillment_type: fulfillmentType,
           pickup_store: pickupStore || null,
+          richiede_fattura,
+          fattura_intestatario,
+          fattura_cf,
+          fattura_piva,
+          fattura_pec,
+          fattura_sdi,
         })
         .select()
         .single();
@@ -421,6 +457,15 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
           const orderFulfillmentType = fulfillmentType || order.fulfillment_type || 'spedizione';
           const orderPickupStore = pickupStore || order.pickup_store || null;
 
+          const emailFatturaDati = richiede_fattura ? {
+            richiede_fattura: true,
+            intestatario: fattura_intestatario,
+            piva: fattura_piva,
+            cf: fattura_cf,
+            sdi: fattura_sdi,
+            pec: fattura_pec,
+          } : undefined;
+
           await sendOrderConfirmationEmail({
             orderId: order.id,
             userEmail: customerEmail,
@@ -430,6 +475,7 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
             shippingAddress: shippingAddr || undefined,
             fulfillmentType: orderFulfillmentType,
             pickupStore: orderPickupStore,
+            fatturaDati: emailFatturaDati,
           });
           console.log(`[STRIPE WEBHOOK] Email conferma ordine inviata a ${customerEmail}`);
 
@@ -445,6 +491,7 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
               shippingAddress: shippingAddr || undefined,
               fulfillmentType: orderFulfillmentType,
               pickupStore: orderPickupStore,
+              fatturaDati: emailFatturaDati,
             });
             console.log(`[STRIPE WEBHOOK] Email notifica admin inviata, risultato: ${adminEmailResult}`);
           } catch (adminEmailError) {
