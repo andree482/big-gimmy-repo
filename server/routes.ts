@@ -4960,6 +4960,16 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
         // Calcola totale ordine (con sconto e spedizione)
         const totalOrderCents = totalAfterDiscount + shippingCents;
 
+        // Dati fiscali per fattura (opzionali, se il cliente la richiede)
+        const fatturaData = req.body.fattura_data as {
+          tipo?: string;
+          intestatario?: string;
+          codice_fiscale?: string;
+          partita_iva?: string;
+          pec?: string;
+          sdi?: string;
+        } | undefined;
+
         // Crea l'ordine nel database con stato "in_attesa_di_pagamento" prima del checkout
         let orderId: string | null = null;
         if (supabaseAdmin) {
@@ -4975,6 +4985,12 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
                 notes: notes || null,
                 fulfillment_type: fulfillmentType,
                 pickup_store: pickupStore,
+                richiede_fattura: !!fatturaData,
+                fattura_intestatario: fatturaData?.intestatario || null,
+                fattura_cf: fatturaData?.codice_fiscale || null,
+                fattura_piva: fatturaData?.partita_iva || null,
+                fattura_pec: fatturaData?.pec || null,
+                fattura_sdi: fatturaData?.sdi || null,
               })
               .select("id")
               .single();
@@ -5001,32 +5017,6 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
           } catch (e) {
             console.warn("[CHECKOUT] Errore creazione ordine:", e);
           }
-        }
-
-        // Dati fiscali per fattura (opzionali, se il cliente la richiede)
-        const fatturaData = req.body.fattura_data as {
-          tipo?: string;
-          intestatario?: string;
-          indirizzo?: string;
-          cap?: string;
-          citta?: string;
-          provincia?: string;
-          codice_fiscale?: string;
-          partita_iva?: string;
-          pec?: string;
-          sdi?: string;
-        } | undefined;
-
-        const fatturaCustomFields: { name: string; value: string }[] = [];
-        if (fatturaData) {
-          if (fatturaData.intestatario) fatturaCustomFields.push({ name: "Intestatario", value: fatturaData.intestatario });
-          if (fatturaData.codice_fiscale) fatturaCustomFields.push({ name: "Codice Fiscale", value: fatturaData.codice_fiscale });
-          if (fatturaData.partita_iva) fatturaCustomFields.push({ name: "Partita IVA", value: fatturaData.partita_iva });
-          if (fatturaData.indirizzo && fatturaData.cap && fatturaData.citta) {
-            fatturaCustomFields.push({ name: "Indirizzo fattura", value: `${fatturaData.indirizzo}, ${fatturaData.cap} ${fatturaData.citta} (${fatturaData.provincia || ''})` });
-          }
-          if (fatturaData.pec) fatturaCustomFields.push({ name: "PEC", value: fatturaData.pec });
-          if (fatturaData.sdi) fatturaCustomFields.push({ name: "Codice SDI", value: fatturaData.sdi });
         }
 
         const sessionStripe = await stripe.checkout.sessions.create({
