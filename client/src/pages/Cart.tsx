@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, ArrowLeft, Plus, Minus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCartContext } from "@/components/cart/CartProvider";
@@ -85,9 +86,21 @@ export default function Cart() {
                 {cartItems.map((item) => (
                   <Card key={`${item.product_option_id}-${item.variant || ''}`} className="p-4 sm:p-6 shadow-md">
                     {/* Nome prodotto come header della card */}
-                    <h3 className="text-base sm:text-lg font-semibold border-b pb-2 mb-3">
-                      {item.name}
-                    </h3>
+                    <div className="flex items-center justify-between border-b pb-2 mb-3 gap-2">
+                      <h3 className="text-base sm:text-lg font-semibold">
+                        {item.name}
+                      </h3>
+                      {(() => {
+                        const discountPct = item.originalPrice && item.originalPrice > item.price
+                          ? Math.round((1 - item.price / item.originalPrice) * 100)
+                          : 20;
+                        return (
+                          <Badge className="bg-red-500 text-white text-xs font-bold flex-shrink-0">
+                            -{discountPct}%
+                          </Badge>
+                        );
+                      })()}
+                    </div>
                     <div className="flex items-start gap-3 sm:gap-6">
 
                       <div className="w-20 h-20 sm:w-28 sm:h-28 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
@@ -119,9 +132,14 @@ export default function Cart() {
                           </p>
                         )}
 
-                        <p className="text-xs sm:text-sm mt-1 sm:mt-2 text-gray-700">
+                        <p className="text-xs sm:text-sm mt-1 sm:mt-2 text-gray-700 flex items-center gap-2 flex-wrap">
                           Unitario:{" "}
                           <strong>{formatEuropeanPrice(item.price)}</strong>
+                          {item.originalPrice && item.originalPrice > item.price && (
+                            <span className="line-through text-gray-400 text-xs">
+                              {formatEuropeanPrice(item.originalPrice)}
+                            </span>
+                          )}
                         </p>
 
                         {/* Controlli quantità + elimina su mobile */}

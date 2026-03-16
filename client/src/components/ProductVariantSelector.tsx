@@ -231,6 +231,9 @@ export default function ProductVariantSelector({
                   {variant && (
                     <Badge variant="secondary" className="ml-2 text-xs">
                       {formatPrice(variant.price)}
+                      {variant.originalPrice && variant.originalPrice > variant.price && (
+                        <span className="ml-1 line-through text-gray-400">{formatPrice(variant.originalPrice)}</span>
+                      )}
                     </Badge>
                   )}
                 </Button>
@@ -244,13 +247,18 @@ export default function ProductVariantSelector({
       {currentVariant && (
         <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg border">
           <div className="space-y-1">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <span className="text-2xl font-bold text-[#FFD100]">
                 {formatPrice(currentVariant.price)}
               </span>
               {currentVariant.originalPrice && currentVariant.originalPrice > currentVariant.price && (
                 <span className="text-lg text-gray-500 line-through">
                   {formatPrice(currentVariant.originalPrice)}
+                </span>
+              )}
+              {currentVariant.originalPrice && currentVariant.originalPrice > currentVariant.price && (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded">
+                  -{Math.round((1 - currentVariant.price / currentVariant.originalPrice) * 100)}%
                 </span>
               )}
             </div>

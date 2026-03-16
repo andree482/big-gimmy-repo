@@ -208,6 +208,7 @@ export async function getCart() {
         flavor,
         size,
         price_cents,
+        original_price_cents,
         image,
         products(
           id,

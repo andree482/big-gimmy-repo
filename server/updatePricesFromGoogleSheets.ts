@@ -126,6 +126,7 @@ async function exportPricesToGoogleSheets(db: ReturnType<typeof createDb>, sprea
         flavor: productOptions.flavor,
         size: productOptions.size,
         currentPrice: productOptions.priceCents,
+        originalPrice: productOptions.originalPriceCents,
         inStock: productOptions.inStock
       })
       .from(productOptions)
@@ -134,17 +135,34 @@ async function exportPricesToGoogleSheets(db: ReturnType<typeof createDb>, sprea
       .orderBy(productOptions.productId);
 
     // Prepara i dati per Google Sheets
-    const headers = ['ID Prodotto', 'Marca', 'Nome', 'Gusto', 'Unità', 'Prezzo Attuale', 'Prezzo Aggiornato', 'Disponibile'];
-    const rows = allSizes.map(option => [
-      option.productId,
-      option.brandName,
-      option.productName,
-      option.flavor || '',
-      option.size || '',
-      (option.currentPrice / 100).toFixed(2),
-      (option.currentPrice / 100).toFixed(2), // Copia il prezzo attuale per facilitare le modifiche
-      option.inStock ? 'SI' : 'NO' // Mostra SI/NO invece di TRUE/FALSE
-    ]);
+    // Colonne:
+    //   A: ID Prodotto  B: Marca  C: Nome  D: Gusto  E: Unità
+    //   F: Prezzo Aggiornato (MODIFICA QUI → viene letto dal watcher e aggiorna il DB)
+    //   G: Prezzo Base     (= original_price_cents corrente — sola lettura, si aggiorna dopo la sync)
+    //   H: Sconto %        (% di sconto per variante — modifica per cambiare)
+    //   I: Prezzo Finale   (= price_cents — calcolato automaticamente, NON modificare)
+    //   J: Disponibile
+    const headers = ['ID Prodotto', 'Marca', 'Nome', 'Gusto', 'Unità', 'Prezzo Aggiornato', 'Prezzo Base', 'Sconto %', 'Prezzo Finale', 'Disponibile'];
+    const rows = allSizes.map(option => {
+      const basePriceCents = option.originalPrice && option.originalPrice > 0
+        ? option.originalPrice
+        : option.currentPrice; // fallback: se non c'è original, usa il corrente come base
+      const discountPct = basePriceCents > 0
+        ? Math.round((1 - option.currentPrice / basePriceCents) * 100)
+        : 20;
+      return [
+        option.productId,
+        option.brandName,
+        option.productName,
+        option.flavor || '',
+        option.size || '',
+        (basePriceCents / 100).toFixed(2),        // Col F: Prezzo Aggiornato (da modificare)
+        (basePriceCents / 100).toFixed(2),        // Col G: Prezzo Base (sola lettura)
+        discountPct.toString(),                    // Col H: Sconto % (da modificare per variante)
+        (option.currentPrice / 100).toFixed(2),   // Col I: Prezzo Finale (sola lettura)
+        option.inStock ? 'SI' : 'NO',             // Col J: Disponibile
+      ];
+    });
 
     const values = [headers, ...rows];
 
@@ -152,7 +170,7 @@ async function exportPricesToGoogleSheets(db: ReturnType<typeof createDb>, sprea
     try {
       await sheets.spreadsheets.values.clear({
         spreadsheetId,
-        range: `'${sheetName}'!A:H`,
+        range: `'${sheetName}'!A:J`,
       });
       console.log(`🗑️ Contenuto esistente cancellato`);
     } catch (clearError) {
@@ -190,7 +208,7 @@ async function updatePricesFromGoogleSheets(db: ReturnType<typeof createDb>, spr
     // Legge i dati dal foglio
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `'${sheetName}'!A:H`,
+      range: `'${sheetName}'!A:J`,
     });
 
     const rows = response.data.values;
@@ -216,22 +234,25 @@ async function updatePricesFromGoogleSheets(db: ReturnType<typeof createDb>, spr
         const productName = row[2]?.toString(); // Nome del prodotto
         const size = row[3]?.toString(); // Flavor
         const unit = row[4]?.toString(); // Unit/Size
-        const currentPrice = parseFloat(row[5]); // Current Price
-        const newPrice = parseFloat(row[6]); // Colonna "New Price"
-        const availability = row[7]?.toString()?.trim()?.toUpperCase(); // Colonna "Disponibile"
+        const newPrice = parseFloat(row[5]);           // Col F: Prezzo Aggiornato (da modificare)
+        // row[6] = Prezzo Base (sola lettura, ignorato in input)
+        const discountPct = parseFloat(row[7]) || 20;  // Col H: Sconto % (default 20)
+        // row[8] = Prezzo Finale (sola lettura, ignorato in input)
+        const availability = row[9]?.toString()?.trim()?.toUpperCase(); // Col J: Disponibile
 
-        console.log(`📊 Dati estratti - ID: ${productId}, Marca: ${brandName}, Nome: ${productName}, Size: ${size}, Unit: ${unit}, Current: ${currentPrice}, New: ${newPrice}, Disponibile: ${availability}`);
+        console.log(`📊 Dati estratti - ID: ${productId}, Marca: ${brandName}, Nome: ${productName}, Size: ${size}, Unit: ${unit}, Prezzo Aggiornato: ${newPrice}, Sconto: ${discountPct}%, Disponibile: ${availability}`);
 
         // Validazione dati (flavor e unit possono essere vuoti per alcuni prodotti)
         if (!productId || isNaN(newPrice) || newPrice <= 0) {
-          console.log(`❌ Riga ${i + 1} invalida: Product ID: ${productId}, Marca: ${brandName}, Nome: ${productName}, Size: ${size}, Unit: ${unit}, Price: ${newPrice}`);
+          console.log(`❌ Riga ${i + 1} invalida: Product ID: ${productId}, Marca: ${brandName}, Nome: ${productName}, Size: ${size}, Unit: ${unit}, Prezzo Aggiornato: ${newPrice}`);
           errorCount++;
           continue;
         }
 
-        // Converti il prezzo in centesimi per il confronto
-        const priceInCents = Math.round(newPrice * 100);
-        
+        // Calcola i centesimi
+        const basePriceCents = Math.round(newPrice * 100);
+        const finalPriceCents = Math.round(basePriceCents * (1 - discountPct / 100));
+
         // Converti la disponibilità in boolean
         const newAvailability = availability === 'SI';
 
@@ -254,11 +275,18 @@ async function updatePricesFromGoogleSheets(db: ReturnType<typeof createDb>, spr
         let hasUpdates = false;
         const updates: any = {};
 
-        // Confronta il prezzo del DATABASE con il nuovo prezzo dal Google Sheets
-        if (targetOption.priceCents !== priceInCents) {
-          updates.priceCents = priceInCents;
+        // Aggiorna original_price_cents (prezzo base) se cambiato
+        if (targetOption.originalPriceCents !== basePriceCents) {
+          updates.originalPriceCents = basePriceCents;
           hasUpdates = true;
-          console.log(`💰 Prezzo cambiato: ${brandName} - ${productName} (ID: ${productId}), ${size}${unit}: €${(targetOption.priceCents/100).toFixed(2)} → €${newPrice.toFixed(2)}`);
+          console.log(`📋 Prezzo base cambiato: ${brandName} - ${productName} (ID: ${productId}), ${size}${unit}: €${((targetOption.originalPriceCents ?? 0)/100).toFixed(2)} → €${newPrice.toFixed(2)}`);
+        }
+
+        // Aggiorna price_cents (prezzo scontato) se cambiato
+        if (targetOption.priceCents !== finalPriceCents) {
+          updates.priceCents = finalPriceCents;
+          hasUpdates = true;
+          console.log(`💰 Prezzo finale cambiato: ${brandName} - ${productName} (ID: ${productId}), ${size}${unit}: €${(targetOption.priceCents/100).toFixed(2)} → €${(finalPriceCents/100).toFixed(2)} (sconto ${discountPct}%)`);
           updatedCount++;
         }
 
