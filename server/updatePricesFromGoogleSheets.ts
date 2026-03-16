@@ -137,12 +137,12 @@ async function exportPricesToGoogleSheets(db: ReturnType<typeof createDb>, sprea
     // Prepara i dati per Google Sheets
     // Colonne:
     //   A: ID Prodotto  B: Marca  C: Nome  D: Gusto  E: Unità
-    //   F: Prezzo Aggiornato (MODIFICA QUI → viene letto dal watcher e aggiorna il DB)
-    //   G: Prezzo Base     (= original_price_cents corrente — sola lettura, si aggiorna dopo la sync)
+    //   F: Prezzo Attuale  (MODIFICA QUI → viene letto dal watcher e aggiorna il DB)
+    //   G: Prezzo Aggiornato (sola lettura — si allinea a F dopo la sync)
     //   H: Sconto %        (% di sconto per variante — modifica per cambiare)
     //   I: Prezzo Finale   (= price_cents — calcolato automaticamente, NON modificare)
     //   J: Disponibile
-    const headers = ['ID Prodotto', 'Marca', 'Nome', 'Gusto', 'Unità', 'Prezzo Aggiornato', 'Prezzo Base', 'Sconto %', 'Prezzo Finale', 'Disponibile'];
+    const headers = ['ID Prodotto', 'Marca', 'Nome', 'Gusto', 'Unità', 'Prezzo Attuale', 'Prezzo Aggiornato', 'Sconto %', 'Prezzo Finale', 'Disponibile'];
     const rows = allSizes.map(option => {
       const basePriceCents = option.originalPrice && option.originalPrice > 0
         ? option.originalPrice

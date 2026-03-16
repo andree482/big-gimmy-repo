@@ -194,6 +194,11 @@ const ProductCard = ({
             Novità
           </div>
         )}
+        {getMinimumPrice(product) > 0 && (
+          <div className="absolute bottom-3 left-3 bg-red-500 text-white px-2 py-1 rounded-md text-xs font-bold z-10">
+            -20% SCONTO
+          </div>
+        )}
       </div>
 
       <div className="p-4">
@@ -228,20 +233,19 @@ const ProductCard = ({
           {(() => {
             const minPrice = getMinimumPrice(product);
             if (minPrice && minPrice > 0) {
+              const originalMinPrice = Math.round(minPrice / 0.8 * 100) / 100;
               return (
                 <div className="flex flex-col">
                   <span className="text-sm text-gray-500 mb-1">
                     A partire da
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-2xl font-bold text-[#FFD100]">
                       €{minPrice.toFixed(2)}
                     </span>
-                    {product.originalPrice && (
-                      <span className="text-lg text-gray-500 line-through">
-                        €{product.originalPrice}
-                      </span>
-                    )}
+                    <span className="text-base text-gray-400 line-through">
+                      €{originalMinPrice.toFixed(2)}
+                    </span>
                   </div>
                 </div>
               );
