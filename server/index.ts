@@ -734,7 +734,7 @@ if (app.get("env") === "development") {
       try {
         const { PriceWatcher } = await import('./priceWatcher');
         const intervalMinutes = parseInt(process.env.PRICE_CHECK_INTERVAL || '5');
-        (global as any).priceWatcher = new PriceWatcher(spreadsheetId);
+        (global as any).priceWatcher = new PriceWatcher(spreadsheetId, 'Prezzi Prodotti');
         (global as any).priceWatcher.start(intervalMinutes);
       } catch (e: any) {
         console.error(`❌ Impossibile avviare PriceWatcher:`, e?.message || e);
