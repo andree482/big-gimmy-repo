@@ -9,10 +9,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // ✅ Prende direttamente la stringa dal file .env
-const connectionString = process.env.DATABASE_URL;
+const connectionString = process.env.DATABASE_URL_PRIVATO;
 
 if (!connectionString) {
-  throw new Error('DATABASE_URL is not defined in environment variables');
+  throw new Error('DATABASE_URL_PRIVATO is not defined in environment variables');
 }
 
 // ✅ Crea un pool PostgreSQL
