@@ -143,7 +143,8 @@ async function exportPricesToGoogleSheets(db: ReturnType<typeof createDb>, sprea
     //   I: Prezzo Finale   (sola lettura — price_cents = F × (1 - H%))
     //   J: Disponibile
     const headers = ['ID Prodotto', 'Marca', 'Nome', 'Gusto', 'Unità', 'Prezzo Attuale', 'Prezzo Aggiornato', 'Sconto %', 'Prezzo Finale', 'Disponibile'];
-    const rows = allSizes.map(option => {
+    const rows = allSizes.map((option, index) => {
+      const rowNum = index + 2; // riga 1 = intestazione, dati da riga 2
       const basePriceCents = option.originalPrice && option.originalPrice > 0
         ? option.originalPrice
         : option.currentPrice; // fallback quando original_price_cents è NULL
@@ -157,9 +158,9 @@ async function exportPricesToGoogleSheets(db: ReturnType<typeof createDb>, sprea
         option.flavor || '',
         option.size || '',
         (basePriceCents / 100).toFixed(2),      // Col F: Prezzo Attuale = original_price_cents (MODIFICA QUI)
-        (basePriceCents / 100).toFixed(2),      // Col G: Prezzo Aggiornato (sola lettura, si allinea a F dopo sync)
+        `=F${rowNum}`,                           // Col G: formula — si aggiorna subito quando cambia F
         discountPct.toString(),                  // Col H: Sconto %
-        (option.currentPrice / 100).toFixed(2), // Col I: Prezzo Finale = price_cents (sola lettura)
+        `=F${rowNum}*(1-H${rowNum}/100)`,        // Col I: formula — Prezzo Finale = F × (1 - H%)
         option.inStock ? 'SI' : 'NO',           // Col J: Disponibile
       ];
     });
@@ -181,7 +182,7 @@ async function exportPricesToGoogleSheets(db: ReturnType<typeof createDb>, sprea
     const response = await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `'${sheetName}'!A1`,
-      valueInputOption: 'RAW',
+      valueInputOption: 'USER_ENTERED',
       requestBody: {
         values,
       },

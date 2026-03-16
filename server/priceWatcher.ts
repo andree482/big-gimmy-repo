@@ -35,8 +35,7 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
   let availabilityUpdatedCount = 0;
   let errorCount = 0;
 
-  // Raccoglie le celle da aggiornare nel foglio (colonna G = Prezzo Aggiornato)
-  const sheetWritebacks: { range: string; values: any[][] }[] = [];
+  // G e I sono formule nel foglio — nessun writeback necessario
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -93,11 +92,6 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
         const label = [flavor, size].filter(Boolean).join(' / ') || '(nessuna variante)';
         if (updates.priceCents !== undefined) {
           console.log(`   ✏️  prod ${productId} [${label}]: ${targetOption.priceCents}¢ → ${finalPriceInCents}¢ (sconto ${discountPct}%)`);
-          // Aggiorna colonna G (Prezzo Aggiornato) nel foglio con la stringa originale di F
-          sheetWritebacks.push({
-            range: `'${sheetName}'!G${i + 1}`,
-            values: [[rawPriceStr]],
-          });
         }
         if (updates.inStock !== undefined) {
           console.log(`   📦  prod ${productId} [${label}]: disponibilità → ${updates.inStock ? 'SI' : 'NO'}`);
@@ -105,22 +99,6 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
       }
     } catch {
       errorCount++;
-    }
-  }
-
-  // Scrivi i prezzi aggiornati nella colonna G del foglio
-  if (sheetWritebacks.length > 0) {
-    try {
-      await sheets.spreadsheets.values.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          valueInputOption: 'USER_ENTERED',
-          data: sheetWritebacks,
-        },
-      });
-      console.log(`   📝 Aggiornate ${sheetWritebacks.length} celle in colonna G del foglio`);
-    } catch (err: any) {
-      console.warn(`⚠️  [PriceWatcher] Impossibile scrivere colonna G nel foglio:`, err?.message || err);
     }
   }
 
