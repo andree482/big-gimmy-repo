@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import CookieConsentBanner from "@/components/CookieConsentBanner";
+import MaintenanceBanner from "@/components/MaintenanceBanner";
 import { AuthWrapper } from "@/components/AuthWrapper";
 import { useScrollToTop } from "@/hooks/useScrollToTop";
 import Home from "@/pages/Home";
@@ -95,6 +96,7 @@ function App() {
         {/* Nascondi footer su pagina login per design minimale */}
         {!isLoginPage && <Footer />}
         {!isLoginPage && <CookieConsentBanner />}
+        {!isLoginPage && <MaintenanceBanner />}
       </div>
     </AuthWrapper>
   );
