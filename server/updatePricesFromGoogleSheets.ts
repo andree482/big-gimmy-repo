@@ -87,31 +87,26 @@ async function exportPricesToGoogleSheets(db: ReturnType<typeof createDb>, sprea
     const auth = await authenticate();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Verifica se il foglio esiste, altrimenti crealo
+    // Verifica se il foglio esiste, altrimenti crealo — cattura anche lo sheetId
+    let sheetId = 0;
     try {
-      const spreadsheet = await sheets.spreadsheets.get({
-        spreadsheetId,
-      });
-
-      const sheetExists = spreadsheet.data.sheets?.some(
+      const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+      const sheetData = spreadsheet.data.sheets?.find(
         sheet => sheet.properties?.title === sheetName
       );
 
-      if (!sheetExists) {
+      if (!sheetData) {
         console.log(`📝 Creazione del foglio "${sheetName}"...`);
-        await sheets.spreadsheets.batchUpdate({
+        const addResp = await sheets.spreadsheets.batchUpdate({
           spreadsheetId,
           requestBody: {
-            requests: [{
-              addSheet: {
-                properties: {
-                  title: sheetName
-                }
-              }
-            }]
+            requests: [{ addSheet: { properties: { title: sheetName } } }]
           }
         });
+        sheetId = addResp.data.replies?.[0]?.addSheet?.properties?.sheetId ?? 0;
         console.log(`✅ Foglio "${sheetName}" creato con successo`);
+      } else {
+        sheetId = sheetData.properties?.sheetId ?? 0;
       }
     } catch (error) {
       console.log(`⚠️ Errore nella verifica del foglio, procedo comunque: ${error}`);
@@ -143,8 +138,7 @@ async function exportPricesToGoogleSheets(db: ReturnType<typeof createDb>, sprea
     //   I: Prezzo Finale   (sola lettura — price_cents = F × (1 - H%))
     //   J: Disponibile
     const headers = ['ID Prodotto', 'Marca', 'Nome', 'Gusto', 'Unità', 'Prezzo Attuale', 'Prezzo Aggiornato', 'Sconto %', 'Prezzo Finale', 'Disponibile'];
-    const rows = allSizes.map((option, index) => {
-      const rowNum = index + 2; // riga 1 = intestazione, dati da riga 2
+    const rows = allSizes.map((option) => {
       const basePriceCents = option.originalPrice && option.originalPrice > 0
         ? option.originalPrice
         : option.currentPrice; // fallback quando original_price_cents è NULL
@@ -157,10 +151,10 @@ async function exportPricesToGoogleSheets(db: ReturnType<typeof createDb>, sprea
         option.productName,
         option.flavor || '',
         option.size || '',
-        (basePriceCents / 100).toFixed(2),      // Col F: Prezzo Attuale = original_price_cents (MODIFICA QUI)
-        `=F${rowNum}`,                           // Col G: formula — si aggiorna subito quando cambia F
-        discountPct.toString(),                  // Col H: Sconto %
-        `=F${rowNum}*(1-H${rowNum}/100)`,        // Col I: formula — Prezzo Finale = F × (1 - H%)
+        basePriceCents / 100,                   // Col F: Prezzo Attuale = original_price_cents (numero, non stringa)
+        basePriceCents / 100,                   // Col G: placeholder — sostituito da formula sotto
+        discountPct,                             // Col H: Sconto % — numero, non stringa
+        (option.currentPrice / 100).toFixed(2), // Col I: placeholder — sostituito da formula sotto
         option.inStock ? 'SI' : 'NO',           // Col J: Disponibile
       ];
     });
@@ -178,13 +172,44 @@ async function exportPricesToGoogleSheets(db: ReturnType<typeof createDb>, sprea
       console.log(`⚠️ Non è stato possibile cancellare il contenuto esistente, procedo comunque`);
     }
 
-    // Inserisce i nuovi dati
+    // Reset formato celle a NUMBER (previene formato Time che divide i valori per 24)
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{
+            repeatCell: {
+              range: { sheetId, startRowIndex: 1, startColumnIndex: 0, endColumnIndex: 10 },
+              cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER' } } },
+              fields: 'userEnteredFormat.numberFormat',
+            }
+          }]
+        }
+      });
+      console.log(`📋 Formato celle reimpostato a NUMBER`);
+    } catch (fmtErr: any) {
+      console.log(`⚠️ Impossibile resettare formato celle: ${fmtErr?.message}`);
+    }
+
+    // Inserisce i dati statici con RAW (evita che brand/nomi siano interpretati come formule)
     const response = await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `'${sheetName}'!A1`,
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: 'RAW',
+      requestBody: { values },
+    });
+
+    // Scrive le formule nelle colonne G e I con USER_ENTERED (solo formule, non dati statici)
+    const gFormulas = allSizes.map((_, i) => [`=F${i + 2}`]);
+    const iFormulas = allSizes.map((_, i) => [`=F${i + 2}*(100-H${i + 2})/100`]);
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
       requestBody: {
-        values,
+        valueInputOption: 'USER_ENTERED',
+        data: [
+          { range: `'${sheetName}'!G2`, values: gFormulas },
+          { range: `'${sheetName}'!I2`, values: iFormulas },
+        ],
       },
     });
 
