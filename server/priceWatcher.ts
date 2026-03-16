@@ -22,7 +22,7 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
 
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `'${sheetName}'!A:H`,
+    range: `'${sheetName}'!A:J`,
   });
 
   const rows = response.data.values;
@@ -44,16 +44,20 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
       const productId    = parseInt(row[0]);
       const flavor       = row[3]?.toString() || '';
       const size         = row[4]?.toString() || '';
-      const rawPriceStr  = row[5]?.toString()?.trim() || '';  // Colonna F — stringa originale (es. "42,00")
+      const rawPriceStr  = row[5]?.toString()?.trim() || '';  // Colonna F — Prezzo Attuale (original_price_cents)
       const newPrice     = parseFloat(rawPriceStr.replace(',', '.'));  // converte in numero JS
-      const availability = row[7]?.toString()?.trim()?.toUpperCase();
+      const discountPct  = parseFloat(row[7]?.toString() || '') || 20; // Colonna H — Sconto % (default 20)
+      const availability = row[9]?.toString()?.trim()?.toUpperCase();  // Colonna J — Disponibile
 
       if (!productId || isNaN(newPrice) || newPrice <= 0) {
         errorCount++;
         continue;
       }
 
-      const priceInCents   = Math.round(newPrice * 100);
+      // F → original_price_cents (prezzo base)
+      // price_cents = original_price_cents × (1 - sconto%)
+      const originalPriceInCents = Math.round(newPrice * 100);
+      const finalPriceInCents    = Math.round(originalPriceInCents * (1 - discountPct / 100));
       const newAvailability = availability === 'SI';
 
       const existingOptions = await db
@@ -71,8 +75,11 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
       }
 
       const updates: any = {};
-      if (targetOption.priceCents !== priceInCents) {
-        updates.priceCents = priceInCents;
+      if (targetOption.originalPriceCents !== originalPriceInCents) {
+        updates.originalPriceCents = originalPriceInCents;
+      }
+      if (targetOption.priceCents !== finalPriceInCents) {
+        updates.priceCents = finalPriceInCents;
         updatedCount++;
       }
       if (targetOption.inStock !== newAvailability) {
@@ -85,7 +92,7 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
 
         const label = [flavor, size].filter(Boolean).join(' / ') || '(nessuna variante)';
         if (updates.priceCents !== undefined) {
-          console.log(`   ✏️  prod ${productId} [${label}]: ${targetOption.priceCents}¢ → ${priceInCents}¢`);
+          console.log(`   ✏️  prod ${productId} [${label}]: ${targetOption.priceCents}¢ → ${finalPriceInCents}¢ (sconto ${discountPct}%)`);
           // Aggiorna colonna G (Prezzo Aggiornato) nel foglio con la stringa originale di F
           sheetWritebacks.push({
             range: `'${sheetName}'!G${i + 1}`,
