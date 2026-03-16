@@ -81,10 +81,9 @@ export function CheckoutFulfillmentModal({
 
   const isFatturaValid = !wantsFattura || (
     fatturaData.intestatario.trim() !== "" &&
-    fatturaData.indirizzo.trim() !== "" &&
-    fatturaData.cap.trim() !== "" &&
-    fatturaData.citta.trim() !== "" &&
-    (fatturaData.tipo === "privato" ? fatturaData.codice_fiscale.trim() !== "" : fatturaData.partita_iva.trim() !== "")
+    (fatturaData.tipo === "privato"
+      ? fatturaData.codice_fiscale.trim() !== ""
+      : fatturaData.partita_iva.trim() !== "" && (fatturaData.sdi.trim() !== "" || fatturaData.pec.trim() !== ""))
   );
 
   const handleConfirm = () => {
@@ -282,14 +281,14 @@ export function CheckoutFulfillmentModal({
             </div>
 
             {wantsFattura && (
-              <div className="bg-gray-50 rounded-lg p-4 space-y-3 border">
-                <p className="text-xs text-gray-500 leading-relaxed">
-                  I dati verranno riportati sulla ricevuta Stripe. Per fattura elettronica conforme SDI, ti contatteremo via email dopo l'ordine.
+              <div className="bg-orange-50 rounded-lg p-4 space-y-3 border border-orange-200">
+                <p className="text-xs text-orange-700 leading-relaxed">
+                  La fattura elettronica verrà emessa manualmente e caricata nella tua area ordini. Riceverai anche notifica via SDI o PEC.
                 </p>
 
                 {/* Tipo: Privato / Azienda */}
                 <div className="space-y-1">
-                  <Label className="text-xs font-medium text-gray-700">Tipo</Label>
+                  <Label className="text-xs font-medium text-gray-700">Tipo soggetto</Label>
                   <RadioGroup
                     value={fatturaData.tipo}
                     onValueChange={(v) => setFatturaData((d) => ({ ...d, tipo: v as "privato" | "azienda" }))}
@@ -347,58 +346,13 @@ export function CheckoutFulfillmentModal({
                   </div>
                 )}
 
-                {/* Indirizzo */}
-                <div className="space-y-1">
-                  <Label htmlFor="fattura-indirizzo" className="text-xs font-medium text-gray-700">Indirizzo *</Label>
-                  <Input
-                    id="fattura-indirizzo"
-                    value={fatturaData.indirizzo}
-                    onChange={(e) => setFatturaData((d) => ({ ...d, indirizzo: e.target.value }))}
-                    placeholder="Es. Via Roma, 1"
-                    className="h-8 text-sm"
-                  />
-                </div>
-
-                {/* CAP, Città, Provincia */}
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="fattura-cap" className="text-xs font-medium text-gray-700">CAP *</Label>
-                    <Input
-                      id="fattura-cap"
-                      value={fatturaData.cap}
-                      onChange={(e) => setFatturaData((d) => ({ ...d, cap: e.target.value }))}
-                      placeholder="Es. 10100"
-                      maxLength={5}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1 col-span-2">
-                    <Label htmlFor="fattura-citta" className="text-xs font-medium text-gray-700">Città *</Label>
-                    <Input
-                      id="fattura-citta"
-                      value={fatturaData.citta}
-                      onChange={(e) => setFatturaData((d) => ({ ...d, citta: e.target.value }))}
-                      placeholder="Es. Torino"
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="fattura-prov" className="text-xs font-medium text-gray-700">Provincia</Label>
-                    <Input
-                      id="fattura-prov"
-                      value={fatturaData.provincia}
-                      onChange={(e) => setFatturaData((d) => ({ ...d, provincia: e.target.value.toUpperCase() }))}
-                      placeholder="TO"
-                      maxLength={2}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  {fatturaData.tipo === "azienda" && (
+                {/* SDI e PEC (solo azienda) — almeno uno obbligatorio */}
+                {fatturaData.tipo === "azienda" && (
+                  <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label htmlFor="fattura-sdi" className="text-xs font-medium text-gray-700">Codice SDI</Label>
+                      <Label htmlFor="fattura-sdi" className="text-xs font-medium text-gray-700">
+                        Codice SDI *
+                      </Label>
                       <Input
                         id="fattura-sdi"
                         value={fatturaData.sdi}
@@ -408,25 +362,26 @@ export function CheckoutFulfillmentModal({
                         className="h-8 text-sm font-mono"
                       />
                     </div>
-                  )}
-                </div>
-
-                {fatturaData.tipo === "azienda" && (
-                  <div className="space-y-1">
-                    <Label htmlFor="fattura-pec" className="text-xs font-medium text-gray-700">PEC (opzionale)</Label>
-                    <Input
-                      id="fattura-pec"
-                      value={fatturaData.pec}
-                      onChange={(e) => setFatturaData((d) => ({ ...d, pec: e.target.value }))}
-                      placeholder="Es. azienda@pec.it"
-                      type="email"
-                      className="h-8 text-sm"
-                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="fattura-pec" className="text-xs font-medium text-gray-700">PEC *</Label>
+                      <Input
+                        id="fattura-pec"
+                        value={fatturaData.pec}
+                        onChange={(e) => setFatturaData((d) => ({ ...d, pec: e.target.value }))}
+                        placeholder="Es. azienda@pec.it"
+                        type="email"
+                        className="h-8 text-sm"
+                      />
+                    </div>
                   </div>
                 )}
 
+                {fatturaData.tipo === "azienda" && (
+                  <p className="text-xs text-gray-500">* Inserisci almeno Codice SDI o PEC per il recapito della fattura elettronica.</p>
+                )}
+
                 {!isFatturaValid && (
-                  <p className="text-xs text-red-500">Compila tutti i campi obbligatori (*) per procedere.</p>
+                  <p className="text-xs text-red-500">Compila tutti i campi obbligatori per procedere.</p>
                 )}
               </div>
             )}

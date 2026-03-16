@@ -95,6 +95,12 @@ export const productCategories = [
     description: "Abbigliamento tecnico, guanti, cinture e accessori per allenarsi al meglio.",
     image: "",
   },
+  {
+    name: "Recupero e Post-Workout",
+    slug: "recupero-e-post-workout",
+    description: "Integratori per il recupero muscolare e il ripristino ottimale dopo l'allenamento.",
+    image: "",
+  },
 ];
 
 export const brands = [

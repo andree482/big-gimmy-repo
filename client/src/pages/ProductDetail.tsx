@@ -2357,7 +2357,8 @@ const renderNutritionalInfo = (productSlug: string, features?: any) => {
                              productSlug.includes('essenziali-zero-carb') || productSlug.includes('glutamina-pure') ||
                              productSlug.includes('glutammina-peptide') || productSlug.includes('glutammina-sport') ||
                              productSlug.includes('glutammina-glutpower') || productSlug.includes('glutammina-plus') ||
-                             productSlug.includes('aminoacidi-essenziali') || productSlug.includes('aminoacidi-plus');
+                             productSlug.includes('aminoacidi-essenziali') || productSlug.includes('aminoacidi-plus') ||
+                             productSlug.includes('ramtech-hydro');
 
   console.log(`🧪 Product ${productSlug} - isAminoAcidProduct: ${isAminoAcidProduct}, features:`, features);
                              

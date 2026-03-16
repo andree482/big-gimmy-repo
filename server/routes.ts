@@ -14,7 +14,16 @@ const uploadAttachment = multer({
     cb(null, allowed.includes(file.mimetype));
   },
 });
-import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply, sendTrackingEmail, sendWelcomeEmail, sendOrderConfirmationEmail, sendAdminOrderNotification, sendPasswordChangedEmail, sendRefundRequestEmail, sendPickupReadyEmail, sendOrderDeliveredEmail, sendRefundCompletedEmail } from './services/email.ts';
+
+// Multer: solo PDF, max 10 MB, per upload fatture elettroniche
+const uploadFattura = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    cb(null, file.mimetype === 'application/pdf');
+  },
+});
+import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply, sendTrackingEmail, sendWelcomeEmail, sendOrderConfirmationEmail, sendAdminOrderNotification, sendPasswordChangedEmail, sendRefundRequestEmail, sendPickupReadyEmail, sendOrderDeliveredEmail, sendRefundCompletedEmail, sendFatturaCaricataEmail } from './services/email.ts';
 import { syncAllImages } from "./utils/imageSync.ts";
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
@@ -1724,6 +1733,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           pickup_store,
           pickup_ready_at,
           pickup_collected_at,
+          richiede_fattura,
+          fattura_intestatario,
+          fattura_cf,
+          fattura_piva,
+          fattura_pec,
+          fattura_sdi,
+          fattura_emessa,
+          fattura_numero,
+          fattura_url,
+          fattura_data_emissione,
           users:user_id (email)
         `)
         .order("created_at", { ascending: false });
@@ -1834,6 +1853,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             pickup_store: order.pickup_store || null,
             pickup_ready_at: order.pickup_ready_at || null,
             pickup_collected_at: order.pickup_collected_at || null,
+            richiede_fattura: order.richiede_fattura || false,
+            fattura_intestatario: order.fattura_intestatario || null,
+            fattura_cf: order.fattura_cf || null,
+            fattura_piva: order.fattura_piva || null,
+            fattura_pec: order.fattura_pec || null,
+            fattura_sdi: order.fattura_sdi || null,
+            fattura_emessa: order.fattura_emessa || false,
+            fattura_numero: order.fattura_numero || null,
+            fattura_url: order.fattura_url || null,
+            fattura_data_emissione: order.fattura_data_emissione || null,
           };
         })
       );
@@ -2986,7 +3015,10 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
           tracking_number,
           carrier,
           fulfillment_type,
-          pickup_store
+          pickup_store,
+          richiede_fattura,
+          fattura_emessa,
+          fattura_url
         `)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
@@ -3107,6 +3139,9 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
             carrier: order.carrier || null,
             fulfillmentType: order.fulfillment_type || 'spedizione',
             pickupStore: order.pickup_store || null,
+            richiede_fattura: order.richiede_fattura || false,
+            fattura_emessa: order.fattura_emessa || false,
+            fattura_url: order.fattura_url || null,
           };
         })
       );
@@ -4929,6 +4964,16 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
         // Calcola totale ordine (con sconto e spedizione)
         const totalOrderCents = totalAfterDiscount + shippingCents;
 
+        // Dati fiscali per fattura (opzionali, se il cliente la richiede)
+        const fatturaData = req.body.fattura_data as {
+          tipo?: string;
+          intestatario?: string;
+          codice_fiscale?: string;
+          partita_iva?: string;
+          pec?: string;
+          sdi?: string;
+        } | undefined;
+
         // Crea l'ordine nel database con stato "in_attesa_di_pagamento" prima del checkout
         let orderId: string | null = null;
         if (supabaseAdmin) {
@@ -4944,6 +4989,12 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
                 notes: notes || null,
                 fulfillment_type: fulfillmentType,
                 pickup_store: pickupStore,
+                richiede_fattura: !!fatturaData,
+                fattura_intestatario: fatturaData?.intestatario || null,
+                fattura_cf: fatturaData?.codice_fiscale || null,
+                fattura_piva: fatturaData?.partita_iva || null,
+                fattura_pec: fatturaData?.pec || null,
+                fattura_sdi: fatturaData?.sdi || null,
               })
               .select("id")
               .single();
@@ -4972,32 +5023,6 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
           }
         }
 
-        // Dati fiscali per fattura (opzionali, se il cliente la richiede)
-        const fatturaData = req.body.fattura_data as {
-          tipo?: string;
-          intestatario?: string;
-          indirizzo?: string;
-          cap?: string;
-          citta?: string;
-          provincia?: string;
-          codice_fiscale?: string;
-          partita_iva?: string;
-          pec?: string;
-          sdi?: string;
-        } | undefined;
-
-        const fatturaCustomFields: { name: string; value: string }[] = [];
-        if (fatturaData) {
-          if (fatturaData.intestatario) fatturaCustomFields.push({ name: "Intestatario", value: fatturaData.intestatario });
-          if (fatturaData.codice_fiscale) fatturaCustomFields.push({ name: "Codice Fiscale", value: fatturaData.codice_fiscale });
-          if (fatturaData.partita_iva) fatturaCustomFields.push({ name: "Partita IVA", value: fatturaData.partita_iva });
-          if (fatturaData.indirizzo && fatturaData.cap && fatturaData.citta) {
-            fatturaCustomFields.push({ name: "Indirizzo fattura", value: `${fatturaData.indirizzo}, ${fatturaData.cap} ${fatturaData.citta} (${fatturaData.provincia || ''})` });
-          }
-          if (fatturaData.pec) fatturaCustomFields.push({ name: "PEC", value: fatturaData.pec });
-          if (fatturaData.sdi) fatturaCustomFields.push({ name: "Codice SDI", value: fatturaData.sdi });
-        }
-
         const sessionStripe = await stripe.checkout.sessions.create({
           mode: "payment",
           payment_method_types: ["card"],
@@ -5010,21 +5035,6 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
             ? { customer: stripeCustomerId }
             : { customer_email: user.email || undefined }
           ),
-          // Abilita emissione automatica ricevuta/fattura dopo il pagamento
-          invoice_creation: {
-            enabled: true,
-            invoice_data: {
-              metadata: {
-                order_id: orderId || "",
-                user_id: user.id,
-                richiede_fattura: fatturaData ? "si" : "no",
-              },
-              ...(fatturaCustomFields.length > 0 && {
-                custom_fields: fatturaCustomFields,
-                footer: "Documento emesso su richiesta. Per fattura fiscale conforme SDI contattare info@biggimmy.it",
-              }),
-            },
-          },
           metadata: {
             user_id: user.id,
             order_id: orderId || "",
@@ -5037,6 +5047,8 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
             fattura_intestatario: fatturaData?.intestatario?.slice(0, 200) || "",
             fattura_cf: fatturaData?.codice_fiscale?.slice(0, 20) || "",
             fattura_piva: fatturaData?.partita_iva?.slice(0, 20) || "",
+            fattura_pec: fatturaData?.pec?.slice(0, 200) || "",
+            fattura_sdi: fatturaData?.sdi?.slice(0, 20) || "",
           },
         });
 
@@ -5114,7 +5126,7 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
             let trackingUrl = '';
             const carrierLower = (carrier || '').toLowerCase();
             if (carrierLower === 'bartolini' || carrierLower === 'brt') {
-              trackingUrl = `https://vas.brt.it/vas/sped_det_show.hsm?referer=sped_numspe_par.htm&lingua=IT&numero_spedizione=${tracking_number}`;
+              trackingUrl = `https://www.fermopoint.it/prenotazione/${tracking_number}`;
             }
 
             await sendTrackingEmail({
@@ -5481,6 +5493,7 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
     }
   });
 
+<<<<<<< HEAD
   // ============================================================
   // CONSENT LOG — registro del consenso cookie (art. 7 GDPR)
   // Nessun dato identificativo: no IP loggato, no user_id obbligatorio
@@ -5512,6 +5525,167 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
       console.error("[CONSENT LOG] Errore:", err);
       // Non bloccare l'utente se il log fallisce — è un'operazione best-effort
       return res.json({ success: false });
+=======
+  // PUT segna fattura come emessa (con numero fattura opzionale)
+  app.put("/api/admin/orders/:orderId/segna-fattura-emessa", ensureAuth, ensureAdmin, async (req: Request, res: Response) => {
+    try {
+      const { orderId } = req.params;
+      const { fattura_numero } = req.body;
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      const { error } = await (supabaseAdmin as any)
+        .from("orders")
+        .update({
+          fattura_emessa: true,
+          fattura_numero: fattura_numero || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orderId);
+
+      if (error) {
+        console.error("[FATTURA] Errore aggiornamento fattura_emessa:", error);
+        return res.status(500).json({ success: false, message: "Errore aggiornamento" });
+      }
+
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("[FATTURA] Errore PUT segna-fattura-emessa:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // Upload PDF fattura elettronica (admin)
+  app.post("/api/admin/orders/:orderId/upload-fattura", ensureAuth, ensureAdmin, uploadFattura.single('fattura'), async (req: Request, res: Response) => {
+    try {
+      const { orderId } = req.params;
+      const { fattura_numero, fattura_data_emissione } = req.body;
+      const file = (req as any).file;
+
+      if (!file) {
+        return res.status(400).json({ success: false, message: "Nessun file PDF caricato" });
+      }
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      // Assicura che il bucket 'fatture' esista
+      const { error: bucketError } = await (supabaseAdmin as any).storage.createBucket('fatture', { public: true });
+      // Ignora errore se il bucket esiste già
+      if (bucketError && !bucketError.message?.includes('already exists') && !bucketError.message?.includes('duplicate')) {
+        console.warn("[FATTURA UPLOAD] Bucket create warning:", bucketError.message);
+      }
+
+      const fileName = `${orderId}/${Date.now()}.pdf`;
+      const { error: uploadError } = await (supabaseAdmin as any).storage
+        .from('fatture')
+        .upload(fileName, file.buffer, { contentType: 'application/pdf', upsert: true });
+
+      if (uploadError) {
+        console.error("[FATTURA UPLOAD] Errore upload Supabase Storage:", uploadError);
+        return res.status(500).json({ success: false, message: "Errore caricamento file" });
+      }
+
+      const { data: urlData } = (supabaseAdmin as any).storage
+        .from('fatture')
+        .getPublicUrl(fileName);
+
+      const fattura_url = urlData.publicUrl;
+
+      const updateData: Record<string, any> = {
+        fattura_emessa: true,
+        fattura_url,
+        updated_at: new Date().toISOString(),
+      };
+      if (fattura_numero) updateData.fattura_numero = fattura_numero;
+      if (fattura_data_emissione) updateData.fattura_data_emissione = fattura_data_emissione;
+
+      const { error: dbError } = await (supabaseAdmin as any)
+        .from("orders")
+        .update(updateData)
+        .eq("id", orderId);
+
+      if (dbError) {
+        console.error("[FATTURA UPLOAD] Errore aggiornamento DB:", dbError);
+        return res.status(500).json({ success: false, message: "Errore salvataggio dati" });
+      }
+
+      // Recupera dati cliente per email
+      const { data: orderData } = await (supabaseAdmin as any)
+        .from("orders")
+        .select("user_id, users:user_id(email, first_name, last_name)")
+        .eq("id", orderId)
+        .maybeSingle();
+
+      const userEmail: string | null = orderData?.users?.email || null;
+      const firstName: string = orderData?.users?.first_name || '';
+      const lastName: string = orderData?.users?.last_name || '';
+      const userName = [firstName, lastName].filter(Boolean).join(' ') || 'Cliente';
+
+      if (userEmail) {
+        sendFatturaCaricataEmail({
+          orderId,
+          userEmail,
+          userName,
+          fatturaNumero: fattura_numero || null,
+          fatturaDataEmissione: fattura_data_emissione || null,
+          fatturaUrl: fattura_url,
+          pdfBuffer: file.buffer,
+          pdfFileName: `fattura-${orderId.substring(0, 8)}.pdf`,
+        }).catch((e: any) => console.error("[FATTURA UPLOAD] Errore invio email:", e));
+      }
+
+      return res.json({ success: true, fattura_url });
+    } catch (err) {
+      console.error("[FATTURA UPLOAD] Errore:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+    }
+  });
+
+  // Recupera URL fattura elettronica caricata (cliente)
+  app.get("/api/orders/:orderId/fattura", async (req: Request, res: Response) => {
+    try {
+      const sess = req.session as any;
+      const auth = await getAuthFromToken(req);
+      const user = auth ? { authenticated: true, id: auth.id } : sess?.user;
+
+      if (!user?.authenticated) {
+        return res.status(401).json({ success: false, message: "Non autenticato" });
+      }
+
+      const { orderId } = req.params;
+
+      if (!supabaseAdmin) {
+        return res.status(500).json({ success: false, message: "Database non configurato" });
+      }
+
+      const { data: order, error } = await (supabaseAdmin as any)
+        .from("orders")
+        .select("id, user_id, fattura_url, fattura_emessa, richiede_fattura")
+        .eq("id", orderId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (error || !order) {
+        return res.status(404).json({ success: false, message: "Ordine non trovato" });
+      }
+
+      if (!order.richiede_fattura) {
+        return res.status(400).json({ success: false, message: "Questo ordine non ha una fattura elettronica" });
+      }
+
+      if (!order.fattura_url) {
+        return res.status(404).json({ success: false, message: "Fattura non ancora disponibile. Verrà caricata a breve." });
+      }
+
+      return res.json({ success: true, fattura_url: order.fattura_url });
+    } catch (err) {
+      console.error("[FATTURA CLIENTE] Errore:", err);
+      return res.status(500).json({ success: false, message: "Errore interno del server" });
+>>>>>>> private
     }
   });
 

@@ -149,7 +149,16 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
   const stripeInvoiceId = typeof session.invoice === 'string' ? session.invoice : null;
   const stripeCustomerId = typeof session.customer === 'string' ? session.customer : null;
 
-  console.log(`[STRIPE WEBHOOK] Pagamento completato per user: ${userId}, orderId: ${orderId}, invoiceId: ${stripeInvoiceId}`);
+  // Dati fattura elettronica (salvati nei metadata della sessione)
+  const richiede_fattura = session.metadata?.richiede_fattura === "si";
+  const fattura_intestatario = session.metadata?.fattura_intestatario || null;
+  const fattura_cf = session.metadata?.fattura_cf || null;
+  const fattura_piva = session.metadata?.fattura_piva || null;
+  // PEC e SDI sono nei metadata della sessione (non più in invoice_creation.custom_fields)
+  const fattura_pec = session.metadata?.fattura_pec || null;
+  const fattura_sdi = session.metadata?.fattura_sdi || null;
+
+  console.log(`[STRIPE WEBHOOK] Pagamento completato per user: ${userId}, orderId: ${orderId}, invoiceId: ${stripeInvoiceId}, richiede_fattura: ${richiede_fattura}`);
 
   if (!userId) {
     console.error("[STRIPE WEBHOOK] user_id mancante nei metadata");
@@ -176,7 +185,13 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
           stripe_customer_id: stripeCustomerId,
           total_cents: session.amount_total || 0,
           currency: session.currency?.toUpperCase() || "EUR",
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          richiede_fattura,
+          fattura_intestatario,
+          fattura_cf,
+          fattura_piva,
+          fattura_pec,
+          fattura_sdi,
         })
         .eq("id", orderId)
         .select()
@@ -281,6 +296,12 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
           notes: notes || null,
           fulfillment_type: fulfillmentType,
           pickup_store: pickupStore || null,
+          richiede_fattura,
+          fattura_intestatario,
+          fattura_cf,
+          fattura_piva,
+          fattura_pec,
+          fattura_sdi,
         })
         .select()
         .single();
@@ -349,7 +370,8 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
             unit_price_cents,
             product_option_id,
             product_options (
-              label,
+              flavor,
+              size,
               product_id
             )
           `)
@@ -407,7 +429,7 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
           const emailItems = (orderItems || []).map((item: any) => {
             const productId = item.product_options?.product_id;
             const productName = productId ? productNames[productId] : null;
-            const optionLabel = item.product_options?.label || '';
+            const optionLabel = [item.product_options?.flavor, item.product_options?.size].filter(Boolean).join(' / ');
             return {
               name: `${productName || 'Prodotto'}${optionLabel ? ` - ${optionLabel}` : ''}`,
               quantity: item.quantity,
@@ -420,6 +442,15 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
           const orderFulfillmentType = fulfillmentType || order.fulfillment_type || 'spedizione';
           const orderPickupStore = pickupStore || order.pickup_store || null;
 
+          const emailFatturaDati = richiede_fattura ? {
+            richiede_fattura: true,
+            intestatario: fattura_intestatario,
+            piva: fattura_piva,
+            cf: fattura_cf,
+            sdi: fattura_sdi,
+            pec: fattura_pec,
+          } : undefined;
+
           await sendOrderConfirmationEmail({
             orderId: order.id,
             userEmail: customerEmail,
@@ -429,6 +460,7 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
             shippingAddress: shippingAddr || undefined,
             fulfillmentType: orderFulfillmentType,
             pickupStore: orderPickupStore,
+            fatturaDati: emailFatturaDati,
           });
           console.log(`[STRIPE WEBHOOK] Email conferma ordine inviata a ${customerEmail}`);
 
@@ -444,6 +476,7 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
               shippingAddress: shippingAddr || undefined,
               fulfillmentType: orderFulfillmentType,
               pickupStore: orderPickupStore,
+              fatturaDati: emailFatturaDati,
             });
             console.log(`[STRIPE WEBHOOK] Email notifica admin inviata, risultato: ${adminEmailResult}`);
           } catch (adminEmailError) {
@@ -508,11 +541,17 @@ if (supabaseUrl && supabaseKey) {
 
 export { supabase };
 
-// Serve attached assets statically
-app.use('/attached_assets', express.static(path.resolve(process.cwd(), 'attached_assets')));
+// Serve attached assets statically - cache 30 giorni
+app.use('/attached_assets', express.static(path.resolve(process.cwd(), 'attached_assets'), {
+  maxAge: '30d',
+  etag: false,
+}));
 
-// Serve product images statically
-app.use('/images', express.static(path.resolve(process.cwd(), 'public/images')));
+// Serve product images statically - cache 30 giorni
+app.use('/images', express.static(path.resolve(process.cwd(), 'public/images'), {
+  maxAge: '30d',
+  etag: false,
+}));
 
 // Logging middleware
 app.use((req, res, next) => {
@@ -689,7 +728,20 @@ if (app.get("env") === "development") {
     console.log(`   GET  /attached_assets/* - Static assets`);
     console.log('=================================');
 
-    // Avvia automaticamente Price Watcher se configurato
+    // Avvia automaticamente Price Watcher se SPREADSHEET_ID è configurato
+    const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+    if (spreadsheetId) {
+      try {
+        const { PriceWatcher } = await import('./priceWatcher');
+        const intervalMinutes = parseInt(process.env.PRICE_CHECK_INTERVAL || '5');
+        (global as any).priceWatcher = new PriceWatcher(spreadsheetId);
+        (global as any).priceWatcher.start(intervalMinutes);
+      } catch (e: any) {
+        console.error(`❌ Impossibile avviare PriceWatcher:`, e?.message || e);
+      }
+    } else {
+      console.log(`⚠️  PriceWatcher non avviato — imposta SPREADSHEET_ID nelle variabili d'ambiente`);
+    }
 
     // ================================
     // SCHEDULER: Reminder automatici ritiro in negozio

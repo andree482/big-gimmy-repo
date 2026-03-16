@@ -1,34 +1,174 @@
+import { google } from 'googleapis';
+import * as fs from 'fs';
+import { db } from './db';
+import { productOptions, products, brands } from '../shared/schema';
+import { eq } from 'drizzle-orm';
+
+const CREDENTIALS_PATH = 'google-credentials.json';
+const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+const PRIVATE_SHEET_NAME = 'Prezzi Prodotti - Sito Privato';
+
+async function authenticate() {
+  const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+  const auth = new google.auth.GoogleAuth({ credentials, scopes: SCOPES });
+  return auth;
+}
+
+async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
+  console.log(`📊 [PriceWatcher] Leggo prezzi da "${sheetName}"...`);
+
+  const auth = await authenticate();
+  const sheets = google.sheets({ version: 'v4', auth });
+
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `'${sheetName}'!A:H`,
+  });
+
+  const rows = response.data.values;
+  if (!rows || rows.length <= 1) {
+    console.log(`[PriceWatcher] Nessun dato nel foglio "${sheetName}"`);
+    return;
+  }
+
+  let updatedCount = 0;
+  let availabilityUpdatedCount = 0;
+  let errorCount = 0;
+
+  // Raccoglie le celle da aggiornare nel foglio (colonna G = Prezzo Aggiornato)
+  const sheetWritebacks: { range: string; values: any[][] }[] = [];
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    try {
+      const productId    = parseInt(row[0]);
+      const flavor       = row[3]?.toString() || '';
+      const size         = row[4]?.toString() || '';
+      const rawPriceStr  = row[5]?.toString()?.trim() || '';  // Colonna F — stringa originale (es. "42,00")
+      const newPrice     = parseFloat(rawPriceStr.replace(',', '.'));  // converte in numero JS
+      const availability = row[7]?.toString()?.trim()?.toUpperCase();
+
+      if (!productId || isNaN(newPrice) || newPrice <= 0) {
+        errorCount++;
+        continue;
+      }
+
+      const priceInCents   = Math.round(newPrice * 100);
+      const newAvailability = availability === 'SI';
+
+      const existingOptions = await db
+        .select()
+        .from(productOptions)
+        .where(eq(productOptions.productId, productId));
+
+      const targetOption = existingOptions.find(o =>
+        (o.flavor || '') === flavor && (o.size || '') === size
+      );
+
+      if (!targetOption) {
+        errorCount++;
+        continue;
+      }
+
+      const updates: any = {};
+      if (targetOption.priceCents !== priceInCents) {
+        updates.priceCents = priceInCents;
+        updatedCount++;
+      }
+      if (targetOption.inStock !== newAvailability) {
+        updates.inStock = newAvailability;
+        availabilityUpdatedCount++;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await db.update(productOptions).set(updates).where(eq(productOptions.id, targetOption.id));
+
+        const label = [flavor, size].filter(Boolean).join(' / ') || '(nessuna variante)';
+        if (updates.priceCents !== undefined) {
+          console.log(`   ✏️  prod ${productId} [${label}]: ${targetOption.priceCents}¢ → ${priceInCents}¢`);
+          // Aggiorna colonna G (Prezzo Aggiornato) nel foglio con la stringa originale di F
+          sheetWritebacks.push({
+            range: `'${sheetName}'!G${i + 1}`,
+            values: [[rawPriceStr]],
+          });
+        }
+        if (updates.inStock !== undefined) {
+          console.log(`   📦  prod ${productId} [${label}]: disponibilità → ${updates.inStock ? 'SI' : 'NO'}`);
+        }
+      }
+    } catch {
+      errorCount++;
+    }
+  }
+
+  // Scrivi i prezzi aggiornati nella colonna G del foglio
+  if (sheetWritebacks.length > 0) {
+    try {
+      await sheets.spreadsheets.values.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          valueInputOption: 'USER_ENTERED',
+          data: sheetWritebacks,
+        },
+      });
+      console.log(`   📝 Aggiornate ${sheetWritebacks.length} celle in colonna G del foglio`);
+    } catch (err: any) {
+      console.warn(`⚠️  [PriceWatcher] Impossibile scrivere colonna G nel foglio:`, err?.message || err);
+    }
+  }
+
+  console.log(`✅ [PriceWatcher] Sync completata — prezzi: ${updatedCount}, disponibilità: ${availabilityUpdatedCount}, errori: ${errorCount}`);
+}
+
 export class PriceWatcher {
   private spreadsheetId: string;
   private sheetName: string;
   private active = false;
+  private intervalHandle: ReturnType<typeof setInterval> | null = null;
 
-  constructor(spreadsheetId: string, sheetName: string = 'Prezzi Prodotti') {
+  constructor(spreadsheetId: string, sheetName: string = PRIVATE_SHEET_NAME) {
     this.spreadsheetId = spreadsheetId;
     this.sheetName = sheetName;
   }
 
-  start(intervalMinutes: number = 2) {
+  start(intervalMinutes: number = 5) {
+    if (this.active) this.stop();
+
     this.active = true;
-    console.log(`📈 PriceWatcher started for ${this.spreadsheetId} every ${intervalMinutes} min`);
+    console.log(`📈 PriceWatcher avviato → foglio: "${this.sheetName}" ogni ${intervalMinutes} min`);
+
+    // Sync immediata al via
+    this.runSync();
+
+    // Poi ogni N minuti
+    this.intervalHandle = setInterval(() => this.runSync(), intervalMinutes * 60 * 1000);
   }
 
   stop() {
     this.active = false;
-    console.log(`🛑 PriceWatcher stopped`);
+    if (this.intervalHandle) {
+      clearInterval(this.intervalHandle);
+      this.intervalHandle = null;
+    }
+    console.log(`🛑 PriceWatcher fermato`);
   }
 
   isActive() {
     return this.active;
   }
 
-  async authenticate(): Promise<any> {
-    console.log('🔐 PriceWatcher authenticate stub');
-    return null;
+  private runSync() {
+    const time = new Date().toLocaleTimeString('it-IT');
+    console.log(`🔄 [${time}] PriceWatcher: controllo prezzi...`);
+
+    syncPricesFromSheet(this.spreadsheetId, this.sheetName).catch((err) => {
+      console.error(`❌ [PriceWatcher] Errore sync:`, err?.message || err);
+    });
   }
 
+  // Stub mantenuto per compatibilità API esistenti
+  async authenticate(): Promise<any> { return null; }
   async syncDatabaseToGoogleSheets(): Promise<void> {
-    console.log(`🔁 Sync database to Google Sheets for ${this.spreadsheetId}/${this.sheetName}`);
+    console.log(`[PriceWatcher] Per esportare usa: npm run prices-sheets export`);
   }
 }
-

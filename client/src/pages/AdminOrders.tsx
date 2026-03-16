@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ShoppingBag, Package, Truck, CheckCircle, Clock, Euro, Filter, X, CreditCard, ExternalLink, MapPin, FileText, Eye, Download, Loader2, Store, Trophy } from "lucide-react";
+import { ShoppingBag, Package, Truck, CheckCircle, Clock, Euro, Filter, X, CreditCard, ExternalLink, MapPin, FileText, Eye, Download, Loader2, Store, Trophy, Receipt, CheckSquare, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
@@ -62,6 +62,16 @@ interface Order {
   pickup_store?: string | null;
   pickup_ready_at?: string | null;
   pickup_collected_at?: string | null;
+  richiede_fattura?: boolean;
+  fattura_intestatario?: string | null;
+  fattura_cf?: string | null;
+  fattura_piva?: string | null;
+  fattura_pec?: string | null;
+  fattura_sdi?: string | null;
+  fattura_emessa?: boolean;
+  fattura_numero?: string | null;
+  fattura_url?: string | null;
+  fattura_data_emissione?: string | null;
 }
 
 // Negozi per ritiro
@@ -125,7 +135,7 @@ const statusIcons: Record<string, typeof Clock> = {
 
 // Corrieri supportati con i loro URL di tracciamento
 const carrierOptions = [
-  { value: "bartolini", label: "BRT (Bartolini)", trackingUrl: "https://www.mybrt.it/it/mybrt/my-parcels/search?lang=it&parcelNumber=" },
+  { value: "bartolini", label: "BRT (Bartolini)", trackingUrl: "https://www.fermopoint.it/prenotazione/" },
   { value: "gls", label: "GLS", trackingUrl: "https://gls-group.com/IT/it/servizi-online/ricerca-spedizioni/?match=", trackingSuffix: "&type=NAT" },
   { value: "dhl", label: "DHL", trackingUrl: "https://www.dhl.com/it-it/home/tracking.html?tracking-id=" },
   { value: "ups", label: "UPS", trackingUrl: "https://www.ups.com/track?tracknum=", trackingSuffix: "&loc=it_IT&requester=ST/trackdetails" },
@@ -212,6 +222,11 @@ export default function AdminOrders() {
   const [productsDialogOrder, setProductsDialogOrder] = useState<Order | null>(null);
   const [loadingInvoiceOrderId, setLoadingInvoiceOrderId] = useState<string | null>(null);
   const [loadingPickupAction, setLoadingPickupAction] = useState<string | null>(null);
+  const [fatturaDialogOrder, setFatturaDialogOrder] = useState<Order | null>(null);
+  const [fatturaNumeroInput, setFatturaNumeroInput] = useState<string>("");
+  const [fatturaDataEmissione, setFatturaDataEmissione] = useState<string>("");
+  const [fatturaFile, setFatturaFile] = useState<File | null>(null);
+  const [isUploadingFattura, setIsUploadingFattura] = useState(false);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const [refundDialogOrder, setRefundDialogOrder] = useState<Order | null>(null);
   const [refundAmountInput, setRefundAmountInput] = useState<string>("");
@@ -248,6 +263,50 @@ export default function AdminOrders() {
       setRefundAmountInput("");
     },
   });
+
+  const segnaFatturaEmessaMutation = useMutation({
+    mutationFn: async ({ orderId, fattura_numero }: { orderId: string; fattura_numero?: string }) => {
+      return apiRequest("PUT", `/api/admin/orders/${orderId}/segna-fattura-emessa`, { fattura_numero });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/orders'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/admin/orders'] });
+      setFatturaDialogOrder(null);
+      setFatturaNumeroInput("");
+      toast({ title: "Fattura segnata come emessa" });
+    },
+  });
+
+  const handleUploadFattura = async () => {
+    if (!fatturaDialogOrder || !fatturaFile) return;
+    setIsUploadingFattura(true);
+    try {
+      const formData = new FormData();
+      formData.append("fattura", fatturaFile);
+      if (fatturaNumeroInput) formData.append("fattura_numero", fatturaNumeroInput);
+      if (fatturaDataEmissione) formData.append("fattura_data_emissione", fatturaDataEmissione);
+
+      const res = await fetch(`/api/admin/orders/${fatturaDialogOrder.id}/upload-fattura`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || "Errore upload");
+
+      await queryClient.invalidateQueries({ queryKey: ['/api/admin/orders'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/admin/orders'] });
+      setFatturaDialogOrder(null);
+      setFatturaNumeroInput("");
+      setFatturaDataEmissione("");
+      setFatturaFile(null);
+      toast({ title: "Fattura caricata con successo" });
+    } catch (err: any) {
+      toast({ title: "Errore upload fattura", description: err.message, variant: "destructive" });
+    } finally {
+      setIsUploadingFattura(false);
+    }
+  };
 
   const handleStatusChange = (order: Order, newStatus: string) => {
     if (newStatus === "rimborsato") {
@@ -858,26 +917,54 @@ export default function AdminOrders() {
                         </TableCell>
 
                         <TableCell className="text-center">
-                          {['pagato', 'spedito', 'in_attesa_di_consegna', 'consegnato', 'pronto_per_ritiro'].includes(order.status) ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-xs text-green-600 hover:text-green-800 hover:bg-green-50"
-                              onClick={() => handleDownloadInvoice(order.id)}
-                              disabled={loadingInvoiceOrderId === order.id}
-                            >
-                              {loadingInvoiceOrderId === order.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                          <div className="flex flex-col items-center gap-1">
+                            {/* Ricevuta Stripe PDF */}
+                            {!order.richiede_fattura && ['pagato', 'spedito', 'in_attesa_di_consegna', 'consegnato', 'pronto_per_ritiro'].includes(order.status) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 h-6 px-2"
+                                onClick={() => handleDownloadInvoice(order.id)}
+                                disabled={loadingInvoiceOrderId === order.id}
+                              >
+                                {loadingInvoiceOrderId === order.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <>
+                                    <Download className="h-3 w-3 mr-1" />
+                                    Ricevuta
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                            {/* Fattura elettronica */}
+                            {order.richiede_fattura && (
+                              order.fattura_emessa ? (
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <Badge className="bg-green-100 text-green-800 border-0 text-xs px-1.5 py-0.5">
+                                    <CheckSquare className="h-3 w-3 mr-1" />
+                                    Emessa
+                                  </Badge>
+                                  {order.fattura_numero && (
+                                    <span className="text-xs text-gray-500">#{order.fattura_numero}</span>
+                                  )}
+                                </div>
                               ) : (
-                                <>
-                                  <Download className="h-3 w-3 mr-1" />
-                                  PDF
-                                </>
-                              )}
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-gray-400">-</span>
-                          )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-xs text-orange-600 hover:text-orange-800 hover:bg-orange-50 h-6 px-2"
+                                  onClick={() => { setFatturaDialogOrder(order); setFatturaNumeroInput(""); }}
+                                >
+                                  <Receipt className="h-3 w-3 mr-1" />
+                                  Fattura
+                                </Button>
+                              )
+                            )}
+                            {!order.richiede_fattura && !['pagato', 'spedito', 'in_attesa_di_consegna', 'consegnato', 'pronto_per_ritiro'].includes(order.status) && (
+                              <span className="text-xs text-gray-400">-</span>
+                            )}
+                          </div>
                         </TableCell>
 
                         {/* Colonna Azioni (Tracking per spedizione, Azioni ritiro per ritiro) */}
@@ -1043,6 +1130,134 @@ export default function AdminOrders() {
               className="bg-green-600 text-white hover:bg-green-700"
             >
               {updateStatusMutation.isPending ? "Elaborazione..." : "Conferma rimborso"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog fattura elettronica */}
+      <Dialog open={!!fatturaDialogOrder} onOpenChange={(open) => { if (!open) { setFatturaDialogOrder(null); setFatturaNumeroInput(""); } }}>
+        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              Fattura Elettronica — Ordine #{fatturaDialogOrder?.id?.substring(0, 8)}
+            </DialogTitle>
+            <DialogDescription>
+              Dati fiscali del cliente. Crea la fattura su Aruba, poi carica il PDF o segna come emessa.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {/* Dati fiscali */}
+            <div className="bg-orange-50 rounded-lg p-3 space-y-2 border border-orange-200">
+              {fatturaDialogOrder?.fattura_intestatario && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 font-medium">Intestatario</span>
+                  <span className="font-semibold">{fatturaDialogOrder.fattura_intestatario}</span>
+                </div>
+              )}
+              {fatturaDialogOrder?.fattura_piva && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 font-medium">P.IVA</span>
+                  <span className="font-mono">{fatturaDialogOrder.fattura_piva}</span>
+                </div>
+              )}
+              {fatturaDialogOrder?.fattura_cf && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 font-medium">Codice Fiscale</span>
+                  <span className="font-mono">{fatturaDialogOrder.fattura_cf}</span>
+                </div>
+              )}
+              {fatturaDialogOrder?.fattura_sdi && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 font-medium">Codice SDI</span>
+                  <span className="font-mono font-bold">{fatturaDialogOrder.fattura_sdi}</span>
+                </div>
+              )}
+              {fatturaDialogOrder?.fattura_pec && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 font-medium">PEC</span>
+                  <span>{fatturaDialogOrder.fattura_pec}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm pt-1 border-t border-orange-200">
+                <span className="text-gray-500 font-medium">Importo</span>
+                <span className="font-bold">€{((fatturaDialogOrder?.total || 0) / 100).toFixed(2)}</span>
+              </div>
+            </div>
+
+            {/* Se già emessa, mostra link */}
+            {fatturaDialogOrder?.fattura_emessa && fatturaDialogOrder?.fattura_url && (
+              <div className="flex items-center gap-2 p-2 bg-green-50 rounded border border-green-200 text-sm">
+                <CheckSquare className="h-4 w-4 text-green-600 flex-shrink-0" />
+                <span className="text-green-700">Fattura già caricata.</span>
+                <a href={fatturaDialogOrder.fattura_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline ml-auto">Visualizza PDF</a>
+              </div>
+            )}
+
+            {/* Numero e data emissione */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="fatturaNumero" className="text-xs">Numero fattura</Label>
+                <Input
+                  id="fatturaNumero"
+                  value={fatturaNumeroInput}
+                  onChange={(e) => setFatturaNumeroInput(e.target.value)}
+                  placeholder="Es. 2025/001"
+                  className="text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="fatturaData" className="text-xs">Data emissione</Label>
+                <Input
+                  id="fatturaData"
+                  type="date"
+                  value={fatturaDataEmissione}
+                  onChange={(e) => setFatturaDataEmissione(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Upload PDF */}
+            <div className="space-y-1">
+              <Label htmlFor="fatturaPdf" className="text-xs">Carica PDF fattura (copia di cortesia)</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="fatturaPdf"
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) => setFatturaFile(e.target.files?.[0] || null)}
+                  className="text-sm"
+                />
+              </div>
+              {fatturaFile && (
+                <p className="text-xs text-green-600">📄 {fatturaFile.name}</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => { setFatturaDialogOrder(null); setFatturaNumeroInput(""); setFatturaDataEmissione(""); setFatturaFile(null); }}>
+              Annulla
+            </Button>
+            {/* Pulsante solo "segna emessa" senza PDF */}
+            <Button
+              variant="outline"
+              onClick={() => fatturaDialogOrder && segnaFatturaEmessaMutation.mutate({ orderId: fatturaDialogOrder.id, fattura_numero: fatturaNumeroInput || undefined })}
+              disabled={segnaFatturaEmessaMutation.isPending || isUploadingFattura}
+              className="border-green-500 text-green-700 hover:bg-green-50"
+            >
+              {segnaFatturaEmessaMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <CheckSquare className="h-4 w-4 mr-1" />}
+              Solo segna emessa
+            </Button>
+            {/* Pulsante upload PDF (principale) */}
+            <Button
+              onClick={handleUploadFattura}
+              disabled={!fatturaFile || isUploadingFattura || segnaFatturaEmessaMutation.isPending}
+              className="bg-blue-600 text-white hover:bg-blue-700"
+            >
+              {isUploadingFattura ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Upload className="h-4 w-4 mr-1" />}
+              Carica PDF fattura
             </Button>
           </DialogFooter>
         </DialogContent>

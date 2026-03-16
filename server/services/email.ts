@@ -1,5 +1,8 @@
 import { Resend } from 'resend';
 
+// Prefisso oggetto email (da rimuovere in produzione)
+const SUBJECT_PREFIX = '';
+
 // Configurazione indirizzi
 const ADMIN_EMAIL = 'help@biggimmyintegratori.com';
 const FROM_EMAIL = 'noreply@biggimmyintegratori.com';
@@ -48,6 +51,14 @@ interface OrderEmailData {
   };
   fulfillmentType?: 'spedizione' | 'ritiro';
   pickupStore?: string | null;
+  fatturaDati?: {
+    richiede_fattura: boolean;
+    intestatario?: string | null;
+    piva?: string | null;
+    cf?: string | null;
+    sdi?: string | null;
+    pec?: string | null;
+  };
 }
 
 // Dati negozi per le email
@@ -157,7 +168,7 @@ export async function sendAdminNotification(formData: ContactFormData): Promise<
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
       reply_to: email,
-      subject: `Nuovo messaggio da ${name}`,
+      subject: `${SUBJECT_PREFIX}Nuovo messaggio da ${name}`,
       html: emailHTML,
     });
 
@@ -185,7 +196,7 @@ export async function sendUserConfirmation(formData: ContactFormData): Promise<b
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [email],
       reply_to: REPLY_TO_EMAIL,
-      subject: 'Abbiamo ricevuto il tuo messaggio - Big Gimmy Integratori',
+      subject: SUBJECT_PREFIX + 'Abbiamo ricevuto il tuo messaggio - Big Gimmy Integratori',
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -255,7 +266,7 @@ export async function sendUserConfirmation(formData: ContactFormData): Promise<b
  * Invia conferma ordine dopo pagamento
  */
 export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Promise<boolean> {
-  const { orderId, userEmail, userName, total, items, shippingAddress, fulfillmentType, pickupStore } = orderData;
+  const { orderId, userEmail, userName, total, items, shippingAddress, fulfillmentType, pickupStore, fatturaDati } = orderData;
   const isPickup = fulfillmentType === 'ritiro';
   const storeInfo = pickupStore ? STORE_INFO[pickupStore] : null;
 
@@ -326,12 +337,32 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
       ? '📧 Ti invieremo un\'email quando il tuo ordine sarà pronto per il ritiro.'
       : '📧 Riceverai un\'email con il codice di tracciamento non appena il pacco sarà spedito.';
 
+    const fatturaHTML = fatturaDati?.richiede_fattura ? `
+      <table style="width: 100%; border-collapse: collapse; margin-top: 25px; background: #fff3e0; border-radius: 8px; border: 1px solid #ffe0b2;">
+        <tr>
+          <td style="padding: 20px;">
+            <h3 style="color: #e65100; font-size: 15px; margin: 0 0 12px 0;">🧾 Fattura Elettronica Richiesta</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              ${fatturaDati.intestatario ? `<tr><td style="padding: 4px 0; color: #666; width: 130px;">Intestatario:</td><td style="padding: 4px 0; color: #1a1a1a; font-weight: 600;">${fatturaDati.intestatario}</td></tr>` : ''}
+              ${fatturaDati.piva ? `<tr><td style="padding: 4px 0; color: #666;">P.IVA:</td><td style="padding: 4px 0; color: #1a1a1a; font-family: monospace;">${fatturaDati.piva}</td></tr>` : ''}
+              ${fatturaDati.cf ? `<tr><td style="padding: 4px 0; color: #666;">Cod. Fiscale:</td><td style="padding: 4px 0; color: #1a1a1a; font-family: monospace;">${fatturaDati.cf}</td></tr>` : ''}
+              ${fatturaDati.sdi ? `<tr><td style="padding: 4px 0; color: #666;">Codice SDI:</td><td style="padding: 4px 0; color: #1a1a1a; font-family: monospace;">${fatturaDati.sdi}</td></tr>` : ''}
+              ${fatturaDati.pec ? `<tr><td style="padding: 4px 0; color: #666;">PEC:</td><td style="padding: 4px 0; color: #1a1a1a;">${fatturaDati.pec}</td></tr>` : ''}
+            </table>
+            <p style="color: #bf360c; font-size: 12px; margin: 12px 0 0 0;">
+              La tua fattura elettronica verrà emessa e inviata tramite il Sistema di Interscambio (SdI) all'indirizzo SDI/PEC indicato. Sarà disponibile anche nella tua area ordini non appena caricata.
+            </p>
+          </td>
+        </tr>
+      </table>
+    ` : '';
+
     const { error } = await resend.emails.send({
       from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [userEmail],
       subject: isPickup
-        ? `✅ Ordine Confermato #${orderId.slice(-8).toUpperCase()} - Ritiro presso ${storeInfo?.name || 'negozio'}`
-        : `✅ Ordine Confermato #${orderId.slice(-8).toUpperCase()}`,
+        ? `${SUBJECT_PREFIX}✅ Ordine Confermato #${orderId.substring(0, 8).toUpperCase()} - Ritiro presso ${storeInfo?.name || 'negozio'}`
+        : `${SUBJECT_PREFIX}✅ Ordine Confermato #${orderId.substring(0, 8).toUpperCase()}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -346,7 +377,7 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
               </h1>
               ${isPickup ? `<p style="color: #FFD100; margin: 8px 0 0 0; font-size: 15px; font-weight: 600;">RITIRO IN NEGOZIO - ${storeInfo?.name || ''}</p>` : ''}
               <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">
-                Ordine #${orderId.slice(-8).toUpperCase()}
+                Ordine #${orderId.substring(0, 8).toUpperCase()}
               </p>
             </div>
 
@@ -382,6 +413,8 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
               </table>
 
               ${shippingHTML}
+
+              ${fatturaHTML}
 
               <!-- Info Box -->
               <table style="width: 100%; border-collapse: collapse; margin-top: 25px;">
@@ -442,7 +475,7 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
  * Invia notifica all'admin quando arriva un nuovo ordine pagato
  */
 export async function sendAdminOrderNotification(orderData: OrderEmailData): Promise<boolean> {
-  const { orderId, userEmail, userName, total, items, shippingAddress, fulfillmentType, pickupStore } = orderData;
+  const { orderId, userEmail, userName, total, items, shippingAddress, fulfillmentType, pickupStore, fatturaDati } = orderData;
   const isPickup = fulfillmentType === 'ritiro';
   const storeInfo = pickupStore ? STORE_INFO[pickupStore] : null;
 
@@ -508,12 +541,32 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
       ? 'Ricordati di preparare l\'ordine per il ritiro!'
       : 'Ricordati di preparare e spedire l\'ordine!';
 
+    const adminFatturaHTML = fatturaDati?.richiede_fattura ? `
+      <table style="width: 100%; border-collapse: collapse; margin-top: 25px; background: #fff3e0; border-radius: 8px; border: 2px solid #ff6f00;">
+        <tr>
+          <td style="padding: 20px;">
+            <h3 style="color: #e65100; font-size: 16px; margin: 0 0 14px 0; text-transform: uppercase; letter-spacing: 0.5px;">🧾 RICHIESTA FATTURA ELETTRONICA</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+              ${fatturaDati.intestatario ? `<tr><td style="padding: 6px 0; color: #666; width: 130px; font-weight: 500;">Intestatario:</td><td style="padding: 6px 0; color: #1a1a1a; font-weight: 700; font-size: 15px;">${fatturaDati.intestatario}</td></tr>` : ''}
+              ${fatturaDati.piva ? `<tr><td style="padding: 6px 0; color: #666; font-weight: 500;">P.IVA:</td><td style="padding: 6px 0; color: #1a1a1a; font-family: monospace; font-size: 15px;">${fatturaDati.piva}</td></tr>` : ''}
+              ${fatturaDati.cf ? `<tr><td style="padding: 6px 0; color: #666; font-weight: 500;">Cod. Fiscale:</td><td style="padding: 6px 0; color: #1a1a1a; font-family: monospace;">${fatturaDati.cf}</td></tr>` : ''}
+              ${fatturaDati.sdi ? `<tr><td style="padding: 6px 0; color: #666; font-weight: 500;">Codice SDI:</td><td style="padding: 6px 0; color: #1a1a1a; font-family: monospace; font-weight: 700;">${fatturaDati.sdi}</td></tr>` : ''}
+              ${fatturaDati.pec ? `<tr><td style="padding: 6px 0; color: #666; font-weight: 500;">PEC:</td><td style="padding: 6px 0; color: #1a1a1a;">${fatturaDati.pec}</td></tr>` : ''}
+            </table>
+            <p style="color: #bf360c; font-size: 13px; margin: 14px 0 0 0; font-weight: 600;">
+              ⚠️ Emetti la fattura elettronica su Aruba e caricala dalla dashboard ordini.
+            </p>
+          </td>
+        </tr>
+      </table>
+    ` : '';
+
     const { error } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
       subject: isPickup
-        ? `🏪 Nuovo Ordine RITIRO #${orderId.slice(-8).toUpperCase()} - ${storeInfo?.name || 'Negozio'} - €${(total / 100).toFixed(2)}`
-        : `🛒 Nuovo Ordine #${orderId.slice(-8).toUpperCase()} - €${(total / 100).toFixed(2)}`,
+        ? `${SUBJECT_PREFIX}🏪 Nuovo Ordine RITIRO #${orderId.substring(0, 8).toUpperCase()} - ${storeInfo?.name || 'Negozio'} - €${(total / 100).toFixed(2)}`
+        : `${SUBJECT_PREFIX}🛒 Nuovo Ordine #${orderId.substring(0, 8).toUpperCase()} - €${(total / 100).toFixed(2)}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -528,7 +581,7 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
               </h1>
               ${isPickup ? `<p style="color: #d32f2f; margin: 8px 0 0 0; font-size: 15px; font-weight: 700;">RITIRO IN NEGOZIO - ${storeInfo?.name || ''}</p>` : ''}
               <p style="color: #333; margin: 10px 0 0 0; font-size: 14px;">
-                Ordine #${orderId.slice(-8).toUpperCase()}
+                Ordine #${orderId.substring(0, 8).toUpperCase()}
               </p>
             </div>
 
@@ -582,6 +635,8 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
               </table>
 
               ${shippingHTML}
+
+              ${adminFatturaHTML}
 
               <!-- Action -->
               <table style="width: 100%; border-collapse: collapse; margin-top: 30px;">
@@ -653,7 +708,7 @@ export async function sendWelcomeEmail(userData: { email: string; firstName?: st
     const { error } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [email],
-      subject: 'Benvenuto in Big Gimmy! 💪',
+      subject: SUBJECT_PREFIX + 'Benvenuto in Big Gimmy! 💪',
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -732,7 +787,7 @@ export async function sendPersonalizedReply(
     const { error } = await resend.emails.send({
       from: `Team Big Gimmy <${FROM_EMAIL}>`,
       to: [recipientEmail],
-      subject: subject,
+      subject: SUBJECT_PREFIX + subject,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -805,7 +860,7 @@ export async function sendTrackingEmail(trackingData: any): Promise<boolean> {
     const { error } = await resend.emails.send({
       from: `Spedizioni Big Gimmy <${FROM_EMAIL}>`,
       to: [userEmail],
-      subject: `🚚 Il tuo ordine #${orderId.slice(-8).toUpperCase()} è in viaggio!`,
+      subject: `${SUBJECT_PREFIX}🚚 Il tuo ordine #${orderId.substring(0, 8).toUpperCase()} è in viaggio!`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -819,7 +874,7 @@ export async function sendTrackingEmail(trackingData: any): Promise<boolean> {
                 Il tuo pacco è in viaggio!
               </h1>
               <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">
-                Ordine #${orderId.slice(-8).toUpperCase()}
+                Ordine #${orderId.substring(0, 8).toUpperCase()}
               </p>
             </div>
 
@@ -902,7 +957,7 @@ export async function sendTrackingEmail(trackingData: any): Promise<boolean> {
     const { error: adminError } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
-      subject: `📦 Tracking inserito per ordine #${orderId.slice(-8).toUpperCase()} - ${carrier}`,
+      subject: `${SUBJECT_PREFIX}📦 Tracking inserito per ordine #${orderId.substring(0, 8).toUpperCase()} - ${carrier}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -913,7 +968,7 @@ export async function sendTrackingEmail(trackingData: any): Promise<boolean> {
             </div>
             <div style="padding: 30px;">
               <p style="color: #4a4a4a; font-size: 15px; line-height: 1.7; margin: 0 0 15px 0;">
-                Il codice di tracciamento per l'ordine <strong>#${orderId.slice(-8).toUpperCase()}</strong> è stato inserito e il cliente è stato notificato.
+                Il codice di tracciamento per l'ordine <strong>#${orderId.substring(0, 8).toUpperCase()}</strong> è stato inserito e il cliente è stato notificato.
               </p>
               <table style="width: 100%; border-collapse: collapse; background: #f8f9fa; border-radius: 8px; margin-bottom: 15px;">
                 <tr>
@@ -1030,7 +1085,7 @@ export async function sendPickupReadyEmail(data: PickupReadyEmailData): Promise<
     const { error } = await resend.emails.send({
       from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [userEmail],
-      subject: `📦 Il tuo ordine #${orderId.slice(-8).toUpperCase()} è pronto per il ritiro!`,
+      subject: `${SUBJECT_PREFIX}📦 Il tuo ordine #${orderId.substring(0, 8).toUpperCase()} è pronto per il ritiro!`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -1044,7 +1099,7 @@ export async function sendPickupReadyEmail(data: PickupReadyEmailData): Promise<
                 Il tuo ordine è pronto!
               </h1>
               <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">
-                Ordine #${orderId.slice(-8).toUpperCase()}
+                Ordine #${orderId.substring(0, 8).toUpperCase()}
               </p>
             </div>
 
@@ -1076,7 +1131,7 @@ export async function sendPickupReadyEmail(data: PickupReadyEmailData): Promise<
                 <tr>
                   <td style="padding: 15px 20px;">
                     <p style="color: #e65100; font-size: 14px; margin: 0 0 8px 0;">
-                      💡 Presenta il numero d'ordine <strong>#${orderId.slice(-8).toUpperCase()}</strong> al momento del ritiro.
+                      💡 Presenta il numero d'ordine <strong>#${orderId.substring(0, 8).toUpperCase()}</strong> al momento del ritiro.
                     </p>
                     <p style="color: #e65100; font-size: 13px; margin: 0;">
                       ⏰ Hai <strong>7 giorni</strong> di tempo per ritirare il tuo ordine.
@@ -1122,7 +1177,7 @@ export async function sendPickupReadyEmail(data: PickupReadyEmailData): Promise<
     const { error: adminError } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
-      subject: `🏪 Ordine #${orderId.slice(-8).toUpperCase()} segnato come pronto per il ritiro - ${storeInfo.name}`,
+      subject: `${SUBJECT_PREFIX}🏪 Ordine #${orderId.substring(0, 8).toUpperCase()} segnato come pronto per il ritiro - ${storeInfo.name}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -1133,7 +1188,7 @@ export async function sendPickupReadyEmail(data: PickupReadyEmailData): Promise<
             </div>
             <div style="padding: 30px;">
               <p style="color: #4a4a4a; font-size: 15px; line-height: 1.7; margin: 0 0 15px 0;">
-                L'ordine <strong>#${orderId.slice(-8).toUpperCase()}</strong> del cliente <strong>${userName}</strong> (${userEmail}) è stato segnato come <strong>pronto per il ritiro</strong>.
+                L'ordine <strong>#${orderId.substring(0, 8).toUpperCase()}</strong> del cliente <strong>${userName}</strong> (${userEmail}) è stato segnato come <strong>pronto per il ritiro</strong>.
               </p>
               <p style="color: #4a4a4a; font-size: 14px; margin: 0 0 15px 0;">
                 Sede: <strong>${storeInfo.name}</strong><br>
@@ -1182,14 +1237,14 @@ interface OrderDeliveredEmailData {
 export async function sendOrderDeliveredEmail(data: OrderDeliveredEmailData): Promise<boolean> {
   const { orderId, userEmail, userName, fulfillmentType, pickupStore, trackingNumber, carrier } = data;
   const isPickup = fulfillmentType === 'ritiro';
-  const shortId = orderId.slice(-8).toUpperCase();
+  const shortId = orderId.substring(0, 8).toUpperCase();
 
   const headerEmoji = isPickup ? '🏪' : '📦';
   const headerTitle = isPickup ? 'Ordine ritirato con successo!' : 'Il tuo ordine è stato consegnato!';
   const subjectEmoji = isPickup ? '🏪' : '✅';
   const subjectText = isPickup
-    ? `${subjectEmoji} Ordine #${shortId} ritirato con successo!`
-    : `${subjectEmoji} Ordine #${shortId} consegnato con successo!`;
+    ? `${SUBJECT_PREFIX}${subjectEmoji} Ordine #${shortId} ritirato con successo!`
+    : `${SUBJECT_PREFIX}${subjectEmoji} Ordine #${shortId} consegnato con successo!`;
 
   const storeInfo = isPickup && pickupStore ? STORE_INFO[pickupStore] : null;
 
@@ -1284,8 +1339,8 @@ export async function sendOrderDeliveredEmail(data: OrderDeliveredEmailData): Pr
 
   // Email admin
   const adminSubject = isPickup
-    ? `🏪 Ordine #${shortId} ritirato dal cliente`
-    : `✅ Ordine #${shortId} consegnato al cliente`;
+    ? `${SUBJECT_PREFIX}🏪 Ordine #${shortId} ritirato dal cliente`
+    : `${SUBJECT_PREFIX}✅ Ordine #${shortId} consegnato al cliente`;
   const trackingAdminInfo = !isPickup && trackingNumber && carrier
     ? `<br>Corriere: <strong>${carrier}</strong> - Tracking: <strong>${trackingNumber}</strong>`
     : '';
@@ -1376,7 +1431,7 @@ interface PickupReminderEmailData {
 export async function sendPickupReminderEmail(data: PickupReminderEmailData): Promise<boolean> {
   const { orderId, userEmail, userName, pickupStore, type } = data;
   const storeInfo = STORE_INFO[pickupStore];
-  const shortId = orderId.slice(-8).toUpperCase();
+  const shortId = orderId.substring(0, 8).toUpperCase();
 
   if (!storeInfo) {
     console.error(`[EMAIL REMINDER] Negozio non trovato: ${pickupStore}`);
@@ -1385,8 +1440,8 @@ export async function sendPickupReminderEmail(data: PickupReminderEmailData): Pr
 
   const is4Days = type === '4days';
   const subjectClient = is4Days
-    ? `⏰ Promemoria: ritira il tuo ordine #${shortId}`
-    : `🚨 Ultimo avviso: ritira il tuo ordine #${shortId} entro 24 ore!`;
+    ? `${SUBJECT_PREFIX}⏰ Promemoria: ritira il tuo ordine #${shortId}`
+    : `${SUBJECT_PREFIX}🚨 Ultimo avviso: ritira il tuo ordine #${shortId} entro 24 ore!`;
 
   const headerGradient = is4Days
     ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
@@ -1453,8 +1508,8 @@ export async function sendPickupReminderEmail(data: PickupReminderEmailData): Pr
   // Email admin
   const daysLabel = is4Days ? '4 giorni' : '6 giorni';
   const adminSubject = is4Days
-    ? `⏰ Promemoria inviato: ordine #${shortId} in attesa di ritiro da 4 giorni`
-    : `🚨 Avviso finale inviato: ordine #${shortId} in attesa di ritiro da 6 giorni`;
+    ? `${SUBJECT_PREFIX}⏰ Promemoria inviato: ordine #${shortId} in attesa di ritiro da 4 giorni`
+    : `${SUBJECT_PREFIX}🚨 Avviso finale inviato: ordine #${shortId} in attesa di ritiro da 6 giorni`;
   const adminHTML = `
     <!DOCTYPE html>
     <html lang="it">
@@ -1565,7 +1620,7 @@ export async function sendRefundRequestEmail(data: RefundRequestData): Promise<b
     const { error: clientError } = await resend.emails.send({
       from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [email],
-      subject: `📋 Richiesta di rimborso ricevuta - Ordine #${shortId}`,
+      subject: `${SUBJECT_PREFIX}📋 Richiesta di rimborso ricevuta - Ordine #${shortId}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -1629,7 +1684,7 @@ export async function sendRefundRequestEmail(data: RefundRequestData): Promise<b
     const { error: adminError } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
-      subject: `🔴 Richiesta di Rimborso - Ordine #${shortId} - ${name}`,
+      subject: `${SUBJECT_PREFIX}🔴 Richiesta di Rimborso - Ordine #${shortId} - ${name}`,
       ...(attachments && attachments.length > 0 && {
         attachments: attachments.map(a => ({ filename: a.filename, content: a.content })),
       }),
@@ -1751,7 +1806,7 @@ export async function sendRefundCompletedEmail(data: RefundCompletedData): Promi
     const { error: clientError } = await resend.emails.send({
       from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [userEmail],
-      subject: `✅ Rimborso effettuato - Ordine #${shortId}`,
+      subject: `${SUBJECT_PREFIX}✅ Rimborso effettuato - Ordine #${shortId}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -1841,7 +1896,7 @@ export async function sendRefundCompletedEmail(data: RefundCompletedData): Promi
     const { error: adminError } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
-      subject: `✅ Rimborso elaborato - Ordine #${shortId} - ${userName}`,
+      subject: `${SUBJECT_PREFIX}✅ Rimborso elaborato - Ordine #${shortId} - ${userName}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -1917,6 +1972,206 @@ export async function sendRefundCompletedEmail(data: RefundCompletedData): Promi
     return true;
   } catch (err: any) {
     console.error(`[EMAIL RIMBORSATO] ❌ ERRORE:`, err?.message || err);
+    return false;
+  }
+}
+
+// --- FATTURA CARICATA ---
+interface FatturaCaricataData {
+  orderId: string;
+  userEmail: string;
+  userName: string;
+  fatturaNumero?: string | null;
+  fatturaDataEmissione?: string | null;
+  fatturaUrl: string;
+  pdfBuffer: Buffer;
+  pdfFileName: string;
+}
+
+export async function sendFatturaCaricataEmail(data: FatturaCaricataData): Promise<boolean> {
+  const { orderId, userEmail, userName, fatturaNumero, fatturaDataEmissione, fatturaUrl, pdfBuffer, pdfFileName } = data;
+  const shortId = orderId.trim().toUpperCase();
+  const dataFormatted = fatturaDataEmissione
+    ? new Date(fatturaDataEmissione).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : null;
+
+  console.log(`[EMAIL FATTURA] Invio email fattura caricata ordine #${shortId} a ${userEmail}`);
+
+  if (SIMULATION_MODE) {
+    console.log('=== SIMULAZIONE FATTURA CARICATA EMAIL ===', { orderId, userEmail });
+    return true;
+  }
+
+  if (!resend) {
+    console.log('=== SIMULAZIONE FATTURA CARICATA EMAIL (resend=null) ===', { orderId });
+    return true;
+  }
+
+  try {
+    // Email al cliente con PDF allegato
+    const { error: clientError } = await resend.emails.send({
+      from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [userEmail],
+      replyTo: REPLY_TO_EMAIL,
+      subject: `${SUBJECT_PREFIX}🧾 La tua fattura elettronica - Ordine #${shortId}`,
+      attachments: [
+        {
+          filename: pdfFileName,
+          content: pdfBuffer,
+        },
+      ],
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(135deg, #e65100 0%, #bf360c 100%); padding: 40px 30px; text-align: center;">
+              <div style="font-size: 50px; margin-bottom: 15px;">🧾</div>
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">
+                Fattura Elettronica Disponibile
+              </h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px;">
+                Ordine #${shortId}
+              </p>
+            </div>
+            <div style="padding: 35px 30px;">
+              <p style="color: #4a4a4a; font-size: 16px; line-height: 1.7; margin: 0 0 25px 0;">
+                Ciao <strong>${userName}</strong>,<br>
+                la tua fattura elettronica è pronta. La trovi allegata a questa email e disponibile nella tua area ordini.
+              </p>
+
+              <table style="width: 100%; border-collapse: collapse; background: #fff3e0; border-radius: 8px; margin-bottom: 25px; border: 1px solid #ffcc80;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <h3 style="color: #e65100; font-size: 15px; margin: 0 0 12px 0;">📄 Dettagli fattura</h3>
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 14px; width: 160px;">Ordine:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">#${shortId}</td>
+                      </tr>
+                      ${fatturaNumero ? `
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 14px;">N° fattura:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">${fatturaNumero}</td>
+                      </tr>
+                      ` : ''}
+                      ${dataFormatted ? `
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 14px;">Data emissione:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px;">${dataFormatted}</td>
+                      </tr>
+                      ` : ''}
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="margin-bottom: 25px; padding: 16px 20px; background: #e8f5e9; border-radius: 8px; border: 1px solid #a5d6a7;">
+                <p style="color: #2e7d32; font-size: 14px; margin: 0 0 10px 0; font-weight: 600;">📎 Fattura in allegato</p>
+                <p style="color: #4a4a4a; font-size: 13px; margin: 0 0 12px 0;">Il PDF è allegato a questa email. Puoi anche scaricarlo dalla tua area ordini sul sito.</p>
+                <a href="${fatturaUrl}" style="display: inline-block; background: #e65100; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 6px; font-size: 14px; font-weight: 600;">
+                  📥 Scarica dalla tua area ordini
+                </a>
+              </div>
+
+              <p style="color: #4a4a4a; font-size: 14px; line-height: 1.6; margin: 0;">
+                Per qualsiasi dubbio sulla fattura, rispondi a questa email o contattaci tramite il nostro sito.
+              </p>
+            </div>
+            <div style="background: #1a1a1a; padding: 25px 30px; text-align: center;">
+              <p style="color: #FFD100; font-size: 14px; margin: 0 0 8px 0; font-weight: 600;">🏋️ Big Gimmy Integratori</p>
+              <p style="color: #888; font-size: 12px; margin: 0 0 10px 0;">Siamo qui per aiutarti!</p>
+              <p style="color: #666; font-size: 11px; margin: 0;">© ${new Date().getFullYear()} Big Gimmy Integratori - Tutti i diritti riservati</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (clientError) {
+      console.error(`[EMAIL FATTURA] Errore email cliente:`, clientError);
+    } else {
+      console.log(`[EMAIL FATTURA] ✅ Email fattura inviata a ${userEmail}`);
+    }
+
+    // Email all'admin (conferma upload)
+    const { error: adminError } = await resend.emails.send({
+      from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
+      to: [ADMIN_EMAIL],
+      subject: `${SUBJECT_PREFIX}🧾 Fattura caricata - Ordine #${shortId} - ${userName}`,
+      html: `
+        <!DOCTYPE html>
+        <html lang="it">
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4; padding: 20px; margin: 0;">
+          <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(135deg, #e65100 0%, #bf360c 100%); padding: 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 20px;">🧾 Fattura Caricata</h1>
+            </div>
+            <div style="padding: 30px;">
+              <p style="color: #4a4a4a; font-size: 15px; line-height: 1.7; margin: 0 0 20px 0;">
+                La fattura per l'ordine <strong>#${shortId}</strong> del cliente <strong>${userName}</strong> è stata caricata con successo e notificata al cliente.
+              </p>
+              <table style="width: 100%; border-collapse: collapse; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+                <tr>
+                  <td style="padding: 15px 20px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px; width: 150px;">Cliente:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">${userName}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Email cliente:</td>
+                        <td style="padding: 5px 0; font-size: 14px;"><a href="mailto:${userEmail}" style="color: #1976d2; text-decoration: none;">${userEmail}</a></td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Ordine:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">#${shortId}</td>
+                      </tr>
+                      ${fatturaNumero ? `
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">N° fattura:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px; font-weight: 600;">${fatturaNumero}</td>
+                      </tr>
+                      ` : ''}
+                      ${dataFormatted ? `
+                      <tr>
+                        <td style="padding: 5px 0; color: #666; font-size: 13px;">Data emissione:</td>
+                        <td style="padding: 5px 0; color: #1a1a1a; font-size: 14px;">${dataFormatted}</td>
+                      </tr>
+                      ` : ''}
+                      <tr>
+                        <td style="padding: 8px 0 5px 0; color: #666; font-size: 13px; border-top: 1px solid #dee2e6;">PDF:</td>
+                        <td style="padding: 8px 0 5px 0; font-size: 14px; border-top: 1px solid #dee2e6;">
+                          <a href="${fatturaUrl}" style="color: #e65100; text-decoration: none; font-weight: 600;">Visualizza PDF ↗</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              <p style="color: #555; font-size: 13px; margin: 0;">
+                Il cliente ha ricevuto una email con il PDF allegato e il link per scaricarlo dalla sua area ordini.
+              </p>
+            </div>
+            <div style="background: #f5f5f5; padding: 15px 30px; text-align: center;">
+              <p style="color: #888; font-size: 12px; margin: 0;">Big Gimmy Integratori - Notifica Admin</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (adminError) {
+      console.error(`[EMAIL FATTURA] Errore email admin:`, adminError);
+    } else {
+      console.log(`[EMAIL FATTURA] ✅ Notifica fattura caricata inviata ad admin`);
+    }
+
+    return true;
+  } catch (err: any) {
+    console.error(`[EMAIL FATTURA] ❌ ERRORE:`, err?.message || err);
     return false;
   }
 }

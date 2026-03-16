@@ -41,6 +41,9 @@ interface Order {
   carrier?: string | null;
   fulfillmentType?: string;
   pickupStore?: string;
+  richiede_fattura?: boolean;
+  fattura_emessa?: boolean;
+  fattura_url?: string | null;
 }
 
 const formatPrice = (cents: number) => {
@@ -65,7 +68,7 @@ const shortenOrderId = (id: string) => {
 
 // Corrieri supportati con i loro URL di tracciamento
 const carrierOptions: Record<string, { label: string; trackingUrl: string; trackingSuffix?: string }> = {
-  bartolini: { label: "BRT (Bartolini)", trackingUrl: "https://www.mybrt.it/it/mybrt/my-parcels/search?lang=it&parcelNumber=" },
+  bartolini: { label: "BRT (Bartolini)", trackingUrl: "https://www.fermopoint.it/prenotazione/" },
   gls: { label: "GLS", trackingUrl: "https://gls-group.com/IT/it/servizi-online/ricerca-spedizioni/?match=", trackingSuffix: "&type=NAT" },
   dhl: { label: "DHL", trackingUrl: "https://www.dhl.com/it-it/home/tracking.html?tracking-id=" },
   ups: { label: "UPS", trackingUrl: "https://www.ups.com/track?tracknum=", trackingSuffix: "&loc=it_IT&requester=ST/trackdetails" },
@@ -279,7 +282,30 @@ function OrderCard({ order }: { order: Order }) {
         // Apri il PDF in una nuova tab
         window.open(response.invoicePdfUrl, '_blank');
       } else {
-        setInvoiceError(response.message || "Fattura non disponibile");
+        setInvoiceError(response.message || "Ricevuta non disponibile");
+      }
+    } catch (error: any) {
+      setInvoiceError(error.message || "Errore durante il recupero della ricevuta");
+    } finally {
+      setIsLoadingInvoice(false);
+    }
+  };
+
+  const handleDownloadFattura = async () => {
+    setIsLoadingInvoice(true);
+    setInvoiceError(null);
+
+    try {
+      // Se abbiamo già l'URL in locale, apri direttamente
+      if (order.fattura_url) {
+        window.open(order.fattura_url, '_blank');
+        return;
+      }
+      const response = await apiRequest("GET", `/api/orders/${order.id}/fattura`);
+      if (response.success && response.fattura_url) {
+        window.open(response.fattura_url, '_blank');
+      } else {
+        setInvoiceError(response.message || "Fattura non ancora disponibile");
       }
     } catch (error: any) {
       setInvoiceError(error.message || "Errore durante il recupero della fattura");
@@ -536,27 +562,45 @@ function OrderCard({ order }: { order: Order }) {
               </div>
             )}
 
-            {/* Tasto Scarica Fattura - solo per ordini pagati */}
+            {/* Documento fiscale - solo per ordini pagati */}
             {canDownloadInvoice && (
               <div className="space-y-2">
-                <Button
-                  onClick={handleDownloadInvoice}
-                  disabled={isLoadingInvoice}
-                  variant="outline"
-                  className="w-full flex items-center justify-center gap-2 border-green-500 text-green-700 hover:bg-green-50"
-                >
-                  {isLoadingInvoice ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Caricamento...
-                    </>
+                {order.richiede_fattura ? (
+                  /* Cliente con P.IVA: mostra fattura elettronica o messaggio in attesa */
+                  order.fattura_emessa && order.fattura_url ? (
+                    <Button
+                      onClick={handleDownloadFattura}
+                      disabled={isLoadingInvoice}
+                      variant="outline"
+                      className="w-full flex items-center justify-center gap-2 border-orange-400 text-orange-700 hover:bg-orange-50"
+                    >
+                      {isLoadingInvoice ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" />Caricamento...</>
+                      ) : (
+                        <><Download className="w-4 h-4" />Scarica Fattura Elettronica</>
+                      )}
+                    </Button>
                   ) : (
-                    <>
-                      <Download className="w-4 h-4" />
-                      Scarica Fattura
-                    </>
-                  )}
-                </Button>
+                    <div className="w-full text-center text-sm text-orange-600 bg-orange-50 border border-orange-200 rounded-lg py-3 px-4">
+                      <FileText className="w-4 h-4 inline mr-1.5" />
+                      Fattura in elaborazione — ti notificheremo quando sarà disponibile
+                    </div>
+                  )
+                ) : (
+                  /* Cliente normale: ricevuta Stripe */
+                  <Button
+                    onClick={handleDownloadInvoice}
+                    disabled={isLoadingInvoice}
+                    variant="outline"
+                    className="w-full flex items-center justify-center gap-2 border-green-500 text-green-700 hover:bg-green-50"
+                  >
+                    {isLoadingInvoice ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" />Caricamento...</>
+                    ) : (
+                      <><Download className="w-4 h-4" />Scarica Ricevuta</>
+                    )}
+                  </Button>
+                )}
                 {invoiceError && (
                   <p className="text-center text-xs text-red-600">{invoiceError}</p>
                 )}
