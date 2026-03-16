@@ -5493,7 +5493,6 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
     }
   });
 
-<<<<<<< HEAD
   // ============================================================
   // CONSENT LOG — registro del consenso cookie (art. 7 GDPR)
   // Nessun dato identificativo: no IP loggato, no user_id obbligatorio
@@ -5525,7 +5524,9 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
       console.error("[CONSENT LOG] Errore:", err);
       // Non bloccare l'utente se il log fallisce — è un'operazione best-effort
       return res.json({ success: false });
-=======
+    }
+  });
+
   // PUT segna fattura come emessa (con numero fattura opzionale)
   app.put("/api/admin/orders/:orderId/segna-fattura-emessa", ensureAuth, ensureAdmin, async (req: Request, res: Response) => {
     try {
@@ -5685,7 +5686,6 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
     } catch (err) {
       console.error("[FATTURA CLIENTE] Errore:", err);
       return res.status(500).json({ success: false, message: "Errore interno del server" });
->>>>>>> private
     }
   });
 
