@@ -918,7 +918,7 @@ export default function AdminOrders() {
                         <TableCell className="text-center">
                           <div className="flex flex-col items-center gap-1">
                             {/* Ricevuta Stripe PDF */}
-                            {['pagato', 'spedito', 'in_attesa_di_consegna', 'consegnato', 'pronto_per_ritiro'].includes(order.status) && (
+                            {!order.richiede_fattura && ['pagato', 'spedito', 'in_attesa_di_consegna', 'consegnato', 'pronto_per_ritiro'].includes(order.status) && (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -1136,7 +1136,7 @@ export default function AdminOrders() {
 
       {/* Dialog fattura elettronica */}
       <Dialog open={!!fatturaDialogOrder} onOpenChange={(open) => { if (!open) { setFatturaDialogOrder(null); setFatturaNumeroInput(""); } }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5" />

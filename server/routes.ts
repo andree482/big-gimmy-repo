@@ -23,7 +23,7 @@ const uploadFattura = multer({
     cb(null, file.mimetype === 'application/pdf');
   },
 });
-import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply, sendTrackingEmail, sendWelcomeEmail, sendOrderConfirmationEmail, sendAdminOrderNotification, sendPasswordChangedEmail, sendRefundRequestEmail, sendPickupReadyEmail, sendOrderDeliveredEmail, sendRefundCompletedEmail } from './services/email.ts';
+import { sendAdminNotification, sendUserConfirmation, sendPersonalizedReply, sendTrackingEmail, sendWelcomeEmail, sendOrderConfirmationEmail, sendAdminOrderNotification, sendPasswordChangedEmail, sendRefundRequestEmail, sendPickupReadyEmail, sendOrderDeliveredEmail, sendRefundCompletedEmail, sendFatturaCaricataEmail } from './services/email.ts';
 import { syncAllImages } from "./utils/imageSync.ts";
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
@@ -5574,6 +5574,34 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
       if (dbError) {
         console.error("[FATTURA UPLOAD] Errore aggiornamento DB:", dbError);
         return res.status(500).json({ success: false, message: "Errore salvataggio dati" });
+      }
+
+      // Recupera dati cliente per email
+      const { data: orderData } = await (supabaseAdmin as any)
+        .from("orders")
+        .select("user_id, user_email, users!orders_user_id_fkey(email, first_name, last_name)")
+        .eq("id", orderId)
+        .maybeSingle();
+
+      const userEmail: string | null =
+        orderData?.user_email ||
+        orderData?.users?.email ||
+        null;
+      const firstName: string = orderData?.users?.first_name || '';
+      const lastName: string = orderData?.users?.last_name || '';
+      const userName = [firstName, lastName].filter(Boolean).join(' ') || 'Cliente';
+
+      if (userEmail) {
+        sendFatturaCaricataEmail({
+          orderId,
+          userEmail,
+          userName,
+          fatturaNumero: fattura_numero || null,
+          fatturaDataEmissione: fattura_data_emissione || null,
+          fatturaUrl: fattura_url,
+          pdfBuffer: file.buffer,
+          pdfFileName: `fattura-${orderId.substring(0, 8)}.pdf`,
+        }).catch((e: any) => console.error("[FATTURA UPLOAD] Errore invio email:", e));
       }
 
       return res.json({ success: true, fattura_url });
