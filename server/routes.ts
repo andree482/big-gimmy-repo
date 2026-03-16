@@ -5579,14 +5579,11 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
       // Recupera dati cliente per email
       const { data: orderData } = await (supabaseAdmin as any)
         .from("orders")
-        .select("user_id, user_email, users!orders_user_id_fkey(email, first_name, last_name)")
+        .select("user_id, users:user_id(email, first_name, last_name)")
         .eq("id", orderId)
         .maybeSingle();
 
-      const userEmail: string | null =
-        orderData?.user_email ||
-        orderData?.users?.email ||
-        null;
+      const userEmail: string | null = orderData?.users?.email || null;
       const firstName: string = orderData?.users?.first_name || '';
       const lastName: string = orderData?.users?.last_name || '';
       const userName = [firstName, lastName].filter(Boolean).join(' ') || 'Cliente';
