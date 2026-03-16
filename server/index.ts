@@ -154,24 +154,9 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
   const fattura_intestatario = session.metadata?.fattura_intestatario || null;
   const fattura_cf = session.metadata?.fattura_cf || null;
   const fattura_piva = session.metadata?.fattura_piva || null;
-  // PEC e SDI sono nei custom_fields della sessione Stripe (non nei metadata)
-  // Li recuperiamo dal campo invoice_creation se disponibili
-  let fattura_pec: string | null = null;
-  let fattura_sdi: string | null = null;
-  if (richiede_fattura) {
-    try {
-      const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
-        expand: ['invoice']
-      });
-      const customFields = (fullSession as any).invoice_creation?.invoice_data?.custom_fields || [];
-      for (const field of customFields) {
-        if (field.name === "PEC") fattura_pec = field.value;
-        if (field.name === "Codice SDI") fattura_sdi = field.value;
-      }
-    } catch (e: any) {
-      console.warn("[STRIPE WEBHOOK] Errore recupero custom_fields:", e?.message);
-    }
-  }
+  // PEC e SDI sono nei metadata della sessione (non più in invoice_creation.custom_fields)
+  const fattura_pec = session.metadata?.fattura_pec || null;
+  const fattura_sdi = session.metadata?.fattura_sdi || null;
 
   console.log(`[STRIPE WEBHOOK] Pagamento completato per user: ${userId}, orderId: ${orderId}, invoiceId: ${stripeInvoiceId}, richiede_fattura: ${richiede_fattura}`);
 

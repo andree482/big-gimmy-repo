@@ -1,5 +1,8 @@
 import { Resend } from 'resend';
 
+// Prefisso oggetto email (da rimuovere in produzione)
+const SUBJECT_PREFIX = '[SITO PROVA] ';
+
 // Configurazione indirizzi
 const ADMIN_EMAIL = 'help@biggimmyintegratori.com';
 const FROM_EMAIL = 'noreply@biggimmyintegratori.com';
@@ -165,7 +168,7 @@ export async function sendAdminNotification(formData: ContactFormData): Promise<
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
       reply_to: email,
-      subject: `Nuovo messaggio da ${name}`,
+      subject: `${SUBJECT_PREFIX}Nuovo messaggio da ${name}`,
       html: emailHTML,
     });
 
@@ -193,7 +196,7 @@ export async function sendUserConfirmation(formData: ContactFormData): Promise<b
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [email],
       reply_to: REPLY_TO_EMAIL,
-      subject: 'Abbiamo ricevuto il tuo messaggio - Big Gimmy Integratori',
+      subject: SUBJECT_PREFIX + 'Abbiamo ricevuto il tuo messaggio - Big Gimmy Integratori',
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -358,8 +361,8 @@ export async function sendOrderConfirmationEmail(orderData: OrderEmailData): Pro
       from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [userEmail],
       subject: isPickup
-        ? `✅ Ordine Confermato #${orderId.slice(-8).toUpperCase()} - Ritiro presso ${storeInfo?.name || 'negozio'}`
-        : `✅ Ordine Confermato #${orderId.slice(-8).toUpperCase()}`,
+        ? `${SUBJECT_PREFIX}✅ Ordine Confermato #${orderId.slice(-8).toUpperCase()} - Ritiro presso ${storeInfo?.name || 'negozio'}`
+        : `${SUBJECT_PREFIX}✅ Ordine Confermato #${orderId.slice(-8).toUpperCase()}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -562,8 +565,8 @@ export async function sendAdminOrderNotification(orderData: OrderEmailData): Pro
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
       subject: isPickup
-        ? `🏪 Nuovo Ordine RITIRO #${orderId.slice(-8).toUpperCase()} - ${storeInfo?.name || 'Negozio'} - €${(total / 100).toFixed(2)}`
-        : `🛒 Nuovo Ordine #${orderId.slice(-8).toUpperCase()} - €${(total / 100).toFixed(2)}`,
+        ? `${SUBJECT_PREFIX}🏪 Nuovo Ordine RITIRO #${orderId.slice(-8).toUpperCase()} - ${storeInfo?.name || 'Negozio'} - €${(total / 100).toFixed(2)}`
+        : `${SUBJECT_PREFIX}🛒 Nuovo Ordine #${orderId.slice(-8).toUpperCase()} - €${(total / 100).toFixed(2)}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -705,7 +708,7 @@ export async function sendWelcomeEmail(userData: { email: string; firstName?: st
     const { error } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [email],
-      subject: 'Benvenuto in Big Gimmy! 💪',
+      subject: SUBJECT_PREFIX + 'Benvenuto in Big Gimmy! 💪',
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -784,7 +787,7 @@ export async function sendPersonalizedReply(
     const { error } = await resend.emails.send({
       from: `Team Big Gimmy <${FROM_EMAIL}>`,
       to: [recipientEmail],
-      subject: subject,
+      subject: SUBJECT_PREFIX + subject,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -857,7 +860,7 @@ export async function sendTrackingEmail(trackingData: any): Promise<boolean> {
     const { error } = await resend.emails.send({
       from: `Spedizioni Big Gimmy <${FROM_EMAIL}>`,
       to: [userEmail],
-      subject: `🚚 Il tuo ordine #${orderId.slice(-8).toUpperCase()} è in viaggio!`,
+      subject: `${SUBJECT_PREFIX}🚚 Il tuo ordine #${orderId.slice(-8).toUpperCase()} è in viaggio!`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -954,7 +957,7 @@ export async function sendTrackingEmail(trackingData: any): Promise<boolean> {
     const { error: adminError } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
-      subject: `📦 Tracking inserito per ordine #${orderId.slice(-8).toUpperCase()} - ${carrier}`,
+      subject: `${SUBJECT_PREFIX}📦 Tracking inserito per ordine #${orderId.slice(-8).toUpperCase()} - ${carrier}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -1082,7 +1085,7 @@ export async function sendPickupReadyEmail(data: PickupReadyEmailData): Promise<
     const { error } = await resend.emails.send({
       from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [userEmail],
-      subject: `📦 Il tuo ordine #${orderId.slice(-8).toUpperCase()} è pronto per il ritiro!`,
+      subject: `${SUBJECT_PREFIX}📦 Il tuo ordine #${orderId.slice(-8).toUpperCase()} è pronto per il ritiro!`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -1174,7 +1177,7 @@ export async function sendPickupReadyEmail(data: PickupReadyEmailData): Promise<
     const { error: adminError } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
-      subject: `🏪 Ordine #${orderId.slice(-8).toUpperCase()} segnato come pronto per il ritiro - ${storeInfo.name}`,
+      subject: `${SUBJECT_PREFIX}🏪 Ordine #${orderId.slice(-8).toUpperCase()} segnato come pronto per il ritiro - ${storeInfo.name}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -1240,8 +1243,8 @@ export async function sendOrderDeliveredEmail(data: OrderDeliveredEmailData): Pr
   const headerTitle = isPickup ? 'Ordine ritirato con successo!' : 'Il tuo ordine è stato consegnato!';
   const subjectEmoji = isPickup ? '🏪' : '✅';
   const subjectText = isPickup
-    ? `${subjectEmoji} Ordine #${shortId} ritirato con successo!`
-    : `${subjectEmoji} Ordine #${shortId} consegnato con successo!`;
+    ? `${SUBJECT_PREFIX}${subjectEmoji} Ordine #${shortId} ritirato con successo!`
+    : `${SUBJECT_PREFIX}${subjectEmoji} Ordine #${shortId} consegnato con successo!`;
 
   const storeInfo = isPickup && pickupStore ? STORE_INFO[pickupStore] : null;
 
@@ -1336,8 +1339,8 @@ export async function sendOrderDeliveredEmail(data: OrderDeliveredEmailData): Pr
 
   // Email admin
   const adminSubject = isPickup
-    ? `🏪 Ordine #${shortId} ritirato dal cliente`
-    : `✅ Ordine #${shortId} consegnato al cliente`;
+    ? `${SUBJECT_PREFIX}🏪 Ordine #${shortId} ritirato dal cliente`
+    : `${SUBJECT_PREFIX}✅ Ordine #${shortId} consegnato al cliente`;
   const trackingAdminInfo = !isPickup && trackingNumber && carrier
     ? `<br>Corriere: <strong>${carrier}</strong> - Tracking: <strong>${trackingNumber}</strong>`
     : '';
@@ -1437,8 +1440,8 @@ export async function sendPickupReminderEmail(data: PickupReminderEmailData): Pr
 
   const is4Days = type === '4days';
   const subjectClient = is4Days
-    ? `⏰ Promemoria: ritira il tuo ordine #${shortId}`
-    : `🚨 Ultimo avviso: ritira il tuo ordine #${shortId} entro 24 ore!`;
+    ? `${SUBJECT_PREFIX}⏰ Promemoria: ritira il tuo ordine #${shortId}`
+    : `${SUBJECT_PREFIX}🚨 Ultimo avviso: ritira il tuo ordine #${shortId} entro 24 ore!`;
 
   const headerGradient = is4Days
     ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)'
@@ -1505,8 +1508,8 @@ export async function sendPickupReminderEmail(data: PickupReminderEmailData): Pr
   // Email admin
   const daysLabel = is4Days ? '4 giorni' : '6 giorni';
   const adminSubject = is4Days
-    ? `⏰ Promemoria inviato: ordine #${shortId} in attesa di ritiro da 4 giorni`
-    : `🚨 Avviso finale inviato: ordine #${shortId} in attesa di ritiro da 6 giorni`;
+    ? `${SUBJECT_PREFIX}⏰ Promemoria inviato: ordine #${shortId} in attesa di ritiro da 4 giorni`
+    : `${SUBJECT_PREFIX}🚨 Avviso finale inviato: ordine #${shortId} in attesa di ritiro da 6 giorni`;
   const adminHTML = `
     <!DOCTYPE html>
     <html lang="it">
@@ -1617,7 +1620,7 @@ export async function sendRefundRequestEmail(data: RefundRequestData): Promise<b
     const { error: clientError } = await resend.emails.send({
       from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [email],
-      subject: `📋 Richiesta di rimborso ricevuta - Ordine #${shortId}`,
+      subject: `${SUBJECT_PREFIX}📋 Richiesta di rimborso ricevuta - Ordine #${shortId}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -1681,7 +1684,7 @@ export async function sendRefundRequestEmail(data: RefundRequestData): Promise<b
     const { error: adminError } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
-      subject: `🔴 Richiesta di Rimborso - Ordine #${shortId} - ${name}`,
+      subject: `${SUBJECT_PREFIX}🔴 Richiesta di Rimborso - Ordine #${shortId} - ${name}`,
       ...(attachments && attachments.length > 0 && {
         attachments: attachments.map(a => ({ filename: a.filename, content: a.content })),
       }),
@@ -1803,7 +1806,7 @@ export async function sendRefundCompletedEmail(data: RefundCompletedData): Promi
     const { error: clientError } = await resend.emails.send({
       from: `Ordini Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [userEmail],
-      subject: `✅ Rimborso effettuato - Ordine #${shortId}`,
+      subject: `${SUBJECT_PREFIX}✅ Rimborso effettuato - Ordine #${shortId}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">
@@ -1893,7 +1896,7 @@ export async function sendRefundCompletedEmail(data: RefundCompletedData): Promi
     const { error: adminError } = await resend.emails.send({
       from: `Big Gimmy Integratori <${FROM_EMAIL}>`,
       to: [ADMIN_EMAIL],
-      subject: `✅ Rimborso elaborato - Ordine #${shortId} - ${userName}`,
+      subject: `${SUBJECT_PREFIX}✅ Rimborso elaborato - Ordine #${shortId} - ${userName}`,
       html: `
         <!DOCTYPE html>
         <html lang="it">

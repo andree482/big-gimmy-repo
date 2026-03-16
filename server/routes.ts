@@ -5041,21 +5041,6 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
             ? { customer: stripeCustomerId }
             : { customer_email: user.email || undefined }
           ),
-          // Abilita emissione automatica ricevuta/fattura dopo il pagamento
-          invoice_creation: {
-            enabled: true,
-            invoice_data: {
-              metadata: {
-                order_id: orderId || "",
-                user_id: user.id,
-                richiede_fattura: fatturaData ? "si" : "no",
-              },
-              ...(fatturaCustomFields.length > 0 && {
-                custom_fields: fatturaCustomFields,
-                footer: "Documento emesso su richiesta. Per fattura fiscale conforme SDI contattare info@biggimmy.it",
-              }),
-            },
-          },
           metadata: {
             user_id: user.id,
             order_id: orderId || "",
@@ -5068,6 +5053,8 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
             fattura_intestatario: fatturaData?.intestatario?.slice(0, 200) || "",
             fattura_cf: fatturaData?.codice_fiscale?.slice(0, 20) || "",
             fattura_piva: fatturaData?.partita_iva?.slice(0, 20) || "",
+            fattura_pec: fatturaData?.pec?.slice(0, 200) || "",
+            fattura_sdi: fatturaData?.sdi?.slice(0, 20) || "",
           },
         });
 
