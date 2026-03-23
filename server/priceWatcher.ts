@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 
 const CREDENTIALS_PATH = 'google-credentials.json';
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
-const PRIVATE_SHEET_NAME = 'Prezzi Prodotti - Sito Privato';
+const PRIVATE_SHEET_NAME = 'Prezzi Prodotti';
 
 async function authenticate() {
   const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
@@ -15,8 +15,6 @@ async function authenticate() {
 }
 
 async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
-  console.log(`📊 [PriceWatcher] Leggo prezzi da "${sheetName}"...`);
-
   const auth = await authenticate();
   const sheets = google.sheets({ version: 'v4', auth });
 
@@ -27,7 +25,6 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
 
   const rows = response.data.values;
   if (!rows || rows.length <= 1) {
-    console.log(`[PriceWatcher] Nessun dato nel foglio "${sheetName}"`);
     return;
   }
 
@@ -88,21 +85,15 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
 
       if (Object.keys(updates).length > 0) {
         await db.update(productOptions).set(updates).where(eq(productOptions.id, targetOption.id));
-
-        const label = [flavor, size].filter(Boolean).join(' / ') || '(nessuna variante)';
-        if (updates.priceCents !== undefined) {
-          console.log(`   ✏️  prod ${productId} [${label}]: ${targetOption.priceCents}¢ → ${finalPriceInCents}¢ (sconto ${discountPct}%)`);
-        }
-        if (updates.inStock !== undefined) {
-          console.log(`   📦  prod ${productId} [${label}]: disponibilità → ${updates.inStock ? 'SI' : 'NO'}`);
-        }
       }
     } catch {
       errorCount++;
     }
   }
 
-  console.log(`✅ [PriceWatcher] Sync completata — prezzi: ${updatedCount}, disponibilità: ${availabilityUpdatedCount}, errori: ${errorCount}`);
+  if (updatedCount > 0 || availabilityUpdatedCount > 0) {
+    console.log(`✅ [PriceWatcher] Aggiornati ${updatedCount} prezzi, ${availabilityUpdatedCount} disponibilità`);
+  }
 }
 
 export class PriceWatcher {
@@ -143,9 +134,6 @@ export class PriceWatcher {
   }
 
   private runSync() {
-    const time = new Date().toLocaleTimeString('it-IT');
-    console.log(`🔄 [${time}] PriceWatcher: controllo prezzi...`);
-
     syncPricesFromSheet(this.spreadsheetId, this.sheetName).catch((err) => {
       console.error(`❌ [PriceWatcher] Errore sync:`, err?.message || err);
     });

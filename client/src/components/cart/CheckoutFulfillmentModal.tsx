@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Package, Store, MapPin, Clock, Edit, FileText } from "lucide-react";
+import { Package, Store, MapPin, Clock, Edit/*, FileText*/ } from "lucide-react";
 
 export interface FatturaData {
   tipo: "privato" | "azienda";
@@ -265,7 +265,7 @@ export function CheckoutFulfillmentModal({
             </div>
           )}
 
-          {/* Sezione richiesta fattura */}
+          {/* SEZIONE FATTURAZIONE — temporaneamente disabilitata, da riabilitare in seguito
           <div className="pt-2 border-t space-y-4">
             <div className="flex items-start space-x-3">
               <Checkbox
@@ -286,7 +286,7 @@ export function CheckoutFulfillmentModal({
                   La fattura elettronica verrà emessa manualmente e caricata nella tua area ordini. Riceverai anche notifica via SDI o PEC.
                 </p>
 
-                {/* Tipo: Privato / Azienda */}
+                [Tipo: Privato / Azienda]
                 <div className="space-y-1">
                   <Label className="text-xs font-medium text-gray-700">Tipo soggetto</Label>
                   <RadioGroup
@@ -305,7 +305,7 @@ export function CheckoutFulfillmentModal({
                   </RadioGroup>
                 </div>
 
-                {/* Intestatario */}
+                [Intestatario]
                 <div className="space-y-1">
                   <Label htmlFor="fattura-intestatario" className="text-xs font-medium text-gray-700">
                     {fatturaData.tipo === "azienda" ? "Ragione sociale *" : "Nome e Cognome *"}
@@ -319,7 +319,7 @@ export function CheckoutFulfillmentModal({
                   />
                 </div>
 
-                {/* CF o P.IVA */}
+                [CF o P.IVA]
                 {fatturaData.tipo === "privato" ? (
                   <div className="space-y-1">
                     <Label htmlFor="fattura-cf" className="text-xs font-medium text-gray-700">Codice Fiscale *</Label>
@@ -346,7 +346,7 @@ export function CheckoutFulfillmentModal({
                   </div>
                 )}
 
-                {/* SDI e PEC (solo azienda) — almeno uno obbligatorio */}
+                [SDI e PEC (solo azienda) — almeno uno obbligatorio]
                 {fatturaData.tipo === "azienda" && (
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
@@ -386,6 +386,7 @@ export function CheckoutFulfillmentModal({
               </div>
             )}
           </div>
+          */}
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">

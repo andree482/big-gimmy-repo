@@ -3962,7 +3962,7 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
       }
 
       // Start new watcher
-      (global as any).priceWatcher = new PriceWatcher(spreadsheetId);
+      (global as any).priceWatcher = new PriceWatcher(spreadsheetId, 'Prezzi Prodotti');
       (global as any).priceWatcher.start(intervalMinutes);
 
       res.json({ 
