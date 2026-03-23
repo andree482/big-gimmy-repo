@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Progress } from "@/components/ui/progress";
-import { ShoppingCart, Percent, Target, Store, MapPin, Clock } from "lucide-react";
+import { ShoppingCart, Tag, Target, Store, MapPin, Clock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { CheckoutAuthModal } from "./CheckoutAuthModal";
 import { CheckoutAddressModal } from "./CheckoutAddressModal";
@@ -13,7 +13,6 @@ interface CheckoutSummaryProps {
   itemCount: number;
 }
 
-const DISCOUNT_PERCENTAGE = 10;
 const MINIMUM_ORDER = 50;
 const FREE_SHIPPING_THRESHOLD = 160;
 
@@ -29,21 +28,17 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
   const { toast } = useToast();
 
   const calculations = useMemo(() => {
-    const discountAmount = cartTotal * (DISCOUNT_PERCENTAGE / 100);
-    const totalAfterDiscount = cartTotal - discountAmount;
-    const amountNeeded = Math.max(0, MINIMUM_ORDER - totalAfterDiscount);
-    const progressPercentage = totalAfterDiscount >= MINIMUM_ORDER ? 100 : Math.max(0, (totalAfterDiscount / MINIMUM_ORDER) * 100);
-    const qualifiesForFreeShipping = totalAfterDiscount >= FREE_SHIPPING_THRESHOLD;
-    const shippingNeeded = Math.max(0, FREE_SHIPPING_THRESHOLD - totalAfterDiscount);
-    const isPickup = fulfillmentType === 'ritiro';
+    // I prezzi in price_cents includono già lo sconto del 20% — nessun ulteriore sconto qui
+    const amountNeeded = Math.max(0, MINIMUM_ORDER - cartTotal);
+    const progressPercentage = cartTotal >= MINIMUM_ORDER ? 100 : Math.max(0, (cartTotal / MINIMUM_ORDER) * 100);
+    const qualifiesForFreeShipping = cartTotal >= FREE_SHIPPING_THRESHOLD;
+    const shippingNeeded = Math.max(0, FREE_SHIPPING_THRESHOLD - cartTotal);
     // TEST: spedizione sempre gratuita (commentare per ripristinare)
-    const shippingCost = 0; // isPickup ? 0 : (qualifiesForFreeShipping ? 0 : 12);
-    const freeShippingProgress = totalAfterDiscount >= FREE_SHIPPING_THRESHOLD ? 100 : Math.max(0, (totalAfterDiscount / FREE_SHIPPING_THRESHOLD) * 100);
-    const finalTotal = totalAfterDiscount + shippingCost;
+    const shippingCost = 0; // fulfillmentType === 'ritiro' ? 0 : (qualifiesForFreeShipping ? 0 : 12);
+    const freeShippingProgress = cartTotal >= FREE_SHIPPING_THRESHOLD ? 100 : Math.max(0, (cartTotal / FREE_SHIPPING_THRESHOLD) * 100);
+    const finalTotal = cartTotal + shippingCost;
 
     return {
-      discountAmount,
-      totalAfterDiscount,
       amountNeeded,
       progressPercentage,
       qualifiesForFreeShipping,
@@ -52,7 +47,7 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
       freeShippingProgress,
       finalTotal,
       // TEST: minimo d'ordine disabilitato (commentare per ripristinare)
-      canCheckout: true, // totalAfterDiscount >= MINIMUM_ORDER
+      canCheckout: true, // cartTotal >= MINIMUM_ORDER
     };
   }, [cartTotal, fulfillmentType]);
 
@@ -99,25 +94,16 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
       </div>
 
       <div className="p-6 space-y-4">
-        {/* Totale originale */}
+        {/* Subtotale (sconto 20% già incluso nei prezzi) */}
         <div className="flex justify-between items-center">
           <span className="text-gray-600">Subtotale:</span>
           <span className="font-medium">€{cartTotal.toFixed(2)}</span>
         </div>
 
-        {/* Sconto */}
-        <div className="flex justify-between items-center text-green-600 bg-green-50 p-3 rounded-lg">
-          <span className="flex items-center gap-2">
-            <Percent className="h-4 w-4" />
-            Sconto {DISCOUNT_PERCENTAGE}%:
-          </span>
-          <span className="font-semibold">-€{calculations.discountAmount.toFixed(2)}</span>
-        </div>
-
-        {/* Totale dopo sconto */}
-        <div className="flex justify-between items-center border-t pt-3">
-          <span className="text-gray-600">Totale (dopo sconto):</span>
-          <span className="font-semibold">€{calculations.totalAfterDiscount.toFixed(2)}</span>
+        {/* Banner sconto incluso */}
+        <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 p-3 rounded-lg text-sm">
+          <Tag className="h-4 w-4 flex-shrink-0" />
+          <span className="font-medium">Sconto 20% già incluso in tutti i prezzi</span>
         </div>
 
         {/* Gestione spedizione dinamica */}
@@ -318,7 +304,7 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
 
         {/* Note aggiuntive */}
         <div className="text-xs text-gray-500 text-center space-y-1">
-          <p>✓ Sconto {DISCOUNT_PERCENTAGE}% già applicato</p>
+          <p>✓ Sconto 20% già incluso nei prezzi</p>
           <p>✓ Prezzi IVA inclusa</p>
           <p>✓ Spedizione gratuita da €{FREE_SHIPPING_THRESHOLD}</p>
           <p>✓ Ritiro in negozio sempre gratuito</p>

@@ -46,10 +46,14 @@ const availableVariants = variantsState.map((v: any) => {
     : typeof v.price === 'number'
       ? v.price
       : 0;
+  const originalPriceCents = typeof v.original_price_cents === 'number' ? v.original_price_cents : 0;
+  const originalPrice = originalPriceCents > 0 && originalPriceCents !== (typeof v.price_cents === 'number' ? v.price_cents : 0)
+    ? originalPriceCents / 100
+    : undefined;
   const inStock = (v.in_stock ?? v.inStock) !== false;
   const image = v.image;
   const display = `${(v.flavor ?? '').toString()} ${(v.size ?? '').toString()}`.replace(/Unico/gi, '').trim();
-  return { id, numericId, product_id, display, price, inStock, image };
+  return { id, numericId, product_id, display, price, originalPrice, inStock, image };
 });
 
 
@@ -137,6 +141,7 @@ const availableVariants = variantsState.map((v: any) => {
       slug: product.slug,
       name: product.name,
       price: selectedVariantData.price,
+      originalPrice: selectedVariantData.originalPrice,
       variant: normalizeDisplay(selectedVariantData.display?.split(' ')[0], selectedVariantData.display?.split(' ').slice(1).join(' ')),
       quantity,
       image: selectedVariantData.image

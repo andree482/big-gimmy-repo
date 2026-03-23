@@ -9,6 +9,7 @@ export interface CartItem {
   product_id: number;
   name: string;
   price: number;
+  originalPrice?: number;
   variant: string;
   quantity: number;
   image?: string;
@@ -50,6 +51,8 @@ export function useCart() {
             const id = Number(po.id ?? row.id);
             const priceCents = Number(po.price_cents ?? 0);
             const price = priceCents / 100;
+            const originalPriceCents = Number(po.original_price_cents ?? 0);
+            const originalPrice = originalPriceCents > 0 && originalPriceCents !== priceCents ? originalPriceCents / 100 : undefined;
             const flavor = String(po.flavor ?? "");
             const size = String(po.size ?? "");
             const variant = `${flavor} ${size}`.trim();
@@ -57,7 +60,7 @@ export function useCart() {
             const quantity = Number(row.quantity ?? 1);
             const name = String(po.products?.name ?? row.name ?? "");
             const productId = Number(row.product_id ?? 0);
-            return { product_option_id: id, product_id: productId, name, price, variant, quantity, image } as CartItem;
+            return { product_option_id: id, product_id: productId, name, price, originalPrice, variant, quantity, image } as CartItem;
           });
           setItems(mapped);
         } catch (e) {
@@ -99,6 +102,7 @@ export function useCart() {
         typeof product.price === "string"
           ? parseFloat(product.price.replace(",", "."))
           : product.price,
+      originalPrice: typeof product.originalPrice === "number" ? product.originalPrice : undefined,
       quantity: Number(product.quantity),
       image: product.image,
     };
@@ -149,6 +153,8 @@ export function useCart() {
           const id = Number(po.id ?? row.id);
           const priceCents = Number(po.price_cents ?? 0);
           const price = priceCents / 100;
+          const originalPriceCents = Number(po.original_price_cents ?? 0);
+          const originalPrice = originalPriceCents > 0 && originalPriceCents !== priceCents ? originalPriceCents / 100 : undefined;
           const flavor = String(po.flavor ?? "");
           const size = String(po.size ?? "");
           const variant = `${flavor} ${size}`.trim();
@@ -157,7 +163,7 @@ export function useCart() {
           const products = (po as any).products || {};
           const name = String(products.name ?? row.name ?? "");
           const productId = Number(row.product_id ?? products.id ?? newItem.product_id ?? 0);
-          return { product_option_id: id, product_id: productId, name, price, variant, quantity, image } as CartItem;
+          return { product_option_id: id, product_id: productId, name, price, originalPrice, variant, quantity, image } as CartItem;
         });
         setItems(mapped);
       } catch (_) {
@@ -209,6 +215,8 @@ export function useCart() {
           const id = Number(po.id ?? row.id);
           const priceCents = Number(po.price_cents ?? 0);
           const price = priceCents / 100;
+          const originalPriceCents = Number(po.original_price_cents ?? 0);
+          const originalPrice = originalPriceCents > 0 && originalPriceCents !== priceCents ? originalPriceCents / 100 : undefined;
           const flavor = String(po.flavor ?? "");
           const size = String(po.size ?? "");
           const variantStr = `${flavor} ${size}`.trim();
@@ -217,7 +225,7 @@ export function useCart() {
           const products = (po as any).products || {};
           const name = String(products.name ?? row.name ?? "");
           const productId = Number(row.product_id ?? products.id ?? 0);
-          return { product_option_id: id, product_id: productId, name, price, variant: variantStr, quantity, image } as CartItem;
+          return { product_option_id: id, product_id: productId, name, price, originalPrice, variant: variantStr, quantity, image } as CartItem;
         });
         setItems(mapped);
       } catch (e: any) {
@@ -262,6 +270,8 @@ export function useCart() {
           const id = Number(po.id ?? row.id);
           const priceCents = Number(po.price_cents ?? 0);
           const price = priceCents / 100;
+          const originalPriceCents = Number(po.original_price_cents ?? 0);
+          const originalPrice = originalPriceCents > 0 && originalPriceCents !== priceCents ? originalPriceCents / 100 : undefined;
           const flavor = String(po.flavor ?? "");
           const size = String(po.size ?? "");
           const variantStr = `${flavor} ${size}`.trim();
@@ -270,7 +280,7 @@ export function useCart() {
           const products = (po as any).products || {};
           const name = String(products.name ?? row.name ?? "");
           const productId = Number(row.product_id ?? products.id ?? 0);
-          return { product_option_id: id, product_id: productId, name, price, variant: variantStr, quantity: qty, image } as CartItem;
+          return { product_option_id: id, product_id: productId, name, price, originalPrice, variant: variantStr, quantity: qty, image } as CartItem;
         });
         setItems(mapped);
       } catch (e: any) {
