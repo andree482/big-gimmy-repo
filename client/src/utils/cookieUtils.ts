@@ -53,7 +53,6 @@ export function getCookiePreferences(): CookiePreferences {
       return { ...defaultPreferences, ...parsed, necessary: true };
     }
   } catch (error) {
-    console.warn('Error parsing cookie preferences:', error);
   }
 
   return defaultPreferences;

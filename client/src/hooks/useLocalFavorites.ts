@@ -55,7 +55,6 @@ export function useLocalFavorites() {
       const stored = localStorage.getItem(FAVORITES_KEY);
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
-      console.error('Error parsing favorites from localStorage:', error);
       return [];
     }
   };
@@ -65,7 +64,6 @@ export function useLocalFavorites() {
     try {
       localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
     } catch (error) {
-      console.error('Error saving favorites to localStorage:', error);
     }
   };
 
@@ -75,7 +73,6 @@ export function useLocalFavorites() {
       const response = await apiRequest('GET', `/api/product/${productSlug}`);
       return response;
     } catch (error) {
-      console.error('Error fetching product details:', error);
       return null;
     }
   };
@@ -286,7 +283,6 @@ export function useLocalFavorites() {
         });
       }
     } catch (error) {
-      console.error("Error toggling favorite:", error);
     }
   };
 

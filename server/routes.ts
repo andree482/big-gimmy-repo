@@ -4919,8 +4919,7 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
         // Applica sconto 10%
         const totalAfterDiscount = Math.round(subtotalCents * 0.90);
 
-        // TEST: spedizione sempre gratuita (commentare per ripristinare)
-        const shippingCents = 0; // fulfillmentType === 'ritiro' ? 0 : (totalAfterDiscount >= 16000 ? 0 : 1200);
+        const shippingCents = fulfillmentType === 'ritiro' ? 0 : (totalAfterDiscount >= 16000 ? 0 : 1200);
 
         const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((i) => {
           const priceCents = typeof i.price_cents === "number" ? i.price_cents : Math.round(Number(i.price) * 100);

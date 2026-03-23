@@ -43,7 +43,6 @@ export function PendingOrderModal() {
           }
         }
       } catch (error) {
-        console.error('[PENDING ORDER] Errore controllo ordini:', error);
       }
     };
 

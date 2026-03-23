@@ -38,21 +38,17 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onForgotPassword }: L
   });
 
   const onSubmitCred = async (data: CredentialsData) => {
-    console.log("[AUTH-FIX] LoginForm submit triggered", data.email);
     setSubmitting(true);
     
     try {
-      console.log("[AUTH-FIX] Calling login()...");
       await login({
         email: data.email,
         password: data.password,
       });
 
-      console.log("[AUTH-FIX] Login() resolved successfully");
       // Toast gestito da mutation onSuccess, ma ne mettiamo uno qui per ridondanza visiva se serve
       onSuccess?.();
     } catch (error: any) {
-      console.error("[AUTH-FIX] LoginForm caught error:", error);
       const msg = String(error?.message || '').toLowerCase();
       const isTimeout = (error as any)?.code === 'LOGIN_TIMEOUT' || /timeout/i.test(msg);
       const isInvalidCreds = error?.status === 400 || /invalid/.test(msg) || /credential/.test(msg);
@@ -85,7 +81,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onForgotPassword }: L
       </CardHeader>
       <CardContent>
         {
-          <form onSubmit={formCred.handleSubmit(onSubmitCred, (errors) => console.error("[AUTH-FIX] Validation errors:", errors))} className="space-y-4">
+          <form onSubmit={formCred.handleSubmit(onSubmitCred)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" placeholder="mario@example.com" {...formCred.register('email')} />

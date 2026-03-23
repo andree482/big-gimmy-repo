@@ -167,7 +167,6 @@ const useAuthQuery = () => {
           if (mounted && res && res.success && res.authenticated) {
             // Aggiorniamo il ref prima di chiamare setUser
             lastSyncedUserId.current = userId;
-            console.log('[AUTH-CLIENT] Received user from /api/auth/me:', JSON.stringify(res.user));
             setUser(res.user);
             setIsServerVerified(true);
             try {
@@ -220,7 +219,6 @@ const useAuthQuery = () => {
           }
         }
       } catch (e) {
-        console.error("[AUTH-FIX] Error during sync:", e);
         if (mounted) setUser(null);
       } finally {
         isSyncing.current = false;
@@ -289,7 +287,6 @@ const useAuthQuery = () => {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      console.log("[AUTH-FIX] Login attempt starting for:", credentials.email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email: credentials.email,
         password: credentials.password,
@@ -302,7 +299,6 @@ const useAuthQuery = () => {
       return data.user;
     },
     onSuccess: async (user: any) => {
-      console.log("[AUTH-FIX] Login mutation success:", user?.email);
 
       // GARANTIRE che il token sia disponibile
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -319,7 +315,6 @@ const useAuthQuery = () => {
             timeoutMs: 8000
           });
         } catch (firstErr) {
-          console.warn("[AUTH-FIX] Prima chiamata /me fallita, retry dopo refresh...");
           await supabase.auth.refreshSession();
           await new Promise(resolve => setTimeout(resolve, 300));
           me = await apiRequest("GET", "/api/auth/me", undefined, {
@@ -341,7 +336,6 @@ const useAuthQuery = () => {
         queryClient.setQueryData(["/api/auth/user"], me.user);
 
       } catch (e) {
-        console.error("[AUTH-FIX] Login onSuccess error:", e);
         throw e; // Propaga l'errore per mostrare toast di errore
       }
 
@@ -351,7 +345,6 @@ const useAuthQuery = () => {
       });
     },
     onError: (error: any) => {
-      console.error("[AUTH-FIX] Login mutation error:", error);
       toast({
         title: "Errore login",
         description: error.message,
@@ -446,7 +439,6 @@ const useAuthQuery = () => {
         // Aspetta che Supabase propaghi
         await new Promise(resolve => setTimeout(resolve, 300));
       } catch (e) {
-        console.warn("[AUTH] Supabase metadata update failed:", e);
       }
 
       // 2) Persisti nel profilo applicativo
@@ -479,7 +471,6 @@ const useAuthQuery = () => {
         setUser(data.user);
       } else {
         // Fallback: refetch esplicito
-        console.warn("[AUTH] updateProfile success ma nessun user, refetch...");
         try {
           const fresh = await apiRequest("GET", "/api/auth/me", undefined, {
             suppressAuthModal: true
@@ -488,7 +479,6 @@ const useAuthQuery = () => {
             setUser(fresh.user);
           }
         } catch (e) {
-          console.error("[AUTH] Refetch fallito:", e);
         }
       }
     },

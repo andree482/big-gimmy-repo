@@ -29,7 +29,6 @@ export default function ResetPassword() {
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
-          console.error('Errore recupero sessione:', error);
           setStatus('error');
           setErrorMessage('Link non valido o scaduto. Richiedi un nuovo link di reset.');
           return;
@@ -46,7 +45,6 @@ export default function ResetPassword() {
           setErrorMessage('Link non valido. Richiedi un nuovo link di reset password.');
         }
       } catch (err) {
-        console.error('Errore:', err);
         setStatus('error');
         setErrorMessage('Si è verificato un errore imprevisto.');
       }
@@ -106,7 +104,7 @@ export default function ResetPassword() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${sessionData.session.access_token}`
           }
-        }).catch(err => console.error('Errore invio email conferma:', err));
+        }).catch(() => {});
       }
 
       setStatus('success');

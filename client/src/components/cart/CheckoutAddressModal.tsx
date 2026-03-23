@@ -87,7 +87,6 @@ export function CheckoutAddressModal({
         setShowNewAddressForm(true);
       }
     } catch (error) {
-      console.error("Errore caricamento indirizzi:", error);
       setAddresses([]);
       setShowNewAddressForm(true);
     } finally {
@@ -139,7 +138,6 @@ export function CheckoutAddressModal({
         });
       }
     } catch (error) {
-      console.error("Errore salvataggio indirizzo:", error);
       toast({
         title: "Errore",
         description: "Impossibile salvare l'indirizzo",

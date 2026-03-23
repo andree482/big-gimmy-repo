@@ -163,7 +163,6 @@ export function useFavorites({ userId }: UseFavoritesProps = {}) {
         await addToFavoritesMutation.mutateAsync({ productId });
       }
     } catch (error) {
-      console.error("Error toggling favorite:", error);
       // Rollback in caso di errore
       queryClient.setQueryData<FavoritesResponse>(listKey, previousList);
     }

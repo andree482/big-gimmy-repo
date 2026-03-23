@@ -47,14 +47,12 @@ export default function CheckoutSuccess() {
                 localStorage.removeItem("biggimmy-cart");
                 queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
                 queryClient.invalidateQueries({ queryKey: ["cart"] });
-                console.log("[CHECKOUT SUCCESS] Carrello svuotato con successo");
               } catch (error) {
-                console.error("[CHECKOUT SUCCESS] Errore svuotamento carrello:", error);
               }
             }
           }
         })
-        .catch(console.error)
+        .catch(() => {})
         .finally(() => setLoading(false));
     } else {
       setLoading(false);

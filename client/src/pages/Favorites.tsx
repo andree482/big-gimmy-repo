@@ -39,7 +39,6 @@ const Favorites = () => {
     try {
       await clearAllFavorites();
     } catch (error) {
-      console.error("Error clearing favorites:", error);
     }
   };
 
@@ -47,40 +46,31 @@ const Favorites = () => {
 
   // Usa la stessa logica della pagina Products per coerenza
   const getProductImage = (product: any) => {
-    console.log('🔍 [Favorites] getProductImage chiamata per:', product.name);
-    console.log('🔍 [Favorites] product.slug:', product.slug);
-    console.log('🔍 [Favorites] product.primaryImage:', product.primaryImage);
-    console.log('🔍 [Favorites] product.primary_image:', product.primary_image);
 
     // 1. Prova images array (prodotti statici)
     if (product.images && product.images.length > 0 && product.images[0].src) {
-      console.log('✅ [Favorites] Usando images[0].src:', product.images[0].src);
       return product.images[0].src;
     }
 
     // 2. Prova primaryImage dal backend (dopo il processing)
     const primaryImg = product.primaryImage || product.primary_image;
     if (primaryImg && typeof primaryImg === 'string' && primaryImg.length > 0) {
-      console.log('✅ [Favorites] Usando primaryImage:', primaryImg);
       return primaryImg;
     }
 
     // 3. Fallback su getProductImagePath con slug (usa il mapping completo)
     if (product.slug) {
       const imagePath = getProductImagePath(product.slug);
-      console.log('✅ [Favorites] Usando getProductImagePath con slug:', imagePath);
       return imagePath;
     }
 
     // 4. Fallback su getProductImagePath con ID
     if (product.id) {
       const imagePath = getProductImagePath(product.id.toString());
-      console.log('✅ [Favorites] Usando getProductImagePath con ID:', imagePath);
       return imagePath;
     }
 
     // 5. Placeholder finale
-    console.log('⚠️ [Favorites] Usando placeholder');
     return "/images/placeholder-product.jpg";
   };
 

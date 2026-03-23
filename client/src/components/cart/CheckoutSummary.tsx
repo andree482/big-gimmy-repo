@@ -33,8 +33,7 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
     const progressPercentage = cartTotal >= MINIMUM_ORDER ? 100 : Math.max(0, (cartTotal / MINIMUM_ORDER) * 100);
     const qualifiesForFreeShipping = cartTotal >= FREE_SHIPPING_THRESHOLD;
     const shippingNeeded = Math.max(0, FREE_SHIPPING_THRESHOLD - cartTotal);
-    // TEST: spedizione sempre gratuita (commentare per ripristinare)
-    const shippingCost = 0; // fulfillmentType === 'ritiro' ? 0 : (qualifiesForFreeShipping ? 0 : 12);
+    const shippingCost = fulfillmentType === 'ritiro' ? 0 : (qualifiesForFreeShipping ? 0 : 12);
     const freeShippingProgress = cartTotal >= FREE_SHIPPING_THRESHOLD ? 100 : Math.max(0, (cartTotal / FREE_SHIPPING_THRESHOLD) * 100);
     const finalTotal = cartTotal + shippingCost;
 
@@ -66,7 +65,6 @@ export default function CheckoutSummary({ cartTotal, itemCount }: CheckoutSummar
         toast({ title: "Checkout non disponibile", description: "Configurare Stripe lato server" });
       }
     } catch (error) {
-      console.error("Errore checkout:", error);
       toast({ title: "Errore", description: "Impossibile procedere al checkout", variant: "destructive" });
     } finally {
       setLoadingCheckout(false);

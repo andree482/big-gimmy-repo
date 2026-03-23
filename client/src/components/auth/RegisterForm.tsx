@@ -100,7 +100,6 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
     const safety = setTimeout(() => setSubmitting(false), 3000);
     try {
       const { confirmPassword, ...registerData } = data;
-      console.log('[REGISTER FORM] Dati da inviare:', registerData);
       const result = await register(registerData);
       setRegistered(true);
       setRegisteredEmail(data.email);

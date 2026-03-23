@@ -27,7 +27,6 @@ export function useCart() {
   useEffect(() => {
     const loadCart = async () => {
       if (isAuthenticated && user) {
-        console.log("🛒 Utente loggato → caricamento carrello Supabase…");
 
         // Trasferisci carrello guest su Supabase
         const guest = localStorage.getItem("biggimmy-cart");
@@ -64,10 +63,8 @@ export function useCart() {
           });
           setItems(mapped);
         } catch (e) {
-          console.warn("Supabase cart non disponibile", e);
         }
       } else {
-        console.log("🛒 Guest → caricamento da localStorage");
         const saved = localStorage.getItem("biggimmy-cart");
         if (saved) setItems(JSON.parse(saved));
       }
@@ -91,7 +88,6 @@ export function useCart() {
   // ➕ Add to cart
   // ----------------------------------------
   const addToCart = async (product: any) => {
-    console.log("🛒 [DEBUG] Prodotto ricevuto addToCart:", product);
 
     const newItem: CartItem = {
       product_option_id: Number(product.product_option_id),

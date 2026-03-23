@@ -17,7 +17,6 @@ export default function AuthCallback() {
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
-          console.error('Errore verifica:', error);
           setStatus('error');
           setMessage('Si è verificato un errore durante la verifica.');
           toast({
@@ -38,7 +37,6 @@ export default function AuthCallback() {
           });
 
           // Invia email di benvenuto dopo verifica (non bloccante)
-          console.log('[AuthCallback] Chiamata /api/auth/send-welcome...');
           fetch('/api/auth/send-welcome', {
             method: 'POST',
             headers: {
@@ -48,9 +46,8 @@ export default function AuthCallback() {
           })
             .then(res => res.json())
             .then(result => {
-              console.log('[AuthCallback] Risposta send-welcome:', result);
             })
-            .catch(err => console.error('[AuthCallback] Errore invio welcome email:', err));
+            .catch(() => {});
 
           // Redirect alla home dopo 2 secondi
           setTimeout(() => {
@@ -64,7 +61,6 @@ export default function AuthCallback() {
           setTimeout(() => setLocation('/'), 3000);
         }
       } catch (err) {
-        console.error('Errore callback:', err);
         setStatus('error');
         setMessage('Si è verificato un errore imprevisto.');
         setTimeout(() => setLocation('/'), 3000);

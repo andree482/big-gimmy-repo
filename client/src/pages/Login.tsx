@@ -19,7 +19,6 @@ export default function Login() {
   // Redirect diretto se già autenticato
   useEffect(() => {
     if (isAuthenticated) {
-      console.log("✅ Utente autenticato, redirect immediato alla home");
       setLocation("/");
     }
   }, [isAuthenticated, setLocation]);
@@ -29,13 +28,11 @@ export default function Login() {
 
     // Prevenire submit multipli
     if (isSubmitting || isLoading) {
-      console.log("🔄 Submit già in corso, ignoro");
       return;
     }
 
     setIsSubmitting(true);
     setLocalError("");
-    console.log("🚀 Iniziando login con codice");
 
     try {
       if (code && code.length > 0) {
@@ -44,10 +41,8 @@ export default function Login() {
         await login({ email, password });
       }
 
-      console.log("✅ Login completato con successo, reindirizzamento...");
       setLocation("/");
     } catch (error) {
-      console.error("❌ Errore durante login:", error);
       setLocalError("Errore di connessione");
     }
     finally {

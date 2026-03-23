@@ -229,9 +229,7 @@ export default function UserProfile({ onClose }: UserProfileProps) {
     setSavingProfile(true);
     const timer = setTimeout(() => setSavingProfile(false), 2200);
     try {
-      console.log("[PROFILE] Saving profile", payload);
       const res = await updateProfile(payload);
-      console.log("[PROFILE] Save response", res);
       toast({
         title: "Profilo aggiornato",
         description: "Le tue informazioni sono state salvate",
@@ -239,7 +237,6 @@ export default function UserProfile({ onClose }: UserProfileProps) {
       // Aggiorna i campi con i dati confermati dal backend
       const refreshed = res?.user ?? null;
       if (refreshed) {
-        console.log("[PROFILE] Resetting form with refreshed data", refreshed);
         profileForm.reset({
           firstName: refreshed.firstName || payload.firstName,
           lastName: refreshed.lastName || payload.lastName,
@@ -252,7 +249,6 @@ export default function UserProfile({ onClose }: UserProfileProps) {
         });
       }
     } catch (error: any) {
-      console.log("[PROFILE] Save error", error);
       toast({
         title: "Errore",
         description: error?.message || "Impossibile salvare le modifiche",
@@ -267,7 +263,6 @@ export default function UserProfile({ onClose }: UserProfileProps) {
   const handleAddressSubmit = (data: AddressData) => {
     // Previeni doppia chiamata usando ref sincrona
     if (isSubmittingAddress.current) {
-      console.log("[ADDRESSES] Richiesta ignorata - submit già in corso");
       return;
     }
     isSubmittingAddress.current = true;

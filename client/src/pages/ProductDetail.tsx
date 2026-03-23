@@ -274,7 +274,6 @@ const renderDynamicNutritionalTable = (features: any, productSlug: string) => {
       </div>
     );
   } catch (error) {
-    console.error('Errore nel parsing dei valori nutrizionali:', error);
     return null;
   }
 };
@@ -1674,7 +1673,6 @@ const renderAlimentiFitNutritionalTable = (features: any, productSlug: string) =
       </div>
     );
   } catch (error) {
-    console.error('Errore nel parsing dei valori Alimenti Fit:', error);
     return null;
   }
 };
@@ -1698,7 +1696,6 @@ const renderVitaminMineralNutritionalTable = (features: any, productSlug: string
     ];
     const shouldHideVNRColumn = hideVNRColumnProducts.includes(productSlug);
 
-    console.log(`🧬 Processing Vitamin/Mineral product: ${productSlug}`, nutritionalData);
 
     let valori = [];
     let dose = 'Per dose';
@@ -1783,11 +1780,9 @@ const renderVitaminMineralNutritionalTable = (features: any, productSlug: string
     }
 
     if (!valori || valori.length === 0) {
-      console.log(`❌ No nutritional values found for vitamin/mineral product: ${productSlug}`);
       return null;
     }
 
-    console.log(`✅ Found ${valori.length} nutritional values for vitamin/mineral product: ${productSlug}`);
 
     return (
       <div className="nutrition-table">
@@ -1856,7 +1851,6 @@ const renderVitaminMineralNutritionalTable = (features: any, productSlug: string
       </div>
     );
   } catch (error) {
-    console.error(`Errore nel parsing dei valori Vitamin/Mineral per ${productSlug}:`, error);
     return null;
   }
 };
@@ -1880,8 +1874,6 @@ const renderEnergeticiNutritionalTable = (features: any, productSlug: string) =>
     ];
     const shouldHideVNRColumn = hideVNRColumnProducts.includes(productSlug);
 
-    console.log(`⚡ Processing Energetici product: ${productSlug}`, nutritionalData);
-    console.log(`🔍 valori_nutrizionali keys:`, Object.keys(nutritionalData?.valori_nutrizionali || {}));
 
     let valoriNutrizionali: any = {};
     let sections: string[] = [];
@@ -1920,15 +1912,12 @@ const renderEnergeticiNutritionalTable = (features: any, productSlug: string) =>
     )) {
       valoriNutrizionali = nutritionalData.valori_nutrizionali;
       sections = Object.keys(valoriNutrizionali);
-      console.log(`🔥 FORMATO 6 BATCH 9 ATTIVATO per ${productSlug}:`, sections);
     }
 
     if (!valoriNutrizionali || Object.keys(valoriNutrizionali).length === 0) {
-      console.log(`❌ No nutritional values found for energetici product: ${productSlug}`);
       return null;
     }
 
-    console.log(`✅ Found nutritional sections for energetici product: ${productSlug}`, sections);
 
     // Raccogliamo tutti i componenti unici
     const allComponents = new Set();
@@ -2080,7 +2069,6 @@ const renderEnergeticiNutritionalTable = (features: any, productSlug: string) =>
       </div>
     );
   } catch (error) {
-    console.error('Errore nel parsing dei valori Energetici:', error);
     return null;
   }
 };
@@ -2334,7 +2322,6 @@ const renderAminoAcidsNutritionalTable = (features: any, productSlug: string) =>
       </div>
     );
   } catch (error) {
-    console.error('Errore nel parsing dei valori aminoacidi:', error);
     return null;
   }
 };
@@ -2360,16 +2347,13 @@ const renderNutritionalInfo = (productSlug: string, features?: any) => {
                              productSlug.includes('aminoacidi-essenziali') || productSlug.includes('aminoacidi-plus') ||
                              productSlug.includes('ramtech-hydro');
 
-  console.log(`🧪 Product ${productSlug} - isAminoAcidProduct: ${isAminoAcidProduct}, features:`, features);
                              
   // PRIORITÀ PREMIER BATCH 8: Gestione specifica per prodotti Premier
   const isPremierProduct = productSlug.includes('-premier') || productSlug.includes('premier-');
   
   if (isPremierProduct && features) {
-    console.log(`🥇 Processing PREMIER BATCH 8 product: ${productSlug} - using dynamic renderer`);
     const premierTable = renderDynamicNutritionalTable(features, productSlug);
     if (premierTable) {
-      console.log(`✅ Successfully rendered Premier nutritional table for: ${productSlug}`);
       return premierTable;
     }
   }
@@ -2383,10 +2367,8 @@ const renderNutritionalInfo = (productSlug: string, features?: any) => {
                                    productSlug.includes('thermo-no-caffeine');
   
   if (isBatch7DimagrantiProduct && features) {
-    console.log(`🔥 Processing BATCH 7 DIMAGRANTI product: ${productSlug} - using dynamic renderer`);
     const batch7Table = renderDynamicNutritionalTable(features, productSlug);
     if (batch7Table) {
-      console.log(`✅ Successfully rendered Batch 7 nutritional table for: ${productSlug}`);
       return batch7Table;
     }
   }
@@ -2415,22 +2397,17 @@ const renderNutritionalInfo = (productSlug: string, features?: any) => {
   
   // PRIMA PRIORITÀ: Gestione separata per aminoacidi e vitamine/minerali
   if (isAminoAcidProduct && features) {
-    console.log(`💊 Processing AMINO ACID product: ${productSlug} - prioritizing database data`);
     const aminoTable = renderAminoAcidsNutritionalTable(features, productSlug);
     if (aminoTable) {
-      console.log(`✅ Successfully rendered amino acid nutritional table for: ${productSlug}`);
       return aminoTable;
     }
   }
   
   if (isVitaminProduct && features) {
-    console.log(`💊 Processing VITAMIN/MINERAL product: ${productSlug} - using specialized vitamin renderer`);
     const vitaminTable = renderVitaminMineralNutritionalTable(features, productSlug);
     if (vitaminTable) {
-      console.log(`✅ Successfully rendered vitamin/mineral nutritional table for: ${productSlug}`);
       return vitaminTable;
     } else {
-      console.log(`❌ Failed to render vitamin/mineral table for: ${productSlug} - fallback to static`);
     }
   }
   
@@ -2448,13 +2425,10 @@ const renderNutritionalInfo = (productSlug: string, features?: any) => {
                                productSlug.includes('pistacchio-crema');
 
   if (isAlimentiFitProduct && features) {
-    console.log(`🍫 Processing ALIMENTI FIT product: ${productSlug} - using specialized alimenti fit renderer`);
     const alimentiFitTable = renderAlimentiFitNutritionalTable(features, productSlug);
     if (alimentiFitTable) {
-      console.log(`✅ Successfully rendered Alimenti Fit nutritional table for: ${productSlug}`);
       return alimentiFitTable;
     } else {
-      console.log(`❌ Failed to render Alimenti Fit table for: ${productSlug} - fallback to static`);
     }
   }
   
@@ -2491,24 +2465,19 @@ const renderNutritionalInfo = (productSlug: string, features?: any) => {
                            productSlug === 'vegan-isopea-90' || productSlug === 'top-100-xp-cacao';
   
   if (isProteinProduct && features) {
-    console.log(`🥛 Processing PROTEIN product: ${productSlug} - prioritizing database data`);
     const dynamicTable = renderDynamicNutritionalTable(features, productSlug);
     if (dynamicTable) {
-      console.log(`✅ Successfully rendered dynamic nutritional table for protein product: ${productSlug}`);
       return dynamicTable;
     } else {
-      console.log(`❌ Failed to render dynamic table for protein product: ${productSlug} - fallback to static`);
     }
   }
   
   // SECONDA PRIORITÀ: Gestione prodotti con features markdown array (GABA, Acido D-Aspartico, ecc)
   if (Array.isArray(features) && features.length > 0 && typeof features[0] === 'string') {
     const markdownContent = features.join('\n');
-    console.log('📝 Full markdown content:', markdownContent);
     
     // Estrai tutte le tabelle markdown dal contenuto
     const tableMatches = markdownContent.match(/\|[^|]+\|/g);
-    console.log('🔍 Table matches found:', tableMatches);
     
     if (tableMatches && tableMatches.length >= 2) {
       // Filtra le righe che contengono | 
@@ -2516,7 +2485,6 @@ const renderNutritionalInfo = (productSlug: string, features?: any) => {
         line.trim() && line.includes('|') && !line.includes('---')
       );
       
-      console.log('📊 Filtered table lines:', tableLines);
       
       if (tableLines.length >= 2) {
         // Prima riga = headers
@@ -2531,8 +2499,6 @@ const renderNutritionalInfo = (productSlug: string, features?: any) => {
             .filter(cell => cell !== '')
         ).filter(row => row.length > 0);
         
-        console.log('📋 Final Headers:', headers);
-        console.log('📋 Final Data rows:', dataRows);
         
         if (headers.length > 0 && dataRows.length > 0) {
           return (
@@ -2575,7 +2541,6 @@ const renderNutritionalInfo = (productSlug: string, features?: any) => {
     
     // GESTIONE FEATURES ARRAY SEMPLICI (Whey Iso, Prime Oat, Taurina)
     if (!markdownContent.includes('|') && features.length > 0) {
-      console.log('📝 Processing simple features array for nutritional values');
       
       // Trova l'indice della prima riga che contiene valori nutrizionali 
       let nutritionStartIndex = -1;
@@ -4598,7 +4563,6 @@ const renderHowToUseFromMarkdown = (productSlug: string, features?: any) => {
 
 // Funzione per renderizzare gli ingredienti (hardcoded o dinamici)
 const renderIngredientsInfo = (productSlug: string, features?: any) => {
-  console.log('🔍 Rendering ingredients info for:', productSlug, 'Features:', features);
   
   // Gestione array markdown per prodotti come GABA, BCAA, etc.
   if (Array.isArray(features) && features.length > 0) {
@@ -4645,7 +4609,6 @@ const renderIngredientsInfo = (productSlug: string, features?: any) => {
                                productSlug.includes('pistacchio-crema');
 
   if (isAlimentiFitProduct && (features?.ingredienti || features?.ingrediente || features?.ingredients)) {
-    console.log(`🍫 Processing ALIMENTI FIT ingredients for: ${productSlug}`);
     const ingredientsText = features.ingredienti || features.ingrediente || features.ingredients;
     return (
       <div className="space-y-4">
@@ -4907,7 +4870,6 @@ export default function ProductDetail() {
   const { toast } = useToast();
 
   const handleAddToCartFromDialog = (productData: any) => {
-    console.log('handleAddToCartFromDialog chiamato con:', productData);
     addToCart(productData);
     setAddToCartDialogOpen(false);
     
@@ -5065,13 +5027,10 @@ export default function ProductDetail() {
   }, [product, variantsList]);
 
   const handleImageLoad = () => {
-    console.log('✅ Immagine caricata con successo per:', product?.name);
     setImageLoaded(true);
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    console.log('❌ Errore caricamento immagine per:', product?.name);
-    console.log('📁 Path tentato:', currentImage);
     // Previeni il comportamento di default e mantieni l'immagine
     e.preventDefault();
     // Usa il placeholder direttamente nell'src dell'immagine
@@ -5082,7 +5041,6 @@ export default function ProductDetail() {
   };
 
   const handleVariantChange = (variant: ProductVariant) => {
-    console.log("Selezionando gusto:", variant.flavor);
     setSelectedVariant(variant);
   };
 
@@ -5097,7 +5055,6 @@ export default function ProductDetail() {
         setShareConfirmation(false);
       }, 2000);
     } catch (error) {
-      console.error('Errore durante la copia del link:', error);
       // Fallback per browser che non supportano la clipboard API
       const textArea = document.createElement('textarea');
       textArea.value = window.location.href;
@@ -5111,7 +5068,6 @@ export default function ProductDetail() {
           setShareConfirmation(false);
         }, 2000);
       } catch (fallbackError) {
-        console.error('Fallback copy failed:', fallbackError);
       }
       document.body.removeChild(textArea);
     }

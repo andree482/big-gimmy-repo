@@ -564,23 +564,19 @@ export const PRODUCT_IMAGES_BASE_PATH = "/images/products/";
  * @returns percorso completo dell'immagine o placeholder se non trovata
  */
 export const getProductImagePath = (productSlug: string): string => {
-  console.log(`🔍 Cercando immagine per slug: ${productSlug}`);
 
   // Prima controlla il mapping esplicito
   const fileName = PRODUCT_IMAGE_MAP[productSlug];
 
   if (fileName) {
     const fullPath = `/images/products/${fileName}`;
-    console.log(`✅ Mapping diretto trovato per ${productSlug}: ${fullPath}`);
     return fullPath;
   }
 
-  console.log(`❌ Nessuna immagine mappata per ${productSlug}, usando placeholder`);
   return '/images/products/placeholder-product.jpg';
 
   // Se non trova nessun mapping, usa direttamente il placeholder
   // Questo evita il flickering tra caricamento e errore
-  console.log(`❌ Nessuna immagine mappata per ${productSlug}, usando placeholder`);
   return '/images/products/placeholder-product.jpg';
 };
 
@@ -758,7 +754,6 @@ export const imageExists = (imagePath: string): Promise<boolean> => {
  * Funzione di debug per controllare tutte le immagini mappate
  */
 export const debugImages = async (): Promise<void> => {
-  console.log('🔍 Controllo immagini mappate...');
 
   const results = await Promise.all(
     Object.entries(PRODUCT_IMAGE_MAP).map(async ([slug, fileName]) => {
@@ -771,11 +766,8 @@ export const debugImages = async (): Promise<void> => {
   const missing = results.filter(r => !r.exists);
   const found = results.filter(r => r.exists);
 
-  console.log(`✅ Immagini trovate: ${found.length}`);
-  console.log(`❌ Immagini mancanti: ${missing.length}`);
 
   if (missing.length > 0) {
-    console.log('❌ Immagini mancanti:', missing.map(m => m.fullPath));
   }
 };
 
@@ -783,7 +775,6 @@ export const debugImages = async (): Promise<void> => {
  * Funzione per riparare automaticamente mapping immagini mancanti
  */
 export const autoFixMissingImages = (): void => {
-  console.log('🔧 Auto-riparazione mapping immagini...');
 
   const problematicProducts = [
     'burn-out', 'carbo-energy-plus', 'fruitforce', 
@@ -792,7 +783,6 @@ export const autoFixMissingImages = (): void => {
 
   problematicProducts.forEach(slug => {
     const imagePath = getProductImagePath(slug);
-    console.log(`📸 ${slug} → ${imagePath}`);
   });
 };
 
