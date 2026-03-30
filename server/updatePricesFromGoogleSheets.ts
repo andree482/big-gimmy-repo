@@ -262,7 +262,8 @@ async function updatePricesFromGoogleSheets(db: ReturnType<typeof createDb>, spr
         const unit = row[4]?.toString(); // Unit/Size
         const newPrice = parseFloat(row[5]);           // Col F: Prezzo Attuale = price_cents (da modificare)
         // row[6] = Prezzo Originale (sola lettura, ignorato in input)
-        const discountPct = parseFloat(row[7]) || 20;  // Col H: Sconto % (default 20)
+        const rawDiscount = parseFloat(row[7]);
+        const discountPct = isNaN(rawDiscount) ? 20 : rawDiscount;  // Col H: Sconto % (default 20, ma 0 è valido)
         // row[8] = Prezzo Finale (sola lettura, ignorato in input)
         const availability = row[9]?.toString()?.trim()?.toUpperCase(); // Col J: Disponibile
 
@@ -280,9 +281,6 @@ async function updatePricesFromGoogleSheets(db: ReturnType<typeof createDb>, spr
         // price_cents = original_price_cents × (1 - sconto%) → prezzo che paga il cliente (col I)
         const basePriceCents = Math.round(newPrice * 100);
         const finalPriceCents = Math.round(basePriceCents * (1 - discountPct / 100));
-
-        // Converti la disponibilità in boolean
-        const newAvailability = availability === 'SI';
 
         // Cerca la riga nel database
         const existingOptions = await db
@@ -318,12 +316,15 @@ async function updatePricesFromGoogleSheets(db: ReturnType<typeof createDb>, spr
           updatedCount++;
         }
 
-        // Confronta la disponibilità del DATABASE con la nuova disponibilità dal Google Sheets
-        if (targetOption.inStock !== newAvailability) {
-          updates.inStock = newAvailability;
-          hasUpdates = true;
-          console.log(`📦 Disponibilità cambiata: ${brandName} - ${productName} (ID: ${productId}), ${size}${unit}: ${targetOption.inStock ? 'SI' : 'NO'} → ${newAvailability ? 'SI' : 'NO'}`);
-          availabilityUpdatedCount++;
+        // Aggiorna inStock SOLO se la colonna J ha un valore esplicito (SI o NO)
+        if (availability === 'SI' || availability === 'NO') {
+          const newAvailability = availability === 'SI';
+          if (targetOption.inStock !== newAvailability) {
+            updates.inStock = newAvailability;
+            hasUpdates = true;
+            console.log(`📦 Disponibilità cambiata: ${brandName} - ${productName} (ID: ${productId}), ${size}${unit}: ${targetOption.inStock ? 'SI' : 'NO'} → ${newAvailability ? 'SI' : 'NO'}`);
+            availabilityUpdatedCount++;
+          }
         }
 
         // Applica gli aggiornamenti se necessario

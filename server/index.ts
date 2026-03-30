@@ -502,6 +502,7 @@ app.use(express.urlencoded({ extended: false }));
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 const allowedHosts = [
+  ...(process.env.ALLOWED_ORIGINS || '').split(',').map((s: string) => s.trim()).filter(Boolean),
   process.env.ORIGIN || "",
   process.env.APP_URL || "",
   `http://localhost:${PORT}`,

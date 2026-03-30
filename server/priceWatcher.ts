@@ -42,7 +42,8 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
       const size         = row[4]?.toString() || '';
       const rawPriceStr  = row[5]?.toString()?.trim() || '';  // Colonna F — Prezzo Attuale (original_price_cents)
       const newPrice     = parseFloat(rawPriceStr.replace(',', '.'));  // converte in numero JS
-      const discountPct  = parseFloat(row[7]?.toString() || '') || 20; // Colonna H — Sconto % (default 20)
+      const rawDiscount  = parseFloat(row[7]?.toString() ?? '');
+      const discountPct  = isNaN(rawDiscount) ? 20 : rawDiscount;     // Colonna H — Sconto % (default 20, ma 0 è valido)
       const availability = row[9]?.toString()?.trim()?.toUpperCase();  // Colonna J — Disponibile
 
       if (!productId || isNaN(newPrice) || newPrice <= 0) {
@@ -54,7 +55,6 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
       // price_cents = original_price_cents × (1 - sconto%)
       const originalPriceInCents = Math.round(newPrice * 100);
       const finalPriceInCents    = Math.round(originalPriceInCents * (1 - discountPct / 100));
-      const newAvailability = availability === 'SI';
 
       const existingOptions = await db
         .select()
@@ -78,9 +78,14 @@ async function syncPricesFromSheet(spreadsheetId: string, sheetName: string) {
         updates.priceCents = finalPriceInCents;
         updatedCount++;
       }
-      if (targetOption.inStock !== newAvailability) {
-        updates.inStock = newAvailability;
-        availabilityUpdatedCount++;
+      // Aggiorna inStock SOLO se la colonna J ha un valore esplicito (SI o NO)
+      // Se la cella è assente/vuota, l'API Sheets omette il valore → non toccare inStock
+      if (availability === 'SI' || availability === 'NO') {
+        const newAvailability = availability === 'SI';
+        if (targetOption.inStock !== newAvailability) {
+          updates.inStock = newAvailability;
+          availabilityUpdatedCount++;
+        }
       }
 
       if (Object.keys(updates).length > 0) {

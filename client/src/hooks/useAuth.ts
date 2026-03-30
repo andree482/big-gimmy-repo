@@ -374,7 +374,7 @@ const useAuthQuery = () => {
         email: credentials.email,
         password: credentials.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${import.meta.env.VITE_CANONICAL_URL || window.location.origin}/auth/callback`,
           data: {
             first_name: credentials.firstName,
             last_name: credentials.lastName,

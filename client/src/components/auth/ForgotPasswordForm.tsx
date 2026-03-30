@@ -36,7 +36,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
     setIsLoading(true);
     
     try {
-      const redirectTo = `${window.location.origin}/reset-password`;
+      const redirectTo = `${import.meta.env.VITE_CANONICAL_URL || window.location.origin}/reset-password`;
       const { error } = await supabase.auth.resetPasswordForEmail(data.email, { redirectTo });
 
       if (error) {
