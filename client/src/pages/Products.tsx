@@ -17,7 +17,7 @@ import {
 } from "@/lib/productVariants";
 
 // Componente per la scheda prodotto (ora con carrello e dialog)
-const ProductCard = ({ product }: { product: any }) => {
+const ProductCard = ({ product, index = 0 }: { product: any; index?: number }) => {
   const { addToCart } = useCartContext();
 
   const [showAddToCartDialog, setShowAddToCartDialog] = useState(false);
@@ -83,8 +83,8 @@ const priceForCart =
             height={256}
             objectFit="contain"
             objectPosition="center center"
-            priority={true}
-            fetchpriority="high"
+            priority={index < 8}
+            fetchpriority={index < 8 ? "high" : "low"}
           />
         </div>
         {product.isBestSeller && (
@@ -369,8 +369,8 @@ const Products = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {products.map((product: any) => (
-                  <ProductCard key={product.id} product={product} />
+                {products.map((product: any, i: number) => (
+                  <ProductCard key={product.id} product={product} index={i} />
                 ))}
               </div>
             </>

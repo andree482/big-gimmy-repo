@@ -117,9 +117,11 @@ const EffectivenessInfo = ({ product }: { product: any }) => {
 const ProductCard = ({
   product,
   categorySlug,
+  index = 0,
 }: {
   product: any;
   categorySlug?: string;
+  index?: number;
   onSelectProduct: (product: any) => void;
 }) => {
   const [showAddToCartDialog, setShowAddToCartDialog] = useState(false);
@@ -182,6 +184,8 @@ const ProductCard = ({
             height={256}
             objectFit="contain"
             objectPosition="center center"
+            priority={index < 8}
+            fetchpriority={index < 8 ? "high" : "low"}
           />
         </div>
         {product.isBestSeller && (
@@ -615,11 +619,12 @@ export default function ProductCategory() {
             {/* Griglia prodotti */}
             {products.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-{products.map((product: any) => (
+{products.map((product: any, i: number) => (
   <ProductCard
     key={product.id || product.slug}
     product={product}
     categorySlug={params.category}
+    index={i}
     onSelectProduct={addToCart}
   />
 ))}

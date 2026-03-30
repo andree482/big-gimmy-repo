@@ -4912,7 +4912,7 @@ export default function ProductDetail() {
     enabled: !!slug,
   });
 
-  // Fetch dettagli prodotto
+  // Fetch dettagli prodotto — in parallelo con la query principale
   const { data: productDetails } = useQuery({
     queryKey: ['/api/product', slug, 'details'],
     queryFn: async () => {
@@ -4922,10 +4922,10 @@ export default function ProductDetail() {
       }
       return response.json();
     },
-    enabled: !!product,
+    enabled: !!slug,
   });
 
-  // Fetch varianti prodotto dal database tramite API
+  // Fetch varianti prodotto — in parallelo con la query principale
   const { data: variantsList = [] } = useQuery({
     queryKey: ['/api/product', slug, 'options'],
     queryFn: async () => {
@@ -4934,7 +4934,7 @@ export default function ProductDetail() {
       if (!response.ok) throw new Error('Product options not found');
       return response.json();
     },
-    enabled: !!product,
+    enabled: !!slug,
   });
 
   // productVariants è null - ora usiamo solo l'API per le varianti
@@ -5117,7 +5117,8 @@ export default function ProductDetail() {
                 className="w-full h-[500px] object-contain transition-all duration-300"
                 onLoad={handleImageLoad}
                 onError={handleImageError}
-                loading="lazy"
+                loading="eager"
+                fetchPriority="high"
                 style={{ minHeight: '500px' }}
               />
               {!imageLoaded && (
