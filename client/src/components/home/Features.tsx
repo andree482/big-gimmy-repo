@@ -17,7 +17,7 @@ const features = [
     icon: <Store className="h-12 w-12" />,
     title: "Due Sedi",
     description:
-      "Ci trovi a Torino e ora anche in Valle d'Aosta, per essere sempre più vicini ai nostri clienti.",
+      "Ci trovi a Buttigliera e in Valle d'Aosta, per essere sempre più vicini ai nostri clienti.",
   },
 ];
 

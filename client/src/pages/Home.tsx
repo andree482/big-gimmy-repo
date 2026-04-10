@@ -34,12 +34,12 @@ const Home = () => {
                 </AnimatedText>
                 <AnimatedText delay={0.2}>
                   <p className="mb-4 text-base sm:text-lg">
-                    BigGimmy nasce a Torino dalla passione per il fitness e il benessere fisico.
+                    Big Gimmy Integratori nasce a Buttigliera Alta (TO) dalla passione per il fitness e il benessere fisico.
                   </p>
                 </AnimatedText>
                 <AnimatedText delay={0.3}>
                   <p className="text-base sm:text-lg">
-                    Il nostro negozio di Torino è rapidamente diventato un punto di riferimento nella città, grazie all'ampia selezione di prodotti, i prezzi competitivi e soprattutto la competenza del nostro staff.
+                    Il nostro negozio di Buttigliera è rapidamente diventato un punto di riferimento nella città, grazie all'ampia selezione di prodotti, i prezzi competitivi e soprattutto la competenza del nostro staff.
                   </p>
                 </AnimatedText>
                 <div className="mt-6 text-center md:text-left animate-fade-in">
@@ -144,9 +144,8 @@ const Home = () => {
                       <img
                         src={backgroundImage}
                         alt={`${category.name} background`}
-                        className={`absolute inset-0 w-full h-full ${
-                          index === 0 ? 'object-contain' : 'object-cover scale-110'
-                        }`}
+                        className={`absolute inset-0 w-full h-full ${index === 0 ? 'object-contain' : 'object-cover scale-110'
+                          }`}
                         style={{
                           filter: index !== 0 ? 'contrast(1.1) saturate(1.1)' : 'none'
                         }}

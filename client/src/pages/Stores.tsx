@@ -56,7 +56,7 @@ const Stores = () => {
             I Nostri <span className="text-[#FFD100]">Negozi</span>
           </h1>
           <p className="max-w-3xl mx-auto text-lg">
-            Vieni a trovarci nei nostri punti vendita a Torino e in Valle d'Aosta.
+            Vieni a trovarci nei nostri punti vendita a Buttigliera Alta e in Valle d'Aosta.
           </p>
         </div>
       </section>
@@ -78,14 +78,14 @@ const Stores = () => {
             <div className="bg-white p-8 rounded-lg shadow-lg border border-gray-100">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-montserrat font-bold text-3xl text-[#FFD100]">
-                  Sede di Torino
+                  Sede di Buttigliera Alta
                 </h3>
               </div>
 
               <div className="mb-6 w-full h-96 bg-gray-200 rounded-lg overflow-hidden shadow-md">
                 <OptimizedImage
                   src={sedeTorinoPic}
-                  alt="Negozio BigGimmy - Sede di Torino"
+                  alt="Negozio BigGimmy - Sede di Buttigliera"
                   className="w-full h-full"
                   objectFit="cover"
                   objectPosition="center 80%"
@@ -209,7 +209,7 @@ const Stores = () => {
                   </p>
                   <p className="mb-4 flex items-start">
                     <Clock className="h-5 w-5 mr-2 text-[#FFD100] mt-1" />
-                    <span style={{ whiteSpace: "pre-line" }}>{"Lun-Ven 09-12:30, 15-19:30\nSabato 09-12:30, 15-19"}</span>
+                    <span style={{ whiteSpace: "pre-line" }}>{"Lun-Ven 09-12:30, 15-19:30\n"}</span>
                   </p>
                   <a
                     href="https://maps.app.goo.gl/zTbmgiNPYLdd6QQ69"
