@@ -1,9 +1,9 @@
 const Gallery = () => {
   // Dati placeholder per la galleria
   const placeholders = [
-    "Negozio Torino - Esterno", 
-    "Negozio Torino - Interno", 
-    "Negozio Aosta - Esterno", 
+    "Negozio Torino - Esterno",
+    "Negozio Torino - Interno",
+    "Negozio Aosta - Esterno",
     "Negozio Aosta - Interno",
     "Proteine e Integratori",
     "Accessori Fitness",
@@ -37,8 +37,8 @@ const Gallery = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {placeholders.map((title, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className="w-full h-64 bg-gray-200 rounded-lg shadow-md flex items-center justify-center"
               >
                 <div className="text-center p-4">
@@ -69,7 +69,7 @@ const Gallery = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
-              <div 
+              <div
                 className="w-full h-96 bg-gray-200 rounded-lg shadow-md mb-4 flex items-center justify-center"
               >
                 <div className="text-center p-4">
@@ -80,16 +80,16 @@ const Gallery = () => {
                       <path d="M12 7L12 21" stroke="currentColor" strokeWidth="2" />
                     </svg>
                   </div>
-                  <p className="text-gray-500 font-semibold text-xl">Sede di Torino</p>
+                  <p className="text-gray-500 font-semibold text-xl">Sede di Buttigliera</p>
                 </div>
               </div>
-              <h3 className="font-montserrat font-bold text-xl mb-2">Sede di Torino</h3>
+              <h3 className="font-montserrat font-bold text-xl mb-2">Sede di Buttigliera</h3>
               <p>
                 Il nostro negozio storico, ampio e ben organizzato, dove potrai trovare un'ampia selezione di prodotti.
               </p>
             </div>
             <div>
-              <div 
+              <div
                 className="w-full h-96 bg-gray-200 rounded-lg shadow-md mb-4 flex items-center justify-center"
               >
                 <div className="text-center p-4">

@@ -23,10 +23,10 @@ const Footer = () => {
               <a href="https://www.facebook.com/p/BIG-GIMMY-Integratori-100063525402348/" target="_blank" rel="noopener noreferrer" className="text-white hover:text-[#FFD100] transition-all" aria-label="Visita la nostra pagina Facebook">
                 <Facebook className="h-6 w-6" />
               </a>
-              <a href="https://www.instagram.com/biggimmyintegratori/" target="_blank" rel="noopener noreferrer" className="text-white hover:text-[#FFD100] transition-all" aria-label="Instagram Torino">
+              <a href="https://www.instagram.com/biggimmyintegratori/" target="_blank" rel="noopener noreferrer" className="text-white hover:text-[#FFD100] transition-all" aria-label="Instagram Buttigliera">
                 <div className="flex flex-col items-center gap-0.5">
                   <Instagram className="h-6 w-6" />
-                  <span className="text-[10px] leading-none">Torino</span>
+                  <span className="text-[10px] leading-none">Buttigliera</span>
                 </div>
               </a>
               <a href="https://www.instagram.com/biggimmyintegratori2/" target="_blank" rel="noopener noreferrer" className="text-white hover:text-[#FFD100] transition-all" aria-label="Instagram Aosta">

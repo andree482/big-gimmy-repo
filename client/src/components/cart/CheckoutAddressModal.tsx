@@ -203,11 +203,10 @@ export function CheckoutAddressModal({
                   {addresses.map((addr) => (
                     <div
                       key={addr.id}
-                      className={`flex items-start space-x-3 p-4 rounded-lg border-2 transition-colors cursor-pointer ${
-                        selectedAddressId === addr.id
+                      className={`flex items-start space-x-3 p-4 rounded-lg border-2 transition-colors cursor-pointer ${selectedAddressId === addr.id
                           ? "border-[#FFD100] bg-yellow-50"
                           : "border-gray-200 hover:border-gray-300"
-                      }`}
+                        }`}
                       onClick={() => setSelectedAddressId(addr.id)}
                     >
                       <RadioGroupItem value={addr.id.toString()} id={`addr-${addr.id}`} />
@@ -301,7 +300,7 @@ export function CheckoutAddressModal({
                       id="city"
                       value={newAddress.city}
                       onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
-                      placeholder="Torino"
+                      placeholder="Buttigliera"
                       required
                     />
                   </div>
