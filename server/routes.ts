@@ -4863,8 +4863,9 @@ app.post("/api/contact", uploadAttachment.array("attachments", 4), async (req: R
         }
 
         const secret = process.env.STRIPE_SECRET_KEY;
-        const successUrl = process.env.CHECKOUT_SUCCESS_URL || "http://localhost:5000/checkout/success";
-        const cancelUrl = process.env.CHECKOUT_CANCEL_URL || "http://localhost:5000/checkout/cancel";
+        const reqOrigin = req.headers.origin || `${req.protocol}://${req.get("host")}`;
+        const successUrl = reqOrigin.includes("localhost") ? "http://localhost:5000/checkout/success" : `${reqOrigin}/checkout/success`;
+        const cancelUrl = reqOrigin.includes("localhost") ? "http://localhost:5000/checkout/cancel" : `${reqOrigin}/checkout/cancel`;
         if (!secret) {
           console.error("Checkout error: STRIPE_SECRET_KEY mancante");
           return res.status(500).json({ success: false, message: "Stripe non configurato" });

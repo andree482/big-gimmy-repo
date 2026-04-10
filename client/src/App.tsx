@@ -46,7 +46,7 @@ const PageLoader = () => (
 function Router() {
   // Attiva lo scroll automatico verso l'alto ad ogni cambio di pagina
   useScrollToTop();
-  
+
   return (
     <Switch>
       <Route path="/" component={Home} />
@@ -91,8 +91,8 @@ function App() {
   useEffect(() => {
     if ('serviceWorker' in navigator && import.meta.env.PROD) {
       navigator.serviceWorker.register('/sw.js')
-        .then((_registration) => {})
-        .catch((_registrationError) => {});
+        .then((_registration) => { })
+        .catch((_registrationError) => { });
     }
   }, []);
 
@@ -137,7 +137,7 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
- 
+
 
   return (
     <CartProvider>

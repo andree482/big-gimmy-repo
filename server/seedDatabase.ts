@@ -1,12 +1,12 @@
 import { db } from "./db";
-import { 
-  stores, 
-  brands, 
+import {
+  stores,
+  brands,
   productCategories,
-  products, 
-  productImages, 
-  productSizes, 
-  productAvailability 
+  products,
+  productImages,
+  productSizes,
+  productAvailability
 } from "@shared/schema";
 
 async function seed() {
@@ -15,7 +15,7 @@ async function seed() {
   // Inserimento dei negozi
   const insertedStores = await db.insert(stores).values([
     {
-      name: "Sede di Torino",
+      name: "Sede di Buttigliera Alta",
       address: "Corso Torino, 85, 10090 Buttigliera Alta TO",
       phone: "3385486392",
       email: "info@biggimmy.it",
@@ -28,7 +28,7 @@ async function seed() {
       address: "Corso Saint-Martin-de-Corléans, 55, 11100 Aosta AO",
       phone: "0165 086006",
       email: "aosta@biggimmy.it",
-      hours: "Lunedi-Venerdi 09-12:30, 15-19:30\nSabato 09-12:30, 15-19",
+      hours: "Lunedi-Venerdi 09-12:30, 15-19:30\n",
       mapLink: "https://maps.app.goo.gl/zTbmgiNPYLdd6QQ69",
       isNew: true,
     }
@@ -107,7 +107,7 @@ async function seed() {
 
   // Inserimento dei prodotti
   const proteineCategory = insertedCategories.find(c => c.slug === "proteine")!;
-  
+
   const insertedProducts = await db.insert(products).values([
     {
       slug: "gold-standard-100-whey",
