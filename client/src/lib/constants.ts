@@ -114,7 +114,7 @@ export const brands = [
 
 export const stores = [
   {
-    name: "Sede di Torino",
+    name: "Sede di Buttigliera Alta",
     address: "Corso Torino, 85, 10090 Buttigliera Alta TO",
     phone: "3385486392",
     hours: "Lunedi-Venerdi 09:30-12:30, 15:30-19:30\nSabato 09:30-12:30",
@@ -128,7 +128,7 @@ export const stores = [
     name: "Sede di Aosta",
     address: "Corso Saint-Martin-de-Corléans, 55, 11100 Aosta AO",
     phone: "0165 086006",
-    hours: "Lunedi-Venerdi 09-12:30, 15-19:30\nSabato 09-12:30, 15-19",
+    hours: "Lunedi-Venerdi 09-12:30, 15-19:30\n",
     mapLink: "https://maps.app.goo.gl/zTbmgiNPYLdd6QQ69",
     description: "",
     image: "", // Immagine rimossa in attesa di contenuti
