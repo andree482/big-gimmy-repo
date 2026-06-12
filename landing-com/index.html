@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stiamo aggiornando il sito — bigGimmy Integratori</title>
+  <meta name="description" content="Il sito si è trasferito su www.biggimmyintegratori.it. Visita la nuova versione!">
+  <meta name="robots" content="noindex">
+  <meta http-equiv="refresh" content="8;url=https://www.biggimmyintegratori.it">
+  <link rel="canonical" href="https://www.biggimmyintegratori.it">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+      color: #f8fafc;
+      padding: 24px;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+    .container {
+      max-width: 760px;
+      width: 100%;
+      text-align: center;
+      animation: fadeIn 0.6s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .icon {
+      font-size: clamp(64px, 10vw, 96px);
+      margin-bottom: 24px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    h1 {
+      font-size: clamp(40px, 7vw, 72px);
+      font-weight: 900;
+      margin-bottom: 16px;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle {
+      font-size: clamp(20px, 3vw, 26px);
+      margin-bottom: 40px;
+      color: #cbd5e1;
+      font-weight: 500;
+    }
+    .apology {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-left: 4px solid #f59e0b;
+      padding: 24px 28px;
+      border-radius: 12px;
+      margin-bottom: 48px;
+      text-align: left;
+      font-size: clamp(15px, 2vw, 17px);
+      line-height: 1.7;
+      color: #e2e8f0;
+    }
+    .apology strong {
+      color: #fbbf24;
+      font-weight: 700;
+    }
+    .apology p + p {
+      margin-top: 12px;
+    }
+    .cta-wrap {
+      margin-bottom: 32px;
+    }
+    .cta {
+      display: inline-block;
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      color: #0f172a;
+      padding: 20px 44px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: clamp(18px, 2.5vw, 22px);
+      text-decoration: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 12px 32px rgba(245, 158, 11, 0.35);
+      letter-spacing: 0.01em;
+    }
+    .cta:hover, .cta:focus {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 40px rgba(245, 158, 11, 0.5);
+      outline: none;
+    }
+    .cta:active {
+      transform: translateY(-1px);
+    }
+    .url-box {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 12px 24px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      font-size: 15px;
+      color: #cbd5e1;
+    }
+    .url-box strong {
+      color: #fbbf24;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .auto-redirect {
+      margin-top: 36px;
+      font-size: 14px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(148, 163, 184, 0.3);
+      border-top-color: #94a3b8;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .brand {
+      margin-top: 48px;
+      font-size: 13px;
+      color: #64748b;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    @media (max-width: 480px) {
+      .apology { padding: 18px 20px; }
+      .cta { padding: 18px 32px; width: 100%; }
+      .url-box { font-size: 14px; padding: 10px 18px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container" role="main">
+    <div class="icon" aria-hidden="true">🔧</div>
+    <h1>Lavori in corso</h1>
+    <p class="subtitle">Stiamo aggiornando il sito per migliorarlo.</p>
+
+    <div class="apology" role="region" aria-label="Messaggio importante">
+      <p><strong>Ci scusiamo per il disservizio degli ultimi giorni.</strong></p>
+      <p>A causa di un problema tecnico con il nostro precedente hosting, il sito è rimasto temporaneamente offline. Sappiamo che è stato un disagio per molti di voi e ce ne scusiamo sinceramente.</p>
+      <p><strong>Buone notizie:</strong> il sito è già di nuovo online al nuovo indirizzo qui sotto. Tutti i prodotti, il tuo account e gli ordini sono salvi.</p>
+    </div>
+
+    <div class="cta-wrap">
+      <a href="https://www.biggimmyintegratori.it" class="cta" rel="noopener">
+        Vai al sito →
+      </a>
+    </div>
+
+    <div class="url-box">
+      Salva il nuovo indirizzo: <strong>www.biggimmyintegratori.it</strong>
+    </div>
+
+    <div class="auto-redirect">
+      <span class="spinner" aria-hidden="true"></span>
+      <span>Verrai reindirizzato automaticamente tra pochi secondi…</span>
+    </div>
+
+    <div class="brand">bigGimmy Integratori</div>
+  </main>
+</body>
+</html>
