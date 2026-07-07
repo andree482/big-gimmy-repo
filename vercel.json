@@ -1,5 +1,0 @@
-{
-  "redirects": [
-    { "source": "/:path*", "destination": "https://www.biggimmyintegratori.it/:path*", "permanent": true }
-  ]
-}
