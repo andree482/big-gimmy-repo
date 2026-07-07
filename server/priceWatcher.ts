@@ -8,8 +8,16 @@ const CREDENTIALS_PATH = 'google-credentials.json';
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 const PRIVATE_SHEET_NAME = 'Prezzi Prodotti';
 
+function loadGoogleCredentials() {
+  const fromEnv = process.env.GOOGLE_CREDENTIALS_JSON;
+  if (fromEnv && fromEnv.trim().length > 0) {
+    return JSON.parse(fromEnv);
+  }
+  return JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+}
+
 async function authenticate() {
-  const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+  const credentials = loadGoogleCredentials();
   const auth = new google.auth.GoogleAuth({ credentials, scopes: SCOPES });
   return auth;
 }
